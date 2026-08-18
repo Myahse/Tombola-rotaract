@@ -1,6 +1,6 @@
 import type { IncomingMessage, Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
-import type { RealtimeMessage, RealtimeRole } from "../../../shared/protocol";
+import type { RealtimeMessage, RealtimeRole } from "../protocol.js";
 
 export type { RealtimeMessage, RealtimeRole };
 

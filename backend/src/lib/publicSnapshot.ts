@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
-import { db } from "../db/index";
-import { events, orders, prizes, tickets } from "../db/schema";
-import { broadcast } from "./realtime";
+import { db } from "../db/index.js";
+import { events, orders, prizes, tickets } from "../db/schema.js";
+import { broadcast } from "./realtime.js";
 
 export async function getCurrentPublicEvent() {
   const [event] = await db

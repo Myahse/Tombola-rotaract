@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { db } from "./db/index";
-import { events, prizes } from "./db/schema";
+import { db } from "./db/index.js";
+import { events, prizes } from "./db/schema.js";
 
 async function seed() {
   const existing = await db.select({ id: events.id }).from(events).limit(1);

@@ -1,17 +1,17 @@
 import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../db/index";
-import { events, members, orders, prizes, tickets } from "../db/schema";
+import { db } from "../db/index.js";
+import { events, members, orders, prizes, tickets } from "../db/schema.js";
 import {
   clearMemberSession,
   optionalMemberId,
   requireMember,
   setMemberSession,
   type MemberRequest,
-} from "../lib/auth";
-import { hashPassword, verifyPassword } from "../lib/passwords";
-import { notifyMemberRegistered } from "../lib/mail";
+} from "../lib/auth.js";
+import { hashPassword, verifyPassword } from "../lib/passwords.js";
+import { notifyMemberRegistered } from "../lib/mail.js";
 
 export const authRouter = Router();
 

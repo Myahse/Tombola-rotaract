@@ -1,3 +1,4 @@
+import { apiUrl } from "./config";
 import type {
   AdminEvent,
   AdminOrder,
@@ -11,7 +12,7 @@ import type {
 } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",

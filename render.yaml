@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: rotaract-tombola-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install --include=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    domains:
+      - api.rotaractiugb.com
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: CORS_ORIGIN
+        value: https://tombola.rotaractiugb.com,https://organisateurs.rotaractiugb.com
+      - key: PUBLIC_SITE_URL
+        value: https://tombola.rotaractiugb.com
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Rotaract IUGB Club

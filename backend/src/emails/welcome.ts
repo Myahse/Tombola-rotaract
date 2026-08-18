@@ -1,4 +1,4 @@
-import { siteUrl, wrapEmail } from "./layout";
+import { siteUrl, wrapEmail } from "./layout.js";
 
 export type WelcomeEmail = {
   name: string;

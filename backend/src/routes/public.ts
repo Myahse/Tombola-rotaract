@@ -1,11 +1,11 @@
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../db/index";
-import { drawResults, events, members, orders, prizes, tickets } from "../db/schema";
-import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth";
-import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot";
-import { nextTicketNumbers } from "../lib/tickets";
+import { db } from "../db/index.js";
+import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
+import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.js";
+import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
+import { nextTicketNumbers } from "../lib/tickets.js";
 
 export const publicRouter = Router();
 

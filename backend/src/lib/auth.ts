@@ -68,7 +68,7 @@ function cookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
+    secure: Boolean(process.env.VERCEL) || process.env.NODE_ENV === "production",
     maxAge: WEEK_MS,
     path: "/",
   };
