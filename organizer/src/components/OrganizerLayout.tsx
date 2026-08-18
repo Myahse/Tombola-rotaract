@@ -6,7 +6,6 @@ import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
 import { LiveProvider } from "../live";
 import { LoginModal } from "./LoginModal";
-import logo from "../assets/logo.png";
 
 const publicSite = import.meta.env.VITE_PUBLIC_SITE ?? "http://localhost:5173";
 
@@ -68,7 +67,15 @@ function OrganizerShell() {
     <div className="app-shell">
       <header className="site-header no-print">
         <NavLink to={base} className="brand-row">
-          <img src={logo} alt="Rotaract IUGB Club" className="brand-logo" />
+          <img
+            src="/logo.png"
+            alt="Rotaract IUGB Club"
+            className="brand-logo"
+            width={960}
+            height={614}
+            decoding="async"
+            fetchPriority="high"
+          />
         </NavLink>
         {loggedIn ? (
           <nav className="site-nav hide-mobile" aria-label="Organizers">
