@@ -1,0 +1,13 @@
+{
+  "name": "club-tombola",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "concurrently -n api,web,org -c magenta,cyan,yellow \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix organizer\"",
+    "db:seed": "npm run db:seed --prefix backend",
+    "build": "npm run build --prefix frontend && npm run build --prefix organizer"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

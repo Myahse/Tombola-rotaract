@@ -1,0 +1,117 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useTranslation } from "react-i18next";
+import { api, formatMoney } from "../api";
+import { useAuth } from "../auth";
+import type { PublicEvent } from "../types";
+
+export function BuyPage() {
+  const { t, i18n } = useTranslation();
+  const { lang } = useParams();
+  const navigate = useNavigate();
+  const { member, loading } = useAuth();
+  const [event, setEvent] = useState<PublicEvent | null | undefined>(undefined);
+  const [quantity, setQuantity] = useState(1);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .currentEvent()
+      .then((data) => setEvent(data.event))
+      .catch(() => setEvent(null));
+  }, []);
+
+  if (event === undefined || loading) return <p className="lede">…</p>;
+  if (!event || event.status !== "on_sale" || event.remainingTickets < 1) {
+    return (
+      <section className="vitrine-hero">
+        <h1>{t("buy.none")}</h1>
+        <Link to={`/${lang}`} className="btn-outline">
+          {t("nav.home")}
+        </Link>
+      </section>
+    );
+  }
+
+  if (!member) {
+    const next = `/${lang}/buy`;
+    return (
+      <section className="section" style={{ borderBottom: 0 }}>
+        <p className="eyebrow">{t("home.kicker")}</p>
+        <h1>{t("buy.title")}</h1>
+        <p>{t("buy.needAccount")}</p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link to={`/${lang}/login?next=${encodeURIComponent(next)}`} className="btn-primary">
+            {t("nav.login")}
+          </Link>
+          <Link to={`/${lang}/register?next=${encodeURIComponent(next)}`} className="btn-outline">
+            {t("nav.register")}
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
+  const max = Math.min(20, event.remainingTickets);
+  const total = formatMoney(event.ticketPriceCents * quantity, event.currency, i18n.language);
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    setBusy(true);
+    setError("");
+    try {
+      const order = await api.buy({
+        quantity,
+        phone: String(form.get("phone") ?? ""),
+      });
+      navigate(`/${lang}/tickets/${order.token}`);
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setError(
+        code === "not_enough_tickets"
+          ? t("errors.notEnough")
+          : code === "not_on_sale"
+            ? t("errors.notOnSale")
+            : code === "login_required"
+              ? t("buy.needAccount")
+              : t("errors.generic"),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="section" style={{ borderBottom: 0 }}>
+      <p className="eyebrow">{t("home.kicker")}</p>
+      <h1>{t("buy.title")}</h1>
+      <p>{t("buy.intro")}</p>
+      <p className="buy-as">{t("buy.loggedInAs", { name: member.name, email: member.email })}</p>
+      <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
+        <label>
+          {t("buy.phone")}
+          <input name="phone" defaultValue={member.phone ?? ""} />
+        </label>
+        <label>
+          {t("buy.quantity")}
+          <input
+            type="number"
+            min={1}
+            max={max}
+            value={quantity}
+            onChange={(e) => setQuantity(Number(e.target.value))}
+          />
+        </label>
+        <p>
+          {t("buy.total")}: <strong>{total}</strong>
+        </p>
+        {error ? <p className="text-sm text-ticket">{error}</p> : null}
+        <button disabled={busy} className="btn-primary btn-block">
+          {busy ? t("buy.submitting") : t("buy.submit")}
+        </button>
+      </form>
+    </section>
+  );
+}
