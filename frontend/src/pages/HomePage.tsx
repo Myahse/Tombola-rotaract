@@ -5,7 +5,6 @@ import { api, formatMoney, localized } from "../api";
 import type { PublicEvent } from "../types";
 import { StatusPill } from "../components/ScratchTicket";
 import { useRealtime } from "../useRealtime";
-import logo from "../assets/logo.png";
 
 export function HomePage() {
   const { t, i18n } = useTranslation();
@@ -30,7 +29,15 @@ export function HomePage() {
   return (
     <>
       <section className="vitrine-hero">
-        <img src={logo} alt="Rotaract IUGB Club" className="brand-logo hero" />
+        <img
+          src="/logo.png"
+          alt="Rotaract IUGB Club"
+          className="brand-logo hero"
+          width={960}
+          height={614}
+          decoding="async"
+          fetchPriority="high"
+        />
         <p className="eyebrow">{t("landing.kicker")}</p>
         <h1>{t("landing.heroTitle")}</h1>
         <p className="lede">{t("landing.heroLede")}</p>
