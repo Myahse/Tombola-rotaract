@@ -1,4 +1,5 @@
-import type { RealtimeMessage, RealtimeRole } from "../../shared/protocol";
+import type { RealtimeMessage, RealtimeRole } from "./protocol";
+import { websocketUrl } from "./config";
 import { useEffect, useRef, useState } from "react";
 
 export function useRealtime(role: RealtimeRole, onMessage: (message: RealtimeMessage) => void) {
@@ -7,14 +8,13 @@ export function useRealtime(role: RealtimeRole, onMessage: (message: RealtimeMes
   callback.current = onMessage;
 
   useEffect(() => {
-    const protocol = window.location.protocol === "https:" ? "wss" : "ws";
     let socket: WebSocket | undefined;
     let timer: number | undefined;
     let closed = false;
 
     const connect = () => {
       if (closed) return;
-      socket = new WebSocket(`${protocol}://${window.location.host}/ws`);
+      socket = new WebSocket(websocketUrl());
       socket.onopen = () => {
         setConnected(true);
         socket?.send(JSON.stringify({ type: "hello", role }));

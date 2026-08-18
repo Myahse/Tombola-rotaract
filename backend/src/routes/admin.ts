@@ -1,13 +1,13 @@
 import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../db/index";
-import { drawResults, events, orders, prizes, tickets } from "../db/schema";
-import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth";
-import { shuffle } from "../lib/tickets";
-import { publishChange } from "../lib/publicSnapshot";
-import { notifyTombolaWinners } from "../lib/mail";
-import { siteUrl } from "../emails/layout";
+import { db } from "../db/index.js";
+import { drawResults, events, orders, prizes, tickets } from "../db/schema.js";
+import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
+import { shuffle } from "../lib/tickets.js";
+import { publishChange } from "../lib/publicSnapshot.js";
+import { notifyTombolaWinners } from "../lib/mail.js";
+import { siteUrl } from "../emails/layout.js";
 
 export const adminRouter = Router();
 

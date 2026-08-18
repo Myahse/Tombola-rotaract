@@ -1,6 +1,6 @@
-import { welcomeEmail } from "../emails/welcome";
-import { winnerEmail, type WinnerEmail } from "../emails/winner";
-import { optionalTemplateId, sendBrevoEmail } from "./brevo";
+import { welcomeEmail } from "../emails/welcome.js";
+import { winnerEmail, type WinnerEmail } from "../emails/winner.js";
+import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
 
 export async function notifyMemberRegistered(member: { name: string; email: string }) {
   const message = welcomeEmail(member);

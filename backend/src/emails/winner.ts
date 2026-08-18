@@ -1,4 +1,4 @@
-import { escapeHtml, siteUrl, wrapEmail } from "./layout";
+import { escapeHtml, siteUrl, wrapEmail } from "./layout.js";
 
 export type WinnerEmail = {
   name: string;
