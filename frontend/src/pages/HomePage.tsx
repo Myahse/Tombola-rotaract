@@ -31,7 +31,6 @@ export function HomePage() {
     <>
       <section className="vitrine-hero">
         <BrandLogo hero />
-        <p className="eyebrow">{t("landing.kicker")}</p>
         <h1>{t("landing.heroTitle")}</h1>
         <p className="lede">{t("landing.heroLede")}</p>
         <div className="mt-2 flex flex-wrap justify-center gap-2">
