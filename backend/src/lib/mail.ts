@@ -1,10 +1,13 @@
-import { participantEmail, type ParticipantEmail } from "../emails/participant.js";
+import { drawResultsEmail, type DrawResultsEmail } from "../emails/results.js";
 import { purchaseEmail, type PurchaseEmail } from "../emails/purchase.js";
 import { welcomeEmail } from "../emails/welcome.js";
-import { winnerEmail, type WinnerEmail } from "../emails/winner.js";
 import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
 
-async function send(to: { email: string; name?: string }, message: { subject: string; html: string; text: string; params?: Record<string, string> }, templateEnv?: Parameters<typeof optionalTemplateId>[0]) {
+async function send(
+  to: { email: string; name?: string },
+  message: { subject: string; html: string; text: string; params?: Record<string, string> },
+  templateEnv?: Parameters<typeof optionalTemplateId>[0],
+) {
   await sendBrevoEmail({
     to,
     subject: message.subject,
@@ -32,28 +35,17 @@ export async function notifyPurchase(order: PurchaseEmail) {
   }
 }
 
-export async function notifyTombolaWinners(winners: WinnerEmail[]) {
-  for (const winner of winners) {
-    if (!winner.email) continue;
-    try {
-      await send({ email: winner.email, name: winner.name }, winnerEmail(winner), "BREVO_TEMPLATE_WINNER");
-    } catch (error) {
-      console.error(`Winner email failed for ${winner.email}`, error);
-    }
-  }
-}
-
-export async function notifyTombolaParticipants(participants: ParticipantEmail[]) {
-  for (const participant of participants) {
-    if (!participant.email) continue;
+export async function notifyDrawResults(recipients: DrawResultsEmail[]) {
+  for (const recipient of recipients) {
+    if (!recipient.email) continue;
     try {
       await send(
-        { email: participant.email, name: participant.name },
-        participantEmail(participant),
-        "BREVO_TEMPLATE_PARTICIPANT",
+        { email: recipient.email, name: recipient.name },
+        drawResultsEmail(recipient),
+        "BREVO_TEMPLATE_WINNER",
       );
     } catch (error) {
-      console.error(`Participant email failed for ${participant.email}`, error);
+      console.error(`Draw results email failed for ${recipient.email}`, error);
     }
   }
 }
