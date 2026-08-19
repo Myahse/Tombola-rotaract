@@ -37,6 +37,7 @@ export function resetPasswordEmail(data: ResetPasswordEmail) {
       name,
       resetUrl: data.resetUrl,
       logoUrl: siteUrl("/logo.png"),
+      logoDarkUrl: siteUrl("/logo-white.png"),
     },
   };
 }

@@ -1271,6 +1271,63 @@ textarea.skeleton {
   padding: 0 0.15em;
   font-weight: 650;
 }
+
+@media (prefers-color-scheme: dark) {
+  .mail-inbox {
+    border-color: #2c2c32;
+    background: #121214;
+    color: #f3f3f5;
+  }
+  .mail-meta {
+    border-bottom-color: #2c2c32;
+    background: #1c1c21;
+    color: #f3f3f5;
+  }
+  .mail-meta p,
+  .mail-meta strong,
+  .mail-subject {
+    color: #f3f3f5 !important;
+  }
+  .mail-meta span,
+  .mail-preheader {
+    color: #a8a8b0 !important;
+  }
+  .mail-stage {
+    background: #121214;
+  }
+  .mail-card {
+    background: #1c1c21;
+    border-color: #2c2c32;
+  }
+  .mail-brand,
+  .mail-card footer {
+    border-color: #2c2c32;
+  }
+  .mail-kicker {
+    color: #ef4b7e;
+  }
+  .mail-body h2 {
+    color: #f3f3f5;
+  }
+  .mail-body p {
+    color: #a8a8b0;
+  }
+  .mail-cta a,
+  .mail-cta a:hover {
+    background: #be034d;
+    color: #fff !important;
+  }
+  .mail-card footer {
+    color: #8e8e96;
+  }
+  .mail-token {
+    background: #3a1524;
+    color: #ef4b7e;
+  }
+  .mail-inbox.mobile .mail-card {
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  }
+}
 .mail-pick {
   display: grid;
   gap: 0.1rem;

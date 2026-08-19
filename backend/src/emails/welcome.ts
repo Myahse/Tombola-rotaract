@@ -41,6 +41,7 @@ export function welcomeEmail(data: WelcomeEmail) {
       accountUrl,
       buyUrl,
       logoUrl: siteUrl("/logo.png"),
+      logoDarkUrl: siteUrl("/logo-white.png"),
     },
   };
 }

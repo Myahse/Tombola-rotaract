@@ -129,7 +129,10 @@ export function EmailPreview({
         <div className="mail-stage">
           <article className="mail-card">
             <header className="mail-brand">
-              <img src="/logo.png" alt="Rotaract IUGB Club" width={220} height={141} />
+              <picture>
+                <source srcSet="/logo-white.png" media="(prefers-color-scheme: dark)" />
+                <img src="/logo.png" alt="Rotaract IUGB Club" width={220} height={141} />
+              </picture>
             </header>
             <div className="mail-body">
               <p className="mail-kicker">Rotaract IUGB Club</p>
