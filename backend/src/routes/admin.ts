@@ -6,7 +6,7 @@ import { drawResults, events, members, orders, prizes, tickets } from "../db/sch
 import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
 import { shuffle } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
-import { notifyTombolaParticipants, notifyTombolaWinners } from "../lib/mail.js";
+import { notifyDrawResults } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
@@ -509,7 +509,7 @@ async function emailDrawResults() {
   const event = await latestEvent();
   if (!event || event.status !== "drawn") return;
 
-  const winners = await db
+  const prizesWon = await db
     .select({
       rank: prizes.rank,
       prizeNameFr: prizes.nameFr,
@@ -526,19 +526,13 @@ async function emailDrawResults() {
     .where(eq(drawResults.eventId, event.id))
     .orderBy(asc(prizes.rank));
 
-  await notifyTombolaWinners(
-    winners.map((winner) => ({
-      name: winner.buyerName,
-      email: winner.buyerEmail,
-      eventTitleFr: event.titleFr,
-      eventTitleEn: event.titleEn,
-      prizeNameFr: winner.prizeNameFr,
-      prizeNameEn: winner.prizeNameEn,
-      rank: winner.rank,
-      ticketNumber: winner.ticketNumber,
-      ticketsUrl: siteUrl(`/fr/tickets/${winner.accessToken}`),
-    })),
-  );
+  const board = prizesWon.map((prize) => ({
+    rank: prize.rank,
+    prizeNameFr: prize.prizeNameFr,
+    prizeNameEn: prize.prizeNameEn,
+    ticketNumber: prize.ticketNumber,
+    buyerName: prize.buyerName,
+  }));
 
   const paidBuyers = await db
     .select({
@@ -549,23 +543,35 @@ async function emailDrawResults() {
     .from(orders)
     .where(and(eq(orders.eventId, event.id), eq(orders.status, "paid")));
 
-  const winnerEmails = new Set(winners.map((winner) => winner.buyerEmail.trim().toLowerCase()));
+  const recipients = [];
   const seen = new Set<string>();
-  const participants = [];
   for (const buyer of paidBuyers) {
     const email = buyer.buyerEmail.trim().toLowerCase();
-    if (!email || winnerEmails.has(email) || seen.has(email)) continue;
+    if (!email || seen.has(email)) continue;
     seen.add(email);
-    participants.push({
+    const wins = prizesWon
+      .filter((prize) => prize.buyerEmail.trim().toLowerCase() === email)
+      .map((prize) => ({
+        rank: prize.rank,
+        prizeNameFr: prize.prizeNameFr,
+        prizeNameEn: prize.prizeNameEn,
+        ticketNumber: prize.ticketNumber,
+        buyerName: prize.buyerName,
+      }));
+    const token = prizesWon.find((prize) => prize.buyerEmail.trim().toLowerCase() === email)?.accessToken
+      ?? buyer.accessToken;
+    recipients.push({
       name: buyer.buyerName,
       email: buyer.buyerEmail,
       eventTitleFr: event.titleFr,
       eventTitleEn: event.titleEn,
-      ticketsUrl: siteUrl(`/fr/tickets/${buyer.accessToken}`),
+      ticketsUrl: siteUrl(`/fr/tickets/${token}`),
+      prizes: board,
+      wins,
     });
   }
 
-  await notifyTombolaParticipants(participants);
+  await notifyDrawResults(recipients);
 }
 
 adminRouter.get("/contestants", requireAdmin, async (_req, res) => {
