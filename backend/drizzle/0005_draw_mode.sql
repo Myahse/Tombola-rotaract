@@ -1,0 +1,1 @@
+ALTER TABLE events ADD COLUMN IF NOT EXISTS draw_mode text NOT NULL DEFAULT 'scratch';

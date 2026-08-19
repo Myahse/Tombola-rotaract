@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, formatMoney, localized } from "../api";
 import type { PublicEvent } from "../types";
 import { StatusPill } from "../components/ScratchTicket";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { useRealtime } from "../useRealtime";
 
 export function TombolaPage() {
@@ -25,7 +26,7 @@ export function TombolaPage() {
   });
 
   if (event === undefined) {
-    return <p className="lede" style={{ padding: "4rem 0", textAlign: "center" }}>…</p>;
+    return <PageSkeleton kind="hero" />;
   }
   if (!event) {
     return (
@@ -68,7 +69,7 @@ export function TombolaPage() {
               {t("nav.buy")}
             </Link>
           ) : null}
-          {event.status === "drawn" ? (
+          {event.status === "drawn" && event.drawMode !== "scratch" ? (
             <Link to={`/${lang}/results`} className="btn-outline">
               {t("home.seeResults")}
             </Link>

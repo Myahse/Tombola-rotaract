@@ -1,4 +1,5 @@
 export type EventStatus = "draft" | "on_sale" | "closed" | "drawn";
+export type DrawMode = "scratch" | "roulette";
 export type OrderStatus = "reserved" | "paid" | "cancelled";
 export type PaymentMethod = "cash" | "wave";
 
@@ -27,6 +28,7 @@ export type PublicEvent = {
   remainingTickets: number;
   paidTickets: number;
   reservedTickets: number;
+  drawMode?: DrawMode;
   prizes: Prize[];
 };
 
@@ -50,6 +52,7 @@ export type OrderView = {
   ticketPriceCents: number;
   currency: string;
   eventStatus?: EventStatus;
+  drawMode?: DrawMode;
   titleFr?: string;
   titleEn?: string;
   paymentInstructionsFr: string;
@@ -90,6 +93,7 @@ export type MemberTombola = {
   titleFr: string;
   titleEn: string;
   status: EventStatus;
+  drawMode?: DrawMode;
   ticketPriceCents: number;
   currency: string;
   orders: MemberOrder[];
@@ -115,6 +119,7 @@ export type AdminEvent = {
   ticketPriceCents: number;
   currency: string;
   totalTickets: number;
+  drawMode?: DrawMode;
 };
 
 export type AdminOrder = {

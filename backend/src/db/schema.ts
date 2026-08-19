@@ -28,6 +28,7 @@ export const events = pgTable("events", {
   currency: text("currency").notNull().default("XOF"),
   totalTickets: integer("total_tickets").notNull(),
   status: text("status").notNull().default("draft"),
+  drawMode: text("draw_mode").notNull().default("scratch"),
   paymentInstructionsFr: text("payment_instructions_fr").notNull().default(""),
   paymentInstructionsEn: text("payment_instructions_en").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

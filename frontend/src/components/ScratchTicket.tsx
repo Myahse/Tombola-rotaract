@@ -12,6 +12,7 @@ type ScratchTicketProps = {
   prizeRank?: number | null;
   alreadyOpen?: boolean;
   onReveal?: () => void;
+  onStart?: () => void;
 };
 
 export function StatusPill({
@@ -36,6 +37,7 @@ export function ScratchTicket({
   prizeRank,
   alreadyOpen,
   onReveal,
+  onStart,
 }: ScratchTicketProps) {
   const { t } = useTranslation();
   const padded = String(number).padStart(3, "0");
@@ -56,6 +58,7 @@ export function ScratchTicket({
         label={canScratch ? t("scratch.here") : lockedLabel}
         alreadyOpen={alreadyOpen}
         onReveal={onReveal}
+        onStart={onStart}
       >
         {canScratch ? (
           won ? (
@@ -63,9 +66,13 @@ export function ScratchTicket({
               <span className="eyebrow">{t("scratch.win", { rank: prizeRank ?? 0 })}</span>
               <strong>{prizeName}</strong>
             </div>
-          ) : (
+          ) : alreadyOpen ? (
             <div className="scratch-lose">
               <strong>{t("scratch.lose")}</strong>
+            </div>
+          ) : (
+            <div className="scratch-lose">
+              <strong>…</strong>
             </div>
           )
         ) : (
@@ -79,12 +86,67 @@ export function ScratchTicket({
   );
 }
 
+export function NumberedTicket({
+  number,
+  title,
+  buyerName,
+  prizeName,
+  prizeRank,
+  drawn,
+  paid,
+  waitLabel,
+}: {
+  number: number;
+  title: string;
+  buyerName: string;
+  prizeName?: string | null;
+  prizeRank?: number | null;
+  drawn: boolean;
+  paid: boolean;
+  waitLabel: string;
+}) {
+  const { t } = useTranslation();
+  const padded = String(number).padStart(3, "0");
+  const won = Boolean(prizeName);
+
+  return (
+    <article className="scratch-card">
+      <header className="scratch-card-head">
+        <span className="brand-dot" aria-hidden />
+        <span>{title}</span>
+      </header>
+      <p className="scratch-card-kicker">{t("ticket.plain")}</p>
+      <p className="scratch-card-number">N° {padded}</p>
+      <p className="scratch-card-name">{buyerName}</p>
+      <div className="ticket-result">
+        {drawn && paid ? (
+          won ? (
+            <div className="scratch-win">
+              <span className="eyebrow">{t("scratch.win", { rank: prizeRank ?? 0 })}</span>
+              <strong>{prizeName}</strong>
+            </div>
+          ) : (
+            <div className="scratch-lose">
+              <strong>{t("scratch.lose")}</strong>
+            </div>
+          )
+        ) : (
+          <div className="scratch-lose">
+            <strong>{waitLabel}</strong>
+          </div>
+        )}
+      </div>
+    </article>
+  );
+}
+
 function ScratchPanel({
   enabled,
   storageKey,
   label,
   alreadyOpen,
   onReveal,
+  onStart,
   children,
 }: {
   enabled: boolean;
@@ -92,6 +154,7 @@ function ScratchPanel({
   label: string;
   alreadyOpen?: boolean;
   onReveal?: () => void;
+  onStart?: () => void;
   children: ReactNode;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -101,6 +164,7 @@ function ScratchPanel({
   );
   const drawing = useRef(false);
   const revealed = useRef(Boolean(alreadyOpen));
+  const started = useRef(false);
 
   useEffect(() => {
     if (alreadyOpen) {
@@ -202,6 +266,10 @@ function ScratchPanel({
           style={{ pointerEvents: enabled ? "auto" : "none" }}
           onPointerDown={(event) => {
             if (!enabled) return;
+            if (!started.current) {
+              started.current = true;
+              onStart?.();
+            }
             drawing.current = true;
             event.currentTarget.setPointerCapture(event.pointerId);
             const point = pos(event);

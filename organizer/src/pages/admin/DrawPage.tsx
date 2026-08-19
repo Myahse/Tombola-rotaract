@@ -6,10 +6,12 @@ import type { Contestant, Winner } from "../../types";
 import { Avatar } from "../../components/Avatar";
 import { DrawReel, reelOffsetForWinner } from "../../components/DrawReel";
 import { ScratchFeed } from "../../components/ScratchFeed";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 export function DrawPage() {
   const { t, i18n } = useTranslation();
   const [status, setStatus] = useState("");
+  const [drawMode, setDrawMode] = useState<"scratch" | "roulette">("scratch");
   const [paidTickets, setPaidTickets] = useState(0);
   const [reservedOrders, setReservedOrders] = useState(0);
   const [contestants, setContestants] = useState<Contestant[]>([]);
@@ -21,12 +23,14 @@ export function DrawPage() {
   const [phase, setPhase] = useState<"idle" | "spinning" | "done">("idle");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(false);
   const animating = useRef(false);
   const tick = useLiveTick();
 
   async function load() {
     const [eventData, winnerData, pool] = await Promise.all([api.adminEvent(), api.winners(), api.contestants()]);
     setStatus(eventData.event?.status ?? "");
+    setDrawMode(eventData.event?.drawMode === "roulette" ? "roulette" : "scratch");
     setPaidTickets(eventData.stats?.paidTickets ?? 0);
     setReservedOrders(eventData.stats?.reservedOrders ?? 0);
     setContestants(shuffle(pool.contestants));
@@ -35,15 +39,16 @@ export function DrawPage() {
       setRevealed(winnerData.winners);
       setPhase("done");
     }
+    setReady(true);
   }
 
   useEffect(() => {
     if (animating.current) return;
-    load().catch(() => undefined);
+    load().catch(() => setReady(true));
   }, [tick]);
 
   async function runDraw() {
-    if (!window.confirm(t("admin.drawHelp"))) return;
+    if (!window.confirm(t(drawMode === "scratch" ? "admin.drawHelpScratch" : "admin.drawHelp"))) return;
     setBusy(true);
     setMessage("");
     try {
@@ -102,10 +107,12 @@ export function DrawPage() {
     setCurrent(null);
   }
 
+  if (!ready) return <PageSkeleton kind="draw" />;
+
   return (
     <section className="grid gap-5">
       <h1>{t("admin.draw")}</h1>
-      <p className="lede">{t("admin.drawShowHelp")}</p>
+      <p className="lede">{t(drawMode === "scratch" ? "admin.drawShowHelpScratch" : "admin.drawShowHelp")}</p>
       {reservedOrders > 0 && status !== "drawn" ? (
         <p className="badge wait w-fit">{t("admin.drawWarn")}</p>
       ) : null}
@@ -142,7 +149,7 @@ export function DrawPage() {
 
       {status !== "drawn" && phase !== "spinning" ? (
         <button disabled={busy || paidTickets < 1} onClick={() => void runDraw()} className="btn-primary no-print btn-block">
-          {busy ? t("admin.drawing") : t("admin.startDraw")}
+          {busy ? t("admin.drawing") : t(drawMode === "scratch" ? "admin.startAssign" : "admin.startDraw")}
         </button>
       ) : status === "drawn" && phase !== "spinning" ? (
         <div className="flex flex-wrap gap-3 no-print">
@@ -174,7 +181,7 @@ export function DrawPage() {
         </ol>
       ) : null}
 
-      {status === "drawn" ? <ScratchFeed /> : null}
+      {status === "drawn" && drawMode === "scratch" ? <ScratchFeed /> : null}
     </section>
   );
 }

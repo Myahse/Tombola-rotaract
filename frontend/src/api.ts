@@ -31,14 +31,23 @@ export const api = {
   currentEvent: () => request<{ event: PublicEvent | null }>("/api/event/current"),
   payments: () => request<{ wavePayUrl: string }>("/api/payments"),
   results: () =>
-    request<{ event: { titleFr: string; titleEn: string; status: string } | null; winners: Winner[] }>(
+    request<{
+      event: { titleFr: string; titleEn: string; status: string; drawMode?: "scratch" | "roulette" } | null;
+      winners: Winner[];
+    }>(
       "/api/event/current/results",
     ),
   buy: (body: { quantity: number; phone?: string; paymentMethod: "cash" | "wave" }) =>
     request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
   order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
   scratch: (token: string, number: number) =>
-    request<{ ok: boolean; scratchedAt: string }>(
+    request<{
+      ok: boolean;
+      scratchedAt: string;
+      prizeRank: number | null;
+      prizeNameFr: string | null;
+      prizeNameEn: string | null;
+    }>(
       `/api/orders/${encodeURIComponent(token)}/tickets/${number}/scratch`,
       { method: "POST" },
     ),

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../api";
 import type { AdminEvent, Prize } from "../../types";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 const emptyPrize = (rank: number): Prize => ({
   rank,
@@ -22,6 +23,7 @@ const emptyForm = {
   ticketPriceCents: 1000,
   currency: "XOF",
   totalTickets: 50,
+  drawMode: "scratch" as "scratch" | "roulette",
 };
 
 export function TombolaPage() {
@@ -48,6 +50,7 @@ export function TombolaPage() {
         ticketPriceCents: data.event.ticketPriceCents,
         currency: data.event.currency,
         totalTickets: data.event.totalTickets,
+        drawMode: data.event.drawMode === "roulette" ? "roulette" : "scratch",
       });
     }
     if (data.prizes.length) setPrizes(data.prizes);
@@ -118,7 +121,7 @@ export function TombolaPage() {
     }
   }
 
-  if (event === undefined) return <p>…</p>;
+  if (event === undefined) return <PageSkeleton kind="tombola" />;
   const locked = event?.status === "drawn";
 
   return (
@@ -172,6 +175,37 @@ export function TombolaPage() {
             disabled={locked}
           />
         </div>
+        <fieldset className="pay-options">
+          <legend>{t("admin.drawMode")}</legend>
+          <label className={`pay-option ${form.drawMode === "scratch" ? "active" : ""}`}>
+            <input
+              type="radio"
+              name="drawMode"
+              value="scratch"
+              disabled={locked}
+              checked={form.drawMode === "scratch"}
+              onChange={() => update("drawMode", "scratch")}
+            />
+            <span>
+              <strong>{t("admin.drawModeScratch")}</strong>
+              <em>{t("admin.drawModeScratchHelp")}</em>
+            </span>
+          </label>
+          <label className={`pay-option ${form.drawMode === "roulette" ? "active" : ""}`}>
+            <input
+              type="radio"
+              name="drawMode"
+              value="roulette"
+              disabled={locked}
+              checked={form.drawMode === "roulette"}
+              onChange={() => update("drawMode", "roulette")}
+            />
+            <span>
+              <strong>{t("admin.drawModeRoulette")}</strong>
+              <em>{t("admin.drawModeRouletteHelp")}</em>
+            </span>
+          </label>
+        </fieldset>
       </div>
       <div>
         <h2>{t("admin.prizes")}</h2>

@@ -2,25 +2,32 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { useLiveTick } from "../live";
+import { PageSkeleton } from "./PageSkeleton";
 import type { ScratchedTicket } from "../types";
 
 export function ScratchFeed() {
   const { t, i18n } = useTranslation();
   const tick = useLiveTick();
   const [scratches, setScratches] = useState<ScratchedTicket[]>([]);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     api
       .scratches()
-      .then((data) => setScratches(data.scratches))
-      .catch(() => undefined);
+      .then((data) => {
+        setScratches(data.scratches);
+        setReady(true);
+      })
+      .catch(() => setReady(true));
   }, [tick]);
 
   return (
     <section className="scratch-feed no-print">
       <h2>{t("admin.scratches")}</h2>
       <p className="lede">{t("admin.scratchesHelp")}</p>
-      {scratches.length === 0 ? (
+      { !ready ? (
+        <PageSkeleton kind="feed" />
+      ) : scratches.length === 0 ? (
         <p className="lede">{t("admin.scratchesEmpty")}</p>
       ) : (
         <ol className="scratch-feed-list">

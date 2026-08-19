@@ -6,6 +6,7 @@ import { useAuth } from "../auth";
 import { Avatar } from "../components/Avatar";
 import { StatusPill } from "../components/ScratchTicket";
 import { WaveLogo } from "../components/WaveLogo";
+import { PageSkeleton } from "../components/PageSkeleton";
 import type { MemberTombola } from "../types";
 
 export function AccountPage() {
@@ -22,7 +23,7 @@ export function AccountPage() {
       .catch(() => setTombolas([]));
   }, [member]);
 
-  if (loading) return <p className="lede">…</p>;
+  if (loading) return <PageSkeleton kind="account" />;
   if (!member) return <Navigate to={`/${lang}/login?next=/${lang}/account`} replace />;
 
   return (
@@ -37,7 +38,7 @@ export function AccountPage() {
       </div>
 
       {tombolas === undefined ? (
-        <p className="lede">…</p>
+        <PageSkeleton kind="list" />
       ) : tombolas.length === 0 ? (
         <div className="mt-6 grid gap-3">
           <p>{t("account.empty")}</p>

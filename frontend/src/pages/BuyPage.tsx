@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, formatMoney } from "../api";
 import { useAuth } from "../auth";
 import type { PublicEvent } from "../types";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { WaveLogo } from "../components/WaveLogo";
 
 export function BuyPage() {
@@ -24,18 +25,14 @@ export function BuyPage() {
       .catch(() => setEvent(null));
   }, []);
 
-  if (event === undefined || loading) return <p className="lede">…</p>;
-  if (!event || event.status !== "on_sale" || event.remainingTickets < 1) {
+  if (loading) {
     return (
-      <section className="vitrine-hero">
-        <h1>{t("buy.none")}</h1>
-        <Link to={`/${lang}`} className="btn-outline">
-          {t("nav.home")}
-        </Link>
+      <section className="section" style={{ borderBottom: 0 }}>
+        <p className="eyebrow">{t("home.kicker")}</p>
+        <h1>{t("buy.title")}</h1>
       </section>
     );
   }
-
   if (!member) {
     const next = `/${lang}/buy`;
     return (
@@ -51,6 +48,17 @@ export function BuyPage() {
             {t("nav.register")}
           </Link>
         </div>
+      </section>
+    );
+  }
+  if (event === undefined) return <PageSkeleton kind="buy" />;
+  if (!event || event.status !== "on_sale" || event.remainingTickets < 1) {
+    return (
+      <section className="vitrine-hero">
+        <h1>{t("buy.none")}</h1>
+        <Link to={`/${lang}`} className="btn-outline">
+          {t("nav.home")}
+        </Link>
       </section>
     );
   }
@@ -91,6 +99,7 @@ export function BuyPage() {
       <p className="eyebrow">{t("home.kicker")}</p>
       <h1>{t("buy.title")}</h1>
       <p>{t("buy.intro")}</p>
+      <p>{event.drawMode === "roulette" ? t("buy.introRoulette") : t("buy.introScratch")}</p>
       <p className="buy-as">{t("buy.loggedInAs", { name: member.name, email: member.email })}</p>
       <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
         <label>

@@ -2,6 +2,7 @@ import { and, asc, count, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { events, orders, prizes, tickets } from "../db/schema.js";
 import { broadcast } from "./realtime.js";
+import { drawModeOf } from "./tickets.js";
 
 export async function getCurrentPublicEvent() {
   const [event] = await db
@@ -61,6 +62,7 @@ export async function publicSnapshot() {
     remainingTickets: Math.max(0, event.totalTickets - stats.held),
     paidTickets: stats.paid,
     reservedTickets: stats.reserved,
+    drawMode: drawModeOf(event.drawMode),
     prizes: eventPrizes.map((prize) => ({
       id: prize.id,
       rank: prize.rank,
