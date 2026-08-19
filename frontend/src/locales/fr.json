@@ -253,6 +253,21 @@
     "emailLocked": "L’e-mail sert à vous connecter. Il ne peut pas être modifié ici.",
     "removePhoto": "Retirer la photo"
   },
+  "pwa": {
+    "installTitle": "Installer l’app",
+    "installText": "Ajoutez la tombola à l’écran d’accueil pour l’ouvrir comme une application.",
+    "installIos": "Sur iPhone, appuyez sur Partager, puis Sur l’écran d’accueil.",
+    "installCta": "Installer",
+    "later": "Plus tard",
+    "notifyTitle": "Notifications",
+    "notifyText": "Recevez une alerte quand un paiement est confirmé, quand on vous offre des tickets, ou quand le tirage est clos.",
+    "notifyAccount": "Les notifications suivent vos tickets : paiement confirmé, tickets offerts, et clôture du tirage.",
+    "notifyIos": "Sur iPhone, ajoutez d’abord l’app à l’écran d’accueil pour activer les notifications.",
+    "notifyCta": "Activer",
+    "disable": "Désactiver",
+    "blocked": "Les notifications sont bloquées dans les réglages du navigateur.",
+    "unavailable": "Les notifications ne sont pas disponibles sur cet appareil."
+  },
   "errors": {
     "generic": "Une erreur s’est produite.",
     "invalidPassword": "Mot de passe incorrect.",

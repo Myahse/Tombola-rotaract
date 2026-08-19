@@ -12,6 +12,7 @@ import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
 import { campaignRouter } from "./routes/campaigns.js";
 import { publicRouter } from "./routes/public.js";
+import { pushRouter } from "./routes/push.js";
 import { ensureSchema } from "./db/index.js";
 
 const app = express();
@@ -77,6 +78,7 @@ app.get("/api/health", (_req, res) => {
 });
 
 app.use("/api", authRouter);
+app.use("/api", pushRouter);
 app.use("/api", publicRouter);
 app.use("/api/admin/campaigns", campaignRouter);
 app.use("/api/admin", adminRouter);

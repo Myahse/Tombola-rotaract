@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
+import { PwaPrompts } from "./PwaPrompts";
 import { useAuth } from "../auth";
 
 export function Layout() {
@@ -64,6 +65,7 @@ export function Layout() {
           <LangSwitcher />
         </div>
       </header>
+      <PwaPrompts />
       <main className="page">
         <div key={location.pathname} className="page-appear">
           <Outlet />

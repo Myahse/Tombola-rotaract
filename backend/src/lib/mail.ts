@@ -3,7 +3,9 @@ import { purchaseEmail, type PurchaseEmail } from "../emails/purchase.js";
 import { giftTicketsEmail, type GiftTicketsEmail } from "../emails/gift.js";
 import { resetPasswordEmail, type ResetPasswordEmail } from "../emails/reset.js";
 import { welcomeEmail } from "../emails/welcome.js";
+import { siteUrl } from "../emails/layout.js";
 import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
+import { sendPushToEmail } from "./push.js";
 
 async function send(
   to: { email: string; name?: string },
@@ -35,6 +37,14 @@ export async function notifyPurchase(order: PurchaseEmail) {
   } catch (error) {
     console.error(`Purchase email failed for ${order.email}`, error);
   }
+  const numbers = order.numbers.join(", ");
+  void sendPushToEmail(order.email, {
+    title: "Paiement confirmé",
+    body: numbers
+      ? `Vos tickets sont dans le tirage. Numéros : ${numbers}`
+      : "Vos tickets sont dans le tirage.",
+    url: order.ticketsUrl,
+  });
 }
 
 export async function notifyGiftTickets(data: GiftTicketsEmail) {
@@ -43,6 +53,11 @@ export async function notifyGiftTickets(data: GiftTicketsEmail) {
   } catch (error) {
     console.error(`Gift tickets email failed for ${data.email}`, error);
   }
+  void sendPushToEmail(data.email, {
+    title: "Tickets offerts",
+    body: `${data.giverName} vous a envoyé des tickets.`,
+    url: data.ticketsUrl,
+  });
 }
 
 export async function notifyPasswordReset(data: ResetPasswordEmail) {
@@ -65,5 +80,24 @@ export async function notifyDrawResults(recipients: DrawResultsEmail[]) {
     } catch (error) {
       console.error(`Draw results email failed for ${recipient.email}`, error);
     }
+    const won = recipient.wins.length > 0;
+    void sendPushToEmail(recipient.email, {
+      title:
+        recipient.drawMode === "scratch"
+          ? "C’est le moment de gratter"
+          : won
+            ? "Vous avez gagné"
+            : "Le tirage est tombé",
+      body:
+        recipient.drawMode === "scratch"
+          ? "La tombola est close. Grattez vos tickets."
+          : won
+            ? "Le tirage est tombé. Voyez vos lots."
+            : "Voyez le palmarès de la tombola.",
+      url:
+        recipient.drawMode === "scratch" || won
+          ? recipient.ticketsUrl
+          : siteUrl("/fr/results"),
+    });
   }
 }

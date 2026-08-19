@@ -84,7 +84,16 @@ export const api = {
       `/api/orders/${encodeURIComponent(token)}/share`,
       { method: "POST", body: JSON.stringify(body) },
     ),
-  myTombolas: () => request<{ tombolas: MemberTombola[] }>("/api/me/tombolas"),
+    myTombolas: () => request<{ tombolas: MemberTombola[] }>("/api/me/tombolas"),
+  pushKey: () => request<{ publicKey: string | null }>("/api/push/key"),
+  pushStatus: () => request<{ configured: boolean; subscribed: boolean }>("/api/push/status"),
+  pushSubscribe: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    request<{ ok: boolean }>("/api/push/subscribe", { method: "POST", body: JSON.stringify(body) }),
+  pushUnsubscribe: (endpoint?: string) =>
+    request<{ ok: boolean }>("/api/push/subscribe", {
+      method: "DELETE",
+      body: JSON.stringify(endpoint ? { endpoint } : {}),
+    }),
   login: (password: string) =>
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),

@@ -9,6 +9,13 @@ import { WaveLogo } from "../components/WaveLogo";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
 import type { MemberTombola } from "../types";
+import {
+  disablePush,
+  enablePush,
+  isIosDevice,
+  isStandaloneDisplay,
+  pushSupported,
+} from "../pwa";
 
 export function AccountPage() {
   const { t, i18n } = useTranslation();
@@ -26,6 +33,10 @@ export function AccountPage() {
   const [profileError, setProfileError] = useState("");
   const [profileSaved, setProfileSaved] = useState(false);
   const [profileBusy, setProfileBusy] = useState(false);
+  const [pushConfigured, setPushConfigured] = useState(false);
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushError, setPushError] = useState("");
 
   useEffect(() => {
     if (!member) return;
@@ -38,6 +49,18 @@ export function AccountPage() {
       .myTombolas()
       .then((data) => setTombolas(data.tombolas))
       .catch(() => setTombolas([]));
+    if (pushSupported()) {
+      api
+        .pushStatus()
+        .then((data) => {
+          setPushConfigured(data.configured);
+          setPushOn(data.subscribed);
+        })
+        .catch(() => {
+          setPushConfigured(false);
+          setPushOn(false);
+        });
+    }
   }, [member]);
 
   if (loading) return <PageSkeleton kind="account" />;
@@ -94,6 +117,37 @@ export function AccountPage() {
     }
   }
 
+  async function onTogglePush() {
+    setPushError("");
+    setPushBusy(true);
+    try {
+      if (pushOn) {
+        const endpoint = await disablePush();
+        await api.pushUnsubscribe(endpoint ?? undefined);
+        setPushOn(false);
+        return;
+      }
+      const { publicKey } = await api.pushKey();
+      if (!publicKey) {
+        setPushError(t("pwa.unavailable"));
+        return;
+      }
+      const subscription = await enablePush(publicKey);
+      if (!subscription) {
+        setPushError(
+          Notification.permission === "denied" ? t("pwa.blocked") : t("pwa.unavailable"),
+        );
+        return;
+      }
+      await api.pushSubscribe(subscription);
+      setPushOn(true);
+    } catch {
+      setPushError(t("errors.generic"));
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
   return (
     <section className="section" style={{ borderBottom: 0 }}>
       <p className="eyebrow">{t("home.kicker")}</p>
@@ -104,6 +158,26 @@ export function AccountPage() {
           {t("account.hello", { name: member.name })} {t("account.lede")}
         </p>
       </div>
+
+      {pushSupported() && pushConfigured ? (
+        <article className="account-card account-profile">
+          <h2>{t("pwa.notifyTitle")}</h2>
+          <p className="field-hint" style={{ margin: 0 }}>
+            {isIosDevice() && !isStandaloneDisplay()
+              ? t("pwa.notifyIos")
+              : t("pwa.notifyAccount")}
+          </p>
+          {pushError ? <p className="text-sm text-ticket">{pushError}</p> : null}
+          <button
+            type="button"
+            className={pushOn ? "btn-outline" : "btn-primary"}
+            disabled={pushBusy || (isIosDevice() && !isStandaloneDisplay())}
+            onClick={() => void onTogglePush()}
+          >
+            {pushBusy ? t("auth.submitting") : pushOn ? t("pwa.disable") : t("pwa.notifyCta")}
+          </button>
+        </article>
+      ) : null}
 
       <article className="account-card account-profile">
         <h2>{t("account.profileTitle")}</h2>

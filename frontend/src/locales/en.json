@@ -253,6 +253,21 @@
     "emailLocked": "Email is how you log in. It cannot be changed here.",
     "removePhoto": "Remove photo"
   },
+  "pwa": {
+    "installTitle": "Install the app",
+    "installText": "Add the tombola to your home screen to open it like an app.",
+    "installIos": "On iPhone, tap Share, then Add to Home Screen.",
+    "installCta": "Install",
+    "later": "Later",
+    "notifyTitle": "Notifications",
+    "notifyText": "Get an alert when a payment is confirmed, when someone sends you tickets, or when the draw is closed.",
+    "notifyAccount": "Notifications follow your tickets: payment confirmed, gifted tickets, and when the draw closes.",
+    "notifyIos": "On iPhone, add the app to your home screen first to enable notifications.",
+    "notifyCta": "Turn on",
+    "disable": "Turn off",
+    "blocked": "Notifications are blocked in your browser settings.",
+    "unavailable": "Notifications are not available on this device."
+  },
   "errors": {
     "generic": "Something went wrong.",
     "invalidPassword": "Incorrect password.",
