@@ -62,6 +62,7 @@ export const prizes = pgTable(
     nameEn: text("name_en").notNull(),
     descriptionFr: text("description_fr").notNull().default(""),
     descriptionEn: text("description_en").notNull().default(""),
+    ticketNumber: integer("ticket_number"),
   },
   (table) => [unique().on(table.eventId, table.rank)],
 );

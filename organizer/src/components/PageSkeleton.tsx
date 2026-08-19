@@ -238,39 +238,19 @@ function DrawSkeleton() {
       <h1>{t("admin.draw")}</h1>
       <p className="lede">{t("admin.drawShowHelpScratch")}</p>
       <div className="draw-stage">
-        <p className="draw-prize">
-          <Bone w="10rem" h="0.9rem" />
-        </p>
         <div className="draw-window">
           <div className="draw-window-marker" />
           <div className="draw-reel">
-            <div className="draw-reel-item" style={{ height: 84 }}>
-              <span className="person-avatar fallback skeleton" style={{ width: 52, height: 52 }} />
-              <div>
-                <strong>
-                  <Bone w="8rem" h="0.95rem" />
-                </strong>
-                <p>
-                  <Bone w="3.5rem" />
-                </p>
-              </div>
-            </div>
-            <div className="draw-reel-item" style={{ height: 84 }}>
-              <span className="person-avatar fallback skeleton" style={{ width: 52, height: 52 }} />
-              <div>
-                <strong>
-                  <Bone w="7rem" h="0.95rem" />
-                </strong>
-                <p>
-                  <Bone w="3.5rem" />
-                </p>
-              </div>
+            <div className="draw-reel-item is-number" style={{ height: 84 }}>
+              <strong>
+                <Bone w="5rem" h="1.2rem" />
+              </strong>
             </div>
           </div>
         </div>
       </div>
       <button type="button" className="btn-primary no-print btn-block" disabled tabIndex={-1}>
-        {t("admin.startAssign")}
+        {t("admin.startSeal")}
       </button>
     </section>
   );

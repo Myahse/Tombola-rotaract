@@ -57,7 +57,7 @@
   "buy": {
     "title": "Buy tickets",
     "intro": "Log in, then buy. Pay in cash or via Wave. Tickets, with a random number, appear only when the club confirms payment.",
-    "introScratch": "As soon as the club confirms payment, a prize is already on the ticket, at random. Scratch to see.",
+    "introScratch": "The club assigns prizes to ticket numbers on the wheel when the tombola is created. As soon as payment is confirmed, scratch to see if yours has one.",
     "introRoulette": "The draw is public, on the wheel: everyone sees who wins.",
     "needAccount": "Create an account or log in to buy tickets. The same account follows every club tombola.",
     "loggedInAs": "Buying as {{name}} ({{email}})",
@@ -123,8 +123,8 @@
     "payFirst": "Pay first to take part",
     "lose": "No prize",
     "win": "Prize {{rank}}",
-    "instruction": "Scratch the silver panel. The prize was drawn at random when this ticket was created.",
-    "howto": "When the club confirms payment, each ticket already has a random prize, or none. Scratch to see yours. Your tickets stay here unless an organizer removes them."
+    "instruction": "Scratch the silver panel. The prize, if any, was assigned to this number on the wheel when the tombola was created.",
+    "howto": "The club assigns prizes to ticket numbers on the wheel when the tombola is created. When payment is confirmed, scratch to see if yours has one. Your tickets stay here unless an organizer removes them."
   },
   "deck": {
     "hintScratch": "Scratch the silver panel. Swipe or use the buttons to change ticket. Nothing is lost.",
@@ -146,7 +146,7 @@
   "results": {
     "title": "The draw",
     "empty": "The draw has not taken place yet.",
-    "scratchHidden": "Prizes are already on the tickets. Scratch yours. The winners list is not shown here.",
+    "scratchHidden": "Prizes were assigned to ticket numbers on the wheel when the tombola was created. Scratch yours. The winners list is not shown here.",
     "ticket": "Ticket no. {{number}}",
     "unawarded": "Prize not awarded"
   },

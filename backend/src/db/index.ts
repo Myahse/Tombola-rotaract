@@ -20,6 +20,8 @@ export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'cash'`);
   await client.unsafe(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS scratched_at timestamptz`);
   await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS draw_mode text NOT NULL DEFAULT 'scratch'`);
+  await client.unsafe(`ALTER TABLE prizes ADD COLUMN IF NOT EXISTS ticket_number integer`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS prizes_event_ticket_number_idx ON prizes (event_id, ticket_number) WHERE ticket_number IS NOT NULL`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS terms_accepted_at timestamptz`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS emails_accepted_at timestamptz`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS club_name text`);

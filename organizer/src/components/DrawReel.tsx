@@ -9,11 +9,13 @@ export function DrawReel({
   winnerTicket,
   spinning,
   offset,
+  numbersOnly = false,
 }: {
   contestants: Contestant[];
   winnerTicket?: number;
   spinning: boolean;
   offset: number;
+  numbersOnly?: boolean;
 }) {
   const reel = useMemo(() => {
     const base = contestants.length ? contestants : [{ ticketNumber: 0, buyerName: "…", avatarUrl: null }];
@@ -31,14 +33,20 @@ export function DrawReel({
         {reel.map((person, index) => (
           <div
             key={`${person.ticketNumber}-${index}`}
-            className={`draw-reel-item ${person.ticketNumber === winnerTicket && !spinning ? "is-winner" : ""}`}
+            className={`draw-reel-item ${numbersOnly ? "is-number" : ""} ${person.ticketNumber === winnerTicket && !spinning ? "is-winner" : ""}`}
             style={{ height: ITEM }}
           >
-            <Avatar name={person.buyerName} src={person.avatarUrl} size={52} />
-            <div>
-              <strong>{person.buyerName}</strong>
-              <p>n° {person.ticketNumber}</p>
-            </div>
+            {numbersOnly ? (
+              <strong>n° {String(person.ticketNumber).padStart(3, "0")}</strong>
+            ) : (
+              <>
+                <Avatar name={person.buyerName} src={person.avatarUrl} size={52} />
+                <div>
+                  <strong>{person.buyerName}</strong>
+                  <p>n° {person.ticketNumber}</p>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </div>

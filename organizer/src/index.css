@@ -519,8 +519,12 @@ a:hover { color: var(--primary); }
   font-size: 0.82rem;
   color: #b8b8bf;
 }
-.draw-reel-item.is-winner {
-  color: #fff;
+.draw-reel-item.is-number {
+  justify-content: center;
+}
+.draw-reel-item.is-number strong {
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
 }
 .draw-reel-item.is-winner strong { color: #ffd7e4; }
 .draw-winner-banner {

@@ -91,6 +91,8 @@ export type AdminStats = {
   reservedTickets: number;
   remainingTickets: number;
   scratchedTickets?: number;
+  prizeCount?: number;
+  prizesSealed?: boolean;
 };
 
 export type AdminEvent = {

@@ -57,7 +57,7 @@
   "buy": {
     "title": "Acheter des tickets",
     "intro": "Connectez-vous, puis achetez. Payez en espèces ou via Wave. Les tickets, avec un numéro tiré au hasard, n’apparaissent que lorsque le club confirme le paiement.",
-    "introScratch": "Dès que le club confirme le paiement, un lot est déjà sur le ticket, au hasard. Grattez pour voir.",
+    "introScratch": "Le club attribue les lots à des numéros à la roulette, à la création de la tombola. Dès que le paiement est confirmé, grattez pour voir si le vôtre en a un.",
     "introRoulette": "Le tirage se fait en public à la roulette : tout le monde voit qui gagne.",
     "needAccount": "Créez un compte ou connectez-vous pour acheter des tickets. Le même compte suit toutes les tombolas du club.",
     "loggedInAs": "Achat pour {{name}} ({{email}})",
@@ -123,8 +123,8 @@
     "payFirst": "Payez d'abord pour participer",
     "lose": "Pas de lot",
     "win": "Lot {{rank}}",
-    "instruction": "Grattez la zone argentée. Le lot a été tiré au hasard quand ce ticket a été créé.",
-    "howto": "Quand le club confirme le paiement, chaque ticket reçoit déjà un lot au hasard, ou aucun. Grattez pour découvrir le vôtre. Vos tickets restent ici tant que l’organisateur ne les retire pas."
+    "instruction": "Grattez la zone argentée. Le lot, s’il y en a un, a été attribué à ce numéro à la roulette, à la création de la tombola.",
+    "howto": "Le club attribue les lots à des numéros à la roulette, à la création de la tombola. Quand le paiement est confirmé, grattez pour voir si le vôtre en a un. Vos tickets restent ici tant que l’organisateur ne les retire pas."
   },
   "deck": {
     "hintScratch": "Grattez la zone argentée. Glissez ou utilisez les boutons pour changer de ticket. Rien n’est perdu.",
@@ -146,7 +146,7 @@
   "results": {
     "title": "Tirage au sort",
     "empty": "Le tirage n’a pas encore eu lieu.",
-    "scratchHidden": "Les lots sont déjà sur les tickets. Grattez le vôtre. Le palmarès n’est pas affiché ici.",
+    "scratchHidden": "Les lots ont été attribués à des numéros à la roulette, à la création de la tombola. Grattez le vôtre. Le palmarès n’est pas affiché ici.",
     "ticket": "Ticket n°{{number}}",
     "unawarded": "Lot non attribué"
   },

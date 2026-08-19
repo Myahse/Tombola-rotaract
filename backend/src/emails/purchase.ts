@@ -26,11 +26,11 @@ export function purchaseEmail(data: PurchaseEmail) {
   const afterDrawFr =
     data.drawMode === "roulette"
       ? "Le jour J, tout le monde suit la roulette : ticket par ticket, les gagnants sont désignés en public."
-      : "Un lot a déjà été tiré au hasard sur chaque ticket. Grattez en ligne pour voir le vôtre.";
+      : "Les lots ont été attribués à des numéros à la roulette, à la création de la tombola. Grattez en ligne pour voir si le vôtre en a un.";
   const afterDrawEn =
     data.drawMode === "roulette"
       ? "On the day, everyone watches the wheel: winners are named in public, ticket by ticket."
-      : "A prize was already drawn at random onto each ticket. Scratch online to see yours.";
+      : "Prizes were assigned to ticket numbers on the wheel when the tombola was created. Scratch online to see if yours has one.";
 
   const html = wrapEmail({
     preheader: `${name}, paiement confirmé. Vos ${data.quantity} ${tickets} pour ${data.eventTitleFr} sont dans le tirage.`,
