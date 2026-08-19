@@ -133,7 +133,7 @@ export function EmailPreview({
             </header>
             <div className="mail-body">
               <p className="mail-kicker">Rotaract IUGB Club</p>
-              <h2>{view.heading || t("campaign.heading")}</h2>
+              <h2>{draft.heading.trim() ? view.heading : <span className="mail-placeholder">{t("campaign.heading")}</span>}</h2>
               {view.blocks.length ? (
                 view.blocks.map((block, index) => (
                   <p key={index}>

@@ -171,6 +171,54 @@ campaignRouter.get("/meta", async (_req, res) => {
   });
 });
 
+campaignRouter.get("/people", async (_req, res) => {
+  const memberRows = await db
+    .select({ email: members.email, name: members.name, accepted: members.emailsAcceptedAt })
+    .from(members);
+  const buyerRows = await db
+    .select({ email: orders.buyerEmail, name: orders.buyerName })
+    .from(orders)
+    .where(eq(orders.status, "paid"));
+
+  const map = new Map<
+    string,
+    { email: string; name: string; member: boolean; buyer: boolean; optedIn: boolean }
+  >();
+  for (const row of memberRows) {
+    const email = row.email.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) continue;
+    map.set(email, {
+      email,
+      name: row.name,
+      member: true,
+      buyer: false,
+      optedIn: Boolean(row.accepted),
+    });
+  }
+  for (const row of buyerRows) {
+    const email = row.email.trim().toLowerCase();
+    if (!EMAIL_RE.test(email)) continue;
+    const existing = map.get(email);
+    if (existing) {
+      existing.buyer = true;
+      if (!existing.name.trim()) existing.name = row.name;
+    } else {
+      map.set(email, {
+        email,
+        name: row.name,
+        member: false,
+        buyer: true,
+        optedIn: false,
+      });
+    }
+  }
+
+  const people = [...map.values()]
+    .sort((a, b) => a.name.localeCompare(b.name, "fr", { sensitivity: "base" }) || a.email.localeCompare(b.email))
+    .slice(0, MAX_RECIPIENTS);
+  res.json({ people });
+});
+
 campaignRouter.post("/preview-html", async (req, res) => {
   const parsed = saveSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -221,7 +269,7 @@ campaignRouter.post("/preview-audience", async (req, res) => {
     total: result.recipients.length,
     invalid: result.invalid,
     truncated: result.truncated,
-    recipients: result.recipients.slice(0, 80),
+    recipients: result.recipients.slice(0, 400),
   });
 });
 

@@ -1113,26 +1113,33 @@ textarea.skeleton {
   margin: 0;
 }
 .mail-inbox {
-  border: 1px solid var(--line);
+  border: 1px solid #ececee;
   border-radius: 16px;
   overflow: hidden;
   background: #fff;
+  color: #141416;
 }
 .mail-meta {
   padding: 0.85rem 1rem 0.75rem;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid #ececee;
   background: #fff;
+  color: #141416;
 }
 .mail-meta p {
   display: flex;
   gap: 0.55rem;
   margin: 0 0 0.25rem;
   font-size: 0.82rem;
+  color: #141416;
+}
+.mail-meta strong {
+  color: #141416;
+  font-weight: 650;
 }
 .mail-meta span {
   width: 1.6rem;
   flex-shrink: 0;
-  color: var(--muted);
+  color: #73737a;
   font-weight: 650;
 }
 .mail-subject {
@@ -1141,10 +1148,11 @@ textarea.skeleton {
   font-size: 1.02rem !important;
   font-weight: 700;
   letter-spacing: -0.02em;
+  color: #141416 !important;
 }
 .mail-preheader {
   display: block !important;
-  color: var(--muted);
+  color: #73737a !important;
   font-size: 0.82rem !important;
 }
 .mail-stage {
@@ -1276,6 +1284,69 @@ textarea.skeleton {
 }
 .mail-pick:hover strong {
   color: var(--primary);
+}
+.people-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.people-tools button {
+  margin: 0;
+}
+.people-search {
+  margin-top: 0.7rem;
+}
+.people-list {
+  max-height: 22rem;
+  overflow: auto;
+  margin-top: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.people-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0.75rem 0.85rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+.people-row:last-child {
+  border-bottom: 0;
+}
+.people-row input {
+  width: auto;
+  margin-top: 0.2rem;
+  accent-color: var(--ink);
+}
+.people-row span {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+}
+.people-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+.people-row em {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.people-empty {
+  margin: 0;
+  padding: 0.9rem;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 .check-list {
   display: grid;
