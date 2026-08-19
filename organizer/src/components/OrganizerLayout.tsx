@@ -10,7 +10,6 @@ import { LoginModal } from "./LoginModal";
 import { PageSkeleton } from "./PageSkeleton";
 
 const publicSite = import.meta.env.VITE_PUBLIC_SITE ?? "http://localhost:5173";
-const campaignSite = import.meta.env.VITE_CAMPAIGN_SITE ?? "http://localhost:5175";
 
 export function OrganizerLayout() {
   return (
@@ -77,9 +76,6 @@ function OrganizerShell() {
         {loggedIn ? (
           <nav className="site-nav hide-mobile" aria-label="Organizers">
             {navLinks("top")}
-            <a href={`${campaignSite}/${lang ?? "fr"}`} target="_blank" rel="noreferrer">
-              {t("nav.campaigns")}
-            </a>
             <a href={`${publicSite}/${lang ?? "fr"}`} target="_blank" rel="noreferrer">
               {t("nav.viewSite")}
             </a>

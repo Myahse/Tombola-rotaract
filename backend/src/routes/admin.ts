@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
-import { shuffle, randomTicketNumbers, drawModeOf } from "../lib/tickets.js";
+import { shuffle, randomTicketNumbers, drawModeOf, assignScratchPrizes } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
 import { notifyDrawResults, notifyPurchase } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
@@ -439,6 +439,10 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
         throw Object.assign(new Error("not_found"), { status: 404 });
       }
 
+      if (drawModeOf(event.drawMode) === "scratch") {
+        await assignScratchPrizes(tx, event);
+      }
+
       const [paidRow] = await tx
         .select({ n: count() })
         .from(tickets)
@@ -496,34 +500,51 @@ adminRouter.post("/orders/:id/unpaid", requireAdmin, async (req, res) => {
     res.status(409).json({ error: "event_locked" });
     return;
   }
-  const reversed = await db.transaction(async (tx) => {
-    const [order] = await tx
-      .select()
-      .from(orders)
-      .where(
-        and(
-          eq(orders.id, orderId),
-          eq(orders.eventId, event.id),
-          eq(orders.status, "paid"),
-        ),
-      )
-      .limit(1);
-    if (!order) return null;
-    await tx.delete(tickets).where(eq(tickets.orderId, order.id));
-    const [updated] = await tx
-      .update(orders)
-      .set({ status: "reserved", paidAt: null })
-      .where(eq(orders.id, order.id))
-      .returning();
-    return updated;
-  });
-  if (!reversed) {
-    res.status(404).json({ error: "not_found" });
-    return;
+  try {
+    const reversed = await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.id, orderId),
+            eq(orders.eventId, event.id),
+            eq(orders.status, "paid"),
+          ),
+        )
+        .limit(1);
+      if (!order) return null;
+      const [scratched] = await tx
+        .select({ n: count() })
+        .from(tickets)
+        .where(and(eq(tickets.orderId, order.id), isNotNull(tickets.scratchedAt)));
+      if (Number(scratched?.n ?? 0) > 0) {
+        throw Object.assign(new Error("already_scratched"), { status: 409 });
+      }
+      await tx.delete(tickets).where(eq(tickets.orderId, order.id));
+      const [updated] = await tx
+        .update(orders)
+        .set({ status: "reserved", paidAt: null })
+        .where(eq(orders.id, order.id))
+        .returning();
+      return updated;
+    });
+    if (!reversed) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    const { accessToken: _accessToken, ...safeOrder } = reversed;
+    res.json({ order: safeOrder });
+    void publishChange("order");
+  } catch (error) {
+    const err = error as Error & { status?: number };
+    if (err.message === "already_scratched") {
+      res.status(409).json({ error: "already_scratched" });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
   }
-  const { accessToken: _accessToken, ...safeOrder } = reversed;
-  res.json({ order: safeOrder });
-  void publishChange("order");
 });
 
 adminRouter.post("/orders/:id/cancel", requireAdmin, async (req, res) => {
@@ -598,9 +619,37 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
         .from(orders)
         .where(and(eq(orders.eventId, event.id), eq(orders.status, "reserved")));
 
+      const drawnAt = new Date();
+      const scratch = drawModeOf(event.drawMode) === "scratch";
+
+      if (scratch) {
+        await assignScratchPrizes(tx, event);
+        const winners = await tx
+          .select({ id: tickets.id, prizeId: tickets.prizeId })
+          .from(tickets)
+          .innerJoin(orders, eq(tickets.orderId, orders.id))
+          .where(
+            and(eq(tickets.eventId, event.id), eq(orders.status, "paid"), isNotNull(tickets.prizeId)),
+          );
+        for (const ticket of winners) {
+          if (!ticket.prizeId) continue;
+          await tx.insert(drawResults).values({
+            eventId: event.id,
+            prizeId: ticket.prizeId,
+            ticketId: ticket.id,
+            drawnAt,
+          });
+        }
+        await tx.update(events).set({ status: "drawn", updatedAt: drawnAt }).where(eq(events.id, event.id));
+        return {
+          unpaidOrders: Number(unpaid[0]?.n ?? 0),
+          awarded: winners.length,
+          prizes: eventPrizes.length,
+        };
+      }
+
       const picked = shuffle(paidTickets);
       const awarded = eventPrizes.slice(0, picked.length);
-      const drawnAt = new Date();
 
       for (let i = 0; i < awarded.length; i += 1) {
         const prize = awarded[i]!;

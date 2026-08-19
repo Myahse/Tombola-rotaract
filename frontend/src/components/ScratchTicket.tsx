@@ -162,6 +162,7 @@ function ScratchPanel({
   const [cleared, setCleared] = useState(
     () => Boolean(alreadyOpen) || localStorage.getItem(storageKey) === "1",
   );
+  const last = useRef<{ x: number; y: number } | null>(null);
   const drawing = useRef(false);
   const revealed = useRef(Boolean(alreadyOpen));
   const started = useRef(false);
@@ -196,22 +197,23 @@ function ScratchPanel({
       if (!ctx) return;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const gradient = ctx.createLinearGradient(0, 0, rect.width, rect.height);
-      gradient.addColorStop(0, "#9a9aa3");
-      gradient.addColorStop(0.35, "#e8e8ec");
-      gradient.addColorStop(0.55, "#b7b7be");
-      gradient.addColorStop(1, "#8d8d96");
+      gradient.addColorStop(0, "#c8c8d0");
+      gradient.addColorStop(0.28, "#f4f4f7");
+      gradient.addColorStop(0.52, "#b8b8c2");
+      gradient.addColorStop(0.78, "#ececf1");
+      gradient.addColorStop(1, "#9a9aa8");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, rect.width, rect.height);
-      for (let i = -rect.height; i < rect.width; i += 14) {
+      for (let i = -rect.height; i < rect.width; i += 11) {
         ctx.beginPath();
         ctx.moveTo(i, 0);
         ctx.lineTo(i + rect.height, rect.height);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = "rgba(255,255,255,0.12)";
+        ctx.lineWidth = 6;
+        ctx.strokeStyle = "rgba(255,255,255,0.28)";
         ctx.stroke();
       }
-      ctx.fillStyle = "rgba(20,20,22,0.55)";
-      ctx.font = "700 13px Manrope, sans-serif";
+      ctx.fillStyle = "rgba(20,20,22,0.72)";
+      ctx.font = "700 15px Manrope, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(label.toUpperCase(), rect.width / 2, rect.height / 2);
@@ -235,9 +237,20 @@ function ScratchPanel({
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
     ctx.globalCompositeOperation = "destination-out";
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 44;
+    const prev = last.current;
+    if (prev) {
+      ctx.beginPath();
+      ctx.moveTo(prev.x, prev.y);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+    }
     ctx.beginPath();
-    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.arc(x, y, 22, 0, Math.PI * 2);
     ctx.fill();
+    last.current = { x, y };
   }
 
   function measureClear() {
@@ -250,7 +263,7 @@ function ScratchPanel({
     for (let i = 3; i < pixels.length; i += 4) {
       if (pixels[i] < 20) transparent += 1;
     }
-    if (transparent / (width * height) > 0.45) {
+    if (transparent / (width * height) > 0.28) {
       setCleared(true);
       localStorage.setItem(storageKey, "1");
     }
@@ -271,6 +284,7 @@ function ScratchPanel({
               onStart?.();
             }
             drawing.current = true;
+            last.current = null;
             event.currentTarget.setPointerCapture(event.pointerId);
             const point = pos(event);
             if (point) scratchAt(point.x, point.y);
@@ -283,6 +297,7 @@ function ScratchPanel({
           onPointerUp={() => {
             if (!enabled) return;
             drawing.current = false;
+            last.current = null;
             measureClear();
           }}
         />

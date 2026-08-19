@@ -57,7 +57,7 @@
   "buy": {
     "title": "Acheter des tickets",
     "intro": "Connectez-vous, puis achetez. Payez en espèces ou via Wave. Les tickets, avec un numéro tiré au hasard, n’apparaissent que lorsque le club confirme le paiement.",
-    "introScratch": "Après le tirage, grattez pour voir si votre numéro a un lot.",
+    "introScratch": "Dès que le club confirme le paiement, un lot est déjà sur le ticket, au hasard. Grattez pour voir.",
     "introRoulette": "Le tirage se fait en public à la roulette : tout le monde voit qui gagne.",
     "needAccount": "Créez un compte ou connectez-vous pour acheter des tickets. Le même compte suit toutes les tombolas du club.",
     "loggedInAs": "Achat pour {{name}} ({{email}})",
@@ -119,18 +119,22 @@
   "scratch": {
     "ticket": "Ticket à gratter",
     "here": "Grattez ici",
-    "wait": "À gratter après le tirage",
+    "wait": "À gratter une fois payé",
     "payFirst": "Payez d'abord pour participer",
     "lose": "Pas de lot",
     "win": "Lot {{rank}}",
-    "instruction": "Grattez la zone argentée : le lot a déjà été attribué à ce ticket au tirage.",
-    "howto": "Le tirage attribue les lots aux tickets. Une fois le tirage fait, grattez pour découvrir si votre numéro a un lot."
+    "instruction": "Grattez la zone argentée. Le lot a été tiré au hasard quand ce ticket a été créé.",
+    "howto": "Quand le club confirme le paiement, chaque ticket reçoit déjà un lot au hasard, ou aucun. Grattez pour découvrir le vôtre. Vos tickets restent ici tant que l’organisateur ne les retire pas."
   },
   "deck": {
-    "hintScratch": "Grattez la zone argentée, puis glissez la carte pour le ticket suivant.",
-    "hintRoulette": "Glissez pour passer au ticket suivant.",
+    "hintScratch": "Grattez la zone argentée. Glissez ou utilisez les boutons pour changer de ticket. Rien n’est perdu.",
+    "hintRoulette": "Glissez ou utilisez les boutons pour changer de ticket. Rien n’est perdu.",
     "count": "{{current}} sur {{total}}",
-    "next": "Ticket suivant",
+    "next": "Suivant",
+    "prev": "Précédent",
+    "view": "Affichage des tickets",
+    "viewCards": "Cartes",
+    "viewList": "Liste",
     "done": "Vous avez vu tous vos tickets.",
     "replay": "Revoir la pile"
   },
@@ -142,7 +146,7 @@
   "results": {
     "title": "Tirage au sort",
     "empty": "Le tirage n’a pas encore eu lieu.",
-    "scratchHidden": "Les lots sont sur les tickets. Grattez le vôtre pour découvrir le résultat. Le palmarès n’est pas affiché ici.",
+    "scratchHidden": "Les lots sont déjà sur les tickets. Grattez le vôtre. Le palmarès n’est pas affiché ici.",
     "ticket": "Ticket n°{{number}}",
     "unawarded": "Lot non attribué"
   },

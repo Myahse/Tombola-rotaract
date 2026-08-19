@@ -437,7 +437,7 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async
   }
 
   const [event] = await db.select().from(events).where(eq(events.id, order.eventId)).limit(1);
-  if (!event || event.status !== "drawn" || drawModeOf(event.drawMode) !== "scratch") {
+  if (!event || drawModeOf(event.drawMode) !== "scratch") {
     res.status(409).json({ error: "not_drawn" });
     return;
   }

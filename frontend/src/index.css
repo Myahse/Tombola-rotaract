@@ -695,7 +695,7 @@ a:hover { color: var(--primary); }
 }
 .ticket-deck {
   position: relative;
-  height: 26.5rem;
+  height: 28.5rem;
 }
 .ticket-deck-card {
   position: absolute;
@@ -717,13 +717,36 @@ a:hover { color: var(--primary); }
 }
 .ticket-deck-card .scratch-panel,
 .ticket-deck-card .scratch-result {
-  min-height: 9.5rem;
+  min-height: 11rem;
 }
 .ticket-deck-card:not(.is-front) {
   pointer-events: none;
 }
 .ticket-deck-actions {
   display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.12rem;
+  background: var(--bg);
+}
+.view-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.38rem 0.7rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.view-toggle button.active {
+  background: var(--ink);
+  color: var(--bg);
 }
 .ticket-deck-done {
   margin-top: 1rem;
@@ -786,15 +809,16 @@ a:hover { color: var(--primary); }
 .scratch-panel {
   position: relative;
   margin-top: 0.75rem;
-  min-height: 118px;
-  border-radius: 10px;
+  min-height: 148px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px dashed var(--focus);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
   user-select: none;
   touch-action: none;
 }
 .scratch-result {
-  min-height: 118px;
+  min-height: 148px;
   display: grid;
   place-items: center;
   padding: 1rem;
