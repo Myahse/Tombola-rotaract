@@ -2,19 +2,22 @@ import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db, isUniqueViolation } from "../db/index.js";
-import { events, members, orders, prizes, tickets } from "../db/schema.js";
+import { events, members, orders, passwordResets, prizes, tickets } from "../db/schema.js";
 import {
   clearMemberSession,
+  hashToken,
+  newAccessToken,
   optionalMemberId,
   requireMember,
   setMemberSession,
   type MemberRequest,
 } from "../lib/auth.js";
 import { hashPassword, verifyPassword } from "../lib/passwords.js";
-import { notifyMemberRegistered } from "../lib/mail.js";
+import { notifyMemberRegistered, notifyPasswordReset } from "../lib/mail.js";
 import { parseAvatar } from "../lib/avatar.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
+import { siteUrl } from "../emails/layout.js";
 
 export const authRouter = Router();
 
@@ -36,6 +39,29 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().trim().email().max(120),
   password: z.string().min(1).max(100),
+});
+
+const forgotSchema = z.object({
+  email: z.string().trim().email().max(120),
+});
+
+const resetSchema = z.object({
+  token: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/),
+  password: z.string().min(8).max(100),
+});
+
+const profileSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  phone: z
+    .string()
+    .trim()
+    .min(8)
+    .max(40)
+    .regex(/^[0-9+().\s-]{8,40}$/)
+    .optional(),
+  avatarUrl: z.string().max(120_000).optional(),
+  currentPassword: z.string().min(1).max(100).optional(),
+  password: z.string().min(8).max(100).optional(),
 });
 
 function publicMember(row: typeof members.$inferSelect) {
@@ -126,6 +152,121 @@ authRouter.post("/auth/login", async (req, res) => {
   await claimGuestOrders(member.id, email);
   setMemberSession(res, member.id);
   res.json({ member: publicMember(member) });
+});
+
+authRouter.post("/auth/forgot", async (req, res) => {
+  if (
+    !allowRequest(`forgot:${clientKey(req)}`, 8, 15 * 60 * 1000) ||
+    !allowRequest(`forgot-email:${String(req.body?.email ?? "").toLowerCase()}`, 3, 60 * 60 * 1000)
+  ) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const parsed = forgotSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+
+  const email = parsed.data.email.toLowerCase();
+  const [member] = await db.select().from(members).where(eq(members.email, email)).limit(1);
+  if (member) {
+    const token = newAccessToken();
+    await db.delete(passwordResets).where(eq(passwordResets.memberId, member.id));
+    await db.insert(passwordResets).values({
+      memberId: member.id,
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+    });
+    void notifyPasswordReset({
+      name: member.name,
+      email: member.email,
+      resetUrl: siteUrl(`/fr/reset?token=${encodeURIComponent(token)}`),
+    });
+  }
+  res.json({ ok: true });
+});
+
+authRouter.post("/auth/reset", async (req, res) => {
+  if (!allowRequest(`reset:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const parsed = resetSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+
+  const [reset] = await db
+    .select()
+    .from(passwordResets)
+    .where(eq(passwordResets.tokenHash, hashToken(parsed.data.token)))
+    .limit(1);
+  if (!reset || reset.expiresAt.getTime() <= Date.now()) {
+    if (reset) await db.delete(passwordResets).where(eq(passwordResets.id, reset.id));
+    res.status(400).json({ error: "invalid_token" });
+    return;
+  }
+
+  const [member] = await db
+    .update(members)
+    .set({ passwordHash: await hashPassword(parsed.data.password) })
+    .where(eq(members.id, reset.memberId))
+    .returning();
+  await db.delete(passwordResets).where(eq(passwordResets.memberId, reset.memberId));
+  if (!member) {
+    res.status(400).json({ error: "invalid_token" });
+    return;
+  }
+
+  setMemberSession(res, member.id);
+  res.json({ member: publicMember(member) });
+});
+
+authRouter.patch("/auth/me", requireMember, async (req, res) => {
+  if (!allowRequest(`profile:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const parsed = profileSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  if (parsed.data.password && !parsed.data.currentPassword) {
+    res.status(400).json({ error: "current_required" });
+    return;
+  }
+
+  const memberId = (req as MemberRequest).memberId;
+  const [member] = await db.select().from(members).where(eq(members.id, memberId)).limit(1);
+  if (!member) {
+    clearMemberSession(res);
+    res.status(401).json({ error: "login_required" });
+    return;
+  }
+
+  if (parsed.data.password) {
+    if (!(await verifyPassword(parsed.data.currentPassword ?? "", member.passwordHash))) {
+      res.status(400).json({ error: "invalid_password" });
+      return;
+    }
+  }
+
+  const next = {
+    name: parsed.data.name ?? member.name,
+    phone: parsed.data.phone ?? member.phone,
+    avatarUrl: parsed.data.avatarUrl === undefined ? member.avatarUrl : parseAvatar(parsed.data.avatarUrl),
+    passwordHash: parsed.data.password ? await hashPassword(parsed.data.password) : member.passwordHash,
+  };
+
+  const [updated] = await db.update(members).set(next).where(eq(members.id, member.id)).returning();
+  if (!updated) {
+    res.status(500).json({ error: "server_error" });
+    return;
+  }
+  res.json({ member: publicMember(updated) });
 });
 
 authRouter.post("/auth/logout", (_req, res) => {

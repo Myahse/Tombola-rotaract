@@ -191,6 +191,15 @@
     "submitting": "Veuillez patienter…",
     "haveAccount": "Déjà un compte ?",
     "noAccount": "Pas encore de compte ?",
+    "forgotLink": "Mot de passe oublié ?",
+    "forgotTitle": "Mot de passe oublié",
+    "forgotLead": "Indiquez l’e-mail de votre compte. S’il existe, vous recevrez un lien pour en choisir un nouveau.",
+    "forgotSubmit": "Envoyer le lien",
+    "forgotSent": "Si un compte existe avec cet e-mail, un lien vient d’être envoyé. Il expire dans une heure.",
+    "forgotBack": "Retour à la connexion",
+    "resetTitle": "Nouveau mot de passe",
+    "resetLead": "Choisissez un mot de passe d’au moins 8 caractères.",
+    "resetSubmit": "Enregistrer le mot de passe",
     "termsTitle": "Conditions générales d’utilisation, de participation et de vente des tombolas",
     "termsLegend": "Acceptation",
     "termsLink": "Lire le document complet",
@@ -210,7 +219,14 @@
     "ticketCount": "{{count}} ticket",
     "ticketCount_other": "{{count}} tickets",
     "waitingNumbers": "{{count}} ticket, numéros après paiement",
-    "waitingNumbers_other": "{{count}} tickets, numéros après paiement"
+    "waitingNumbers_other": "{{count}} tickets, numéros après paiement",
+    "profileTitle": "Mon profil",
+    "saveProfile": "Enregistrer",
+    "saved": "Profil mis à jour.",
+    "currentPassword": "Mot de passe actuel (pour en changer)",
+    "newPassword": "Nouveau mot de passe",
+    "emailLocked": "L’e-mail sert à vous connecter. Il ne peut pas être modifié ici.",
+    "removePhoto": "Retirer la photo"
   },
   "errors": {
     "generic": "Une erreur s’est produite.",
@@ -222,7 +238,10 @@
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
     "termsRequired": "Cochez les deux cases pour créer un compte.",
     "notEnough": "Il ne reste pas assez de tickets.",
-    "notOnSale": "La billetterie n’est pas ouverte."
+    "notOnSale": "La billetterie n’est pas ouverte.",
+    "tooMany": "Trop de tentatives. Réessayez dans un moment.",
+    "invalidToken": "Ce lien n’est plus valable. Demandez-en un nouveau.",
+    "currentRequired": "Indiquez votre mot de passe actuel pour en choisir un nouveau."
   },
   "prizeRank": "{{rank, ordinal}} lot"
 }

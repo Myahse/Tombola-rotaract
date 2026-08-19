@@ -64,6 +64,17 @@ export const api = {
     request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   memberLogout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   memberMe: () => request<{ member: Member }>("/api/auth/me"),
+  forgotPassword: (email: string) =>
+    request<{ ok: boolean }>("/api/auth/forgot", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (body: { token: string; password: string }) =>
+    request<{ member: Member }>("/api/auth/reset", { method: "POST", body: JSON.stringify(body) }),
+  updateProfile: (body: {
+    name: string;
+    phone: string;
+    avatarUrl?: string;
+    currentPassword?: string;
+    password?: string;
+  }) => request<{ member: Member }>("/api/auth/me", { method: "PATCH", body: JSON.stringify(body) }),
   myTombolas: () => request<{ tombolas: MemberTombola[] }>("/api/me/tombolas"),
   login: (password: string) =>
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) }),

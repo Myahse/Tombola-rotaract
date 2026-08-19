@@ -53,6 +53,9 @@ export function LoginPage() {
           {t("auth.password")}
           <input name="password" type="password" required autoComplete="current-password" />
         </label>
+        <p className="auth-forgot">
+          <Link to={`/${lang}/forgot`}>{t("auth.forgotLink")}</Link>
+        </p>
         {error ? <p className="text-sm text-ticket">{error}</p> : null}
         <button disabled={busy} className="btn-primary btn-block">
           {busy ? t("auth.submitting") : t("auth.submitLogin")}

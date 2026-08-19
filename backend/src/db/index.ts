@@ -23,6 +23,16 @@ export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS terms_accepted_at timestamptz`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS emails_accepted_at timestamptz`);
   await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      token_hash text NOT NULL UNIQUE,
+      expires_at timestamptz NOT NULL,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS password_resets_member_idx ON password_resets (member_id)`);
+  await client.unsafe(`
     CREATE TABLE IF NOT EXISTS campaigns (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       name text NOT NULL,
