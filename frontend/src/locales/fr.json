@@ -77,7 +77,7 @@
     "saveLink": "Gardez ce lien, ou retrouvez vos tickets dans Mes tombolas :",
     "pay": "Comment payer",
     "statusReserved": "En attente de paiement",
-    "statusPaid": "Payé — vos tickets sont dans le tirage",
+    "statusPaid": "Payé. Vos tickets sont dans le tirage",
     "yourTickets": "Vos tickets à gratter",
     "yourPlainTickets": "Vos tickets",
     "winner": "Gagnant : {{prize}}"
@@ -127,7 +127,7 @@
   "results": {
     "title": "Tirage au sort",
     "empty": "Le tirage n’a pas encore eu lieu.",
-    "scratchHidden": "Les lots sont sur les tickets. Grattez le vôtre pour découvrir le résultat — le palmarès n’est pas affiché ici.",
+    "scratchHidden": "Les lots sont sur les tickets. Grattez le vôtre pour découvrir le résultat. Le palmarès n’est pas affiché ici.",
     "ticket": "Ticket n°{{number}}",
     "unawarded": "Lot non attribué"
   },
@@ -177,7 +177,6 @@
     "loginLead": "Connectez-vous pour acheter des tickets et retrouver toutes vos tombolas : cérémonies, réunions, et autres événements du club.",
     "registerLead": "Un compte pour toutes les tombolas du club. Vous pourrez suivre vos tickets d’un événement à l’autre.",
     "photo": "Photo (optionnel)",
-    "photoHint": "Optionnel — visible au tirage.",
     "name": "Nom",
     "email": "E-mail",
     "phone": "Téléphone",
@@ -192,6 +191,10 @@
     "termsBody": "Le Rotaract Club IUGB utilise ce compte pour vos tickets de tombola : réservation, paiement, tirage et résultats. Vous êtes responsable des informations fournies. Seuls les tickets payés participent au tirage.",
     "termsEmails": "Nous pouvons utiliser votre adresse e-mail pour vous écrire au sujet de vos tickets, des tombolas en cours, et pour des campagnes e-mail du club (annonces, invitations, collectes, actualités) ainsi que d’autres communications du Rotaract Club IUGB.",
     "termsLegend": "Pour créer un compte",
+    "acceptTermsPrefix": "J’ai lu et j’accepte les ",
+    "termsLink": "conditions d’utilisation",
+    "acceptTermsSuffix": ".",
+    "termsClose": "Fermer",
     "acceptTerms": "J’ai lu et j’accepte les conditions d’utilisation.",
     "acceptEmails": "J’accepte que le club utilise mon e-mail pour des campagnes et d’autres communications.",
     "acceptEmailsHint": "Tombolas, invitations, collectes et actualités du Rotaract Club IUGB."
@@ -199,7 +202,7 @@
   "account": {
     "title": "Mes tombolas",
     "hello": "Bonjour {{name}}.",
-    "lede": "Ici, toutes les tombolas auxquelles vous avez participé — cérémonie, réunion, ou autre événement.",
+    "lede": "Ici, toutes les tombolas auxquelles vous avez participé : cérémonie, réunion, ou un autre événement du club.",
     "empty": "Vous n’avez pas encore de tickets. Réservez-en pour la tombola en cours : ils apparaîtront ici, et aussi pour les prochaines.",
     "openTickets": "Voir les tickets",
     "ticketCount": "{{count}} ticket",

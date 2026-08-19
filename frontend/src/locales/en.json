@@ -77,7 +77,7 @@
     "saveLink": "Keep this link, or find your tickets again under My tombolas:",
     "pay": "How to pay",
     "statusReserved": "Waiting for payment",
-    "statusPaid": "Paid — your tickets are in the draw",
+    "statusPaid": "Paid. Your tickets are in the draw",
     "yourTickets": "Your scratch tickets",
     "yourPlainTickets": "Your tickets",
     "winner": "Winner: {{prize}}"
@@ -127,7 +127,7 @@
   "results": {
     "title": "The draw",
     "empty": "The draw has not taken place yet.",
-    "scratchHidden": "Prizes are on the tickets. Scratch yours to see the result — the winners list is not shown here.",
+    "scratchHidden": "Prizes are on the tickets. Scratch yours to see the result. The winners list is not shown here.",
     "ticket": "Ticket no. {{number}}",
     "unawarded": "Prize not awarded"
   },
@@ -177,7 +177,6 @@
     "loginLead": "Log in to buy tickets and keep every tombola in one place: ceremonies, meetings, and other club events.",
     "registerLead": "One account for every club tombola. You can follow your tickets from one event to the next.",
     "photo": "Photo (optional)",
-    "photoHint": "Optional — shown during the draw.",
     "name": "Name",
     "email": "Email",
     "phone": "Phone",
@@ -192,6 +191,10 @@
     "termsBody": "Rotaract IUGB Club uses this account for your tombola tickets: reservation, payment, the draw, and results. You are responsible for the information you provide. Only paid tickets take part in the draw.",
     "termsEmails": "We may use your email address to write to you about your tickets, current tombolas, and for club email campaigns (announcements, invitations, fundraising, news) as well as other Rotaract IUGB Club communications.",
     "termsLegend": "To create an account",
+    "acceptTermsPrefix": "I have read and I accept the ",
+    "termsLink": "terms of use",
+    "acceptTermsSuffix": ".",
+    "termsClose": "Close",
     "acceptTerms": "I have read and I accept the terms of use.",
     "acceptEmails": "I agree that the club may use my email for campaigns and other communications.",
     "acceptEmailsHint": "Tombolas, invitations, fundraising, and Rotaract IUGB Club news."
@@ -199,7 +202,7 @@
   "account": {
     "title": "My tombolas",
     "hello": "Hello {{name}}.",
-    "lede": "Here are all the tombolas you have joined — ceremony, meeting, or other club event.",
+    "lede": "Here are all the tombolas you have joined: ceremony, meeting, or another club event.",
     "empty": "You do not have tickets yet. Reserve some for the current tombola: they will show up here, along with the next ones.",
     "openTickets": "See tickets",
     "ticketCount": "{{count}} ticket",

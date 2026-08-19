@@ -55,7 +55,7 @@ export function wrapEmail(options: {
           <tr>
             <td style="padding:20px 32px 28px;color:#a1a1a8;font-size:12px;line-height:1.5;border-top:1px solid ${LINE};">
               Rotaract IUGB Club · Côte d’Ivoire<br />
-              On se retrouve au club — et à la prochaine tombola.
+              On se retrouve au club, et à la prochaine tombola.
             </td>
           </tr>
         </table>

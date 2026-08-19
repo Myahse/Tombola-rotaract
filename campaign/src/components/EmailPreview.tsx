@@ -167,7 +167,7 @@ export function EmailPreview({
             <footer>
               Rotaract IUGB Club · Côte d’Ivoire
               <br />
-              On se retrouve au club — et à la prochaine tombola.
+              On se retrouve au club, et à la prochaine tombola.
             </footer>
           </article>
         </div>

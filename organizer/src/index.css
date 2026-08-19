@@ -31,6 +31,7 @@
   --header-bg: rgba(255, 255, 255, 0.92);
   --nav-bg: rgba(255, 255, 255, 0.94);
   --btn-fg: #ffffff;
+  --btn-bg: #141416;
   --btn-hover: #2a2a2e;
   --focus: #c9c9cf;
   --ok-bg: #e8f6ee;
@@ -63,14 +64,15 @@
     --success: #3ecf8e;
     --header-bg: rgba(18, 18, 20, 0.92);
     --nav-bg: rgba(18, 18, 20, 0.94);
-    --btn-fg: #121214;
-    --btn-hover: #ffffff;
+    --btn-fg: #ffffff;
+    --btn-bg: #be034d;
+    --btn-hover: #ef4b7e;
     --focus: #5a5a64;
     --ok-bg: #163326;
     --skeleton-a: #26262c;
     --skeleton-b: #32323a;
-    --on-ink-a: #d4d4da;
-    --on-ink-b: #ececf0;
+    --on-ink-a: #9a0340;
+    --on-ink-b: #d14a78;
     --nav-shadow: 0 10px 32px rgba(0, 0, 0, 0.45);
     --scrim: rgba(0, 0, 0, 0.55);
     --card-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
@@ -220,7 +222,7 @@ a:hover { color: var(--primary); }
 }
 .lang-switch button.active {
   background: var(--ink);
-  color: var(--btn-fg);
+  color: var(--bg);
 }
 .lang-switch button:hover:not(.active) { color: var(--ink); }
 
@@ -380,7 +382,7 @@ a:hover { color: var(--primary); }
   gap: 0.4rem;
   text-decoration: none;
 }
-.btn-primary { background: var(--ink); color: var(--btn-fg); }
+.btn-primary { background: var(--btn-bg); color: var(--btn-fg); }
 .btn-primary:hover { background: var(--btn-hover); color: var(--btn-fg); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-ghost { background: transparent; color: var(--muted); }
@@ -920,7 +922,7 @@ a:hover { color: var(--primary); }
     margin-top: 0;
   }
   .buyer-actions .btn-primary {
-    background: var(--ink);
+    background: var(--btn-bg);
     color: var(--btn-fg);
     border: 0;
     width: auto;

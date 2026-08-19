@@ -9,6 +9,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { AccountPage } from "./pages/AccountPage";
 import { DonatePage } from "./pages/DonatePage";
+import { TermsPage } from "./pages/TermsPage";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="donate" element={<DonatePage />} />
         <Route path="login" element={<LoginPage />} />
         <Route path="register" element={<RegisterPage />} />
+        <Route path="terms" element={<TermsPage />} />
         <Route path="account" element={<AccountPage />} />
       </Route>
     </Routes>
