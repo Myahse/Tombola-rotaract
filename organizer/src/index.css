@@ -354,6 +354,7 @@ a:hover { color: var(--primary); }
   padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
   background: rgba(20, 20, 22, 0.32);
   backdrop-filter: blur(8px);
+  animation: appear-fade 0.35s ease both;
 }
 .modal-card {
   width: min(100%, 22.5rem);
@@ -362,6 +363,7 @@ a:hover { color: var(--primary); }
   border-radius: 16px;
   padding: 1.45rem 1.35rem 1.4rem;
   box-shadow: 0 18px 48px rgba(20, 20, 22, 0.14);
+  animation: appear-up 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .modal-card h1 { font-size: 1.35rem; margin-top: 0.2rem; }
 .modal-lead {
@@ -942,10 +944,37 @@ textarea.skeleton {
   100% { background-position: -100% 0; }
 }
 
+.page-appear > * {
+  animation: appear-up 0.52s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.page-appear > *:nth-child(1) { animation-delay: 0.02s; }
+.page-appear > *:nth-child(2) { animation-delay: 0.09s; }
+.page-appear > *:nth-child(3) { animation-delay: 0.16s; }
+.page-appear > *:nth-child(4) { animation-delay: 0.23s; }
+.page-appear > *:nth-child(5) { animation-delay: 0.3s; }
+.page-appear > *:nth-child(n + 6) { animation-delay: 0.34s; }
+@keyframes appear-up {
+  from {
+    opacity: 0;
+    transform: translateY(1.15rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes appear-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .draw-reel.is-spinning { transition: none; }
   .skeleton { animation: none; }
+  .page-appear > *,
+  .modal-backdrop,
+  .modal-card { animation: none; }
 }
 
 @media print {
