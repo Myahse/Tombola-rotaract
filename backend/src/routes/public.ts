@@ -7,7 +7,7 @@ import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.j
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
 import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
-import { nextTicketNumbers } from "../lib/tickets.js";
+import { nextTicketNumbers, drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 import { notifyPurchase } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
@@ -30,8 +30,18 @@ publicRouter.get("/payments", (_req, res) => {
 
 publicRouter.get("/event/current/results", async (_req, res) => {
   const event = await getCurrentPublicEvent();
-  if (!event || event.status !== "drawn") {
-    res.json({ winners: [] });
+  if (!event) {
+    res.json({ event: null, winners: [] });
+    return;
+  }
+  const publicEvent = {
+    titleFr: event.titleFr,
+    titleEn: event.titleEn,
+    status: event.status,
+    drawMode: drawModeOf(event.drawMode),
+  };
+  if (event.status !== "drawn" || publicEvent.drawMode === "scratch") {
+    res.json({ event: publicEvent, winners: [] });
     return;
   }
   const winners = await db
@@ -50,14 +60,7 @@ publicRouter.get("/event/current/results", async (_req, res) => {
     .leftJoin(members, eq(orders.memberId, members.id))
     .where(eq(drawResults.eventId, event.id))
     .orderBy(asc(prizes.rank));
-  res.json({
-    event: {
-      titleFr: event.titleFr,
-      titleEn: event.titleEn,
-      status: event.status,
-    },
-    winners,
-  });
+  res.json({ event: publicEvent, winners });
 });
 
 publicRouter.post("/orders", requireMember, async (req, res) => {
@@ -163,6 +166,8 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       currency: created.event.currency,
       paymentInstructionsFr: created.event.paymentInstructionsFr,
       paymentInstructionsEn: created.event.paymentInstructionsEn,
+      eventStatus: created.event.status,
+      drawMode: drawModeOf(created.event.drawMode),
       numbers: created.tickets.map((ticket) => ticket.number).sort((a, b) => a - b),
     });
     void publishChange("order");
@@ -176,6 +181,7 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       currency: created.event.currency,
       numbers: created.tickets.map((ticket) => ticket.number).sort((a, b) => a - b),
       paymentMethod: created.order.paymentMethod,
+      drawMode: drawModeOf(created.event.drawMode),
       ticketsUrl: siteUrl(`/fr/tickets/${created.order.accessToken}`),
     });
   } catch (error) {
@@ -237,7 +243,8 @@ publicRouter.get("/orders/:token", async (req, res) => {
     titleEn: event?.titleEn ?? "",
     paymentInstructionsFr: event?.paymentInstructionsFr ?? "",
     paymentInstructionsEn: event?.paymentInstructionsEn ?? "",
-    tickets: orderTickets,
+    drawMode: drawModeOf(event?.drawMode),
+    tickets: maskScratchPrizes(orderTickets, drawModeOf(event?.drawMode)),
   });
 });
 
@@ -264,7 +271,7 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", async (req, res) => 
   }
 
   const [event] = await db.select().from(events).where(eq(events.id, order.eventId)).limit(1);
-  if (!event || event.status !== "drawn") {
+  if (!event || event.status !== "drawn" || drawModeOf(event.drawMode) !== "scratch") {
     res.status(409).json({ error: "not_drawn" });
     return;
   }
@@ -280,11 +287,11 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", async (req, res) => 
   }
 
   const scratchedAt = ticket.scratchedAt ?? new Date();
+  const [prize] = ticket.prizeId
+    ? await db.select().from(prizes).where(eq(prizes.id, ticket.prizeId)).limit(1)
+    : [];
   if (!ticket.scratchedAt) {
     await db.update(tickets).set({ scratchedAt }).where(eq(tickets.id, ticket.id));
-    const [prize] = ticket.prizeId
-      ? await db.select().from(prizes).where(eq(prizes.id, ticket.prizeId)).limit(1)
-      : [];
     broadcast(
       {
         type: "ticket.scratched",
@@ -301,5 +308,11 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", async (req, res) => 
     );
   }
 
-  res.json({ ok: true, scratchedAt: scratchedAt.toISOString() });
+  res.json({
+    ok: true,
+    scratchedAt: scratchedAt.toISOString(),
+    prizeRank: prize?.rank ?? null,
+    prizeNameFr: prize?.nameFr ?? null,
+    prizeNameEn: prize?.nameEn ?? null,
+  });
 });

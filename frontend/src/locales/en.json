@@ -34,7 +34,7 @@
   "landing": {
     "kicker": "Club",
     "heroTitle": "The club tombola, online",
-    "heroLede": "Log in, buy a scratch ticket, pay at the club, then reveal your prize after the draw. One account for every club tombola.",
+    "heroLede": "Log in, buy a ticket, pay at the club, then follow the draw. One account for every club tombola.",
     "howCta": "How it works",
     "howTitle": "How it works",
     "step1Title": "1. Create an account",
@@ -43,8 +43,8 @@
     "step2Text": "Choose how many tickets you want. Each ticket has a unique number, saved to your account.",
     "step3Title": "3. Pay",
     "step3Text": "Cash at the club, or Wave. Only paid tickets enter the draw.",
-    "step4Title": "4. Scratch",
-    "step4Text": "After the draw, scratch the silver panel: a prize, or no prize. Find every tombola you joined in your account.",
+    "step4Title": "4. The draw",
+    "step4Text": "The organizer chooses the format: scratch tickets, or a public wheel that everyone watches.",
     "currentTitle": "Current tombola",
     "seeTombola": "See the tombola",
     "status": "Status",
@@ -56,7 +56,9 @@
   },
   "buy": {
     "title": "Buy tickets",
-    "intro": "Log in, then reserve your scratch tickets. Pay in cash or via Wave: only paid tickets take part. After the draw, scratch to see if you won a prize.",
+    "intro": "Log in, then reserve your tickets. Pay in cash or via Wave: only paid tickets take part.",
+    "introScratch": "After the draw, scratch to see if your number won a prize.",
+    "introRoulette": "The draw is public, on the wheel: everyone sees who wins.",
     "needAccount": "Create an account or log in to reserve tickets. The same account follows every club tombola.",
     "loggedInAs": "Buying as {{name}} ({{email}})",
     "name": "Name",
@@ -77,6 +79,7 @@
     "statusReserved": "Waiting for payment",
     "statusPaid": "Paid — your tickets are in the draw",
     "yourTickets": "Your scratch tickets",
+    "yourPlainTickets": "Your tickets",
     "winner": "Winner: {{prize}}"
   },
   "pay": {
@@ -108,9 +111,23 @@
     "instruction": "Scratch the silver panel: the prize was already assigned to this ticket at the draw.",
     "howto": "The draw assigns prizes to tickets. After the draw, scratch to see whether your number won a prize."
   },
+  "deck": {
+    "hintScratch": "Scratch the silver panel, then swipe the card for the next ticket.",
+    "hintRoulette": "Swipe for the next ticket.",
+    "count": "{{current}} of {{total}}",
+    "next": "Next ticket",
+    "done": "You have seen all your tickets.",
+    "replay": "See the stack again"
+  },
+  "ticket": {
+    "plain": "Ticket",
+    "howto": "Your tickets have a number. The draw is public, on the wheel: everyone sees who wins.",
+    "waitRoulette": "Waiting for the public draw"
+  },
   "results": {
     "title": "The draw",
     "empty": "The draw has not taken place yet.",
+    "scratchHidden": "Prizes are on the tickets. Scratch yours to see the result — the winners list is not shown here.",
     "ticket": "Ticket no. {{number}}",
     "unawarded": "Prize not awarded"
   },

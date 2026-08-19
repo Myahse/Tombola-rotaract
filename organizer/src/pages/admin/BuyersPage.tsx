@@ -5,6 +5,7 @@ import { api, formatMoney } from "../../api";
 import { useLiveTick } from "../../live";
 import type { AdminEvent, AdminOrder } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 export function BuyersPage() {
   const { t, i18n } = useTranslation();
@@ -12,16 +13,18 @@ export function BuyersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [event, setEvent] = useState<AdminEvent | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const tick = useLiveTick();
 
   async function load() {
     const [orderData, eventData] = await Promise.all([api.orders(), api.adminEvent()]);
     setOrders(orderData.orders);
     setEvent(eventData.event);
+    setReady(true);
   }
 
   useEffect(() => {
-    load().catch(() => undefined);
+    load().catch(() => setReady(true));
   }, [tick]);
 
   const locked = event?.status === "drawn";
@@ -90,6 +93,8 @@ export function BuyersPage() {
       </div>
     );
   }
+
+  if (!ready) return <PageSkeleton kind="list" />;
 
   return (
     <section className="buyers-page">

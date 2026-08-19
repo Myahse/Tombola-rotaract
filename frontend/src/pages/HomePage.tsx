@@ -35,15 +35,17 @@ export function HomePage() {
         <h1>{t("landing.heroTitle")}</h1>
         <p className="lede">{t("landing.heroLede")}</p>
         <div className="mt-2 flex flex-wrap justify-center gap-2">
-          {canBuy ? (
-            <Link to={`/${lang}/buy`} className="btn-primary">
-              {t("nav.buy")}
-            </Link>
-          ) : (
-            <Link to={`/${lang}/tombola`} className="btn-primary">
-              {t("landing.seeTombola")}
-            </Link>
-          )}
+          {event !== undefined ? (
+            canBuy ? (
+              <Link to={`/${lang}/buy`} className="btn-primary">
+                {t("nav.buy")}
+              </Link>
+            ) : (
+              <Link to={`/${lang}/tombola`} className="btn-primary">
+                {t("landing.seeTombola")}
+              </Link>
+            )
+          ) : null}
           <a href="#how" className="btn-outline">
             {t("landing.howCta")}
           </a>
@@ -74,9 +76,7 @@ export function HomePage() {
 
       <section className="section">
         <h2>{t("landing.currentTitle")}</h2>
-        {event === undefined ? (
-          <p className="lede">…</p>
-        ) : !event ? (
+        {event === undefined ? null : !event ? (
           <p>{t("home.noEvent")}</p>
         ) : (
           <>
@@ -112,7 +112,7 @@ export function HomePage() {
                   {t("nav.buy")}
                 </Link>
               ) : null}
-              {event.status === "drawn" ? (
+              {event.status === "drawn" && event.drawMode !== "scratch" ? (
                 <Link to={`/${lang}/results`} className="btn-outline">
                   {t("home.seeResults")}
                 </Link>

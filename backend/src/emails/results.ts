@@ -16,6 +16,7 @@ export type DrawResultsEmail = {
   ticketsUrl: string;
   prizes: ResultsPrize[];
   wins: ResultsPrize[];
+  drawMode?: "scratch" | "roulette";
 };
 
 export function drawResultsEmail(data: DrawResultsEmail) {
@@ -23,6 +24,41 @@ export function drawResultsEmail(data: DrawResultsEmail) {
   const buyUrl = siteUrl("/fr/buy");
   const resultsUrl = siteUrl("/fr/results");
   const donateUrl = siteUrl("/fr/donate");
+
+  if (data.drawMode === "scratch") {
+    const html = wrapEmail({
+      preheader: `${name}, le tirage a attribué les lots. Grattez vos tickets pour voir.`,
+      heading: `${name}, c’est le moment de gratter`,
+      ctaLabel: "Gratter mes tickets",
+      ctaUrl: data.ticketsUrl,
+      bodyHtml: `
+        <p style="margin:0 0 14px;color:#141416;">Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> a attribué les lots aux tickets. Personne n’a vu le palmarès : grattez pour découvrir le vôtre.</p>
+        <p style="margin:0 0 14px;color:#141416;">Un ami n’a pas joué ? <a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Qu’il prenne sa place pour la suivante</a>. Vous pouvez aussi <a href="${escapeHtml(donateUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">soutenir le club</a>.</p>
+        <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — The draw for ${escapeHtml(data.eventTitleEn)} has assigned prizes to tickets. Scratch yours to see if you won. See you at the next tombola.</p>
+      `,
+    });
+    return {
+      subject: `${name}, grattez vos tickets — le tirage est fait`,
+      html,
+      text: [
+        `${name}, c’est le moment de gratter.`,
+        `Le tirage de ${data.eventTitleFr} a attribué les lots. Découvrez le vôtre en grattant.`,
+        `Vos tickets : ${data.ticketsUrl}`,
+        `EN — Scratch your tickets for ${data.eventTitleEn}.`,
+      ].join("\n"),
+      params: {
+        name,
+        eventTitleFr: data.eventTitleFr,
+        eventTitleEn: data.eventTitleEn,
+        ticketsUrl: data.ticketsUrl,
+        resultsUrl,
+        buyUrl,
+        donateUrl,
+        logoUrl: siteUrl("/logo.png"),
+      },
+    };
+  }
+
   const won = data.wins.length > 0;
   const yourWins = data.wins
     .map((prize) => `${prize.rank}. ${prize.prizeNameFr} (ticket n°${prize.ticketNumber})`)
@@ -55,8 +91,8 @@ export function drawResultsEmail(data: DrawResultsEmail) {
     : `Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est terminé. Voici tous les lots, en une seule fois.`;
 
   const personal = won
-    ? `<p style="margin:0 0 16px;color:#141416;">Vous repartez avec <strong>${escapeHtml(yourWins)}</strong>. Passez au club pour retirer, et grattez vos tickets en ligne.</p>`
-    : `<p style="margin:0 0 16px;color:#141416;">Cette fois, vos numéros n’ont pas été appelés. Grattez quand même vos tickets, et on se revoit à la prochaine.</p>`;
+    ? `<p style="margin:0 0 16px;color:#141416;">Vous repartez avec <strong>${escapeHtml(yourWins)}</strong>. Passez au club pour retirer votre lot.</p>`
+    : `<p style="margin:0 0 16px;color:#141416;">Cette fois, vos numéros n’ont pas été appelés. On se revoit à la prochaine.</p>`;
 
   const html = wrapEmail({
     preheader: won

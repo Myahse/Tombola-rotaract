@@ -7,6 +7,7 @@ import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
 import { LiveProvider } from "../live";
 import { LoginModal } from "./LoginModal";
+import { PageSkeleton } from "./PageSkeleton";
 
 const publicSite = import.meta.env.VITE_PUBLIC_SITE ?? "http://localhost:5173";
 
@@ -100,7 +101,7 @@ function OrganizerShell() {
         </div>
       </header>
       <main className="page">
-        {authed === "loading" ? <p className="lede">…</p> : loggedIn ? <Outlet /> : null}
+        {authed === "loading" ? <PageSkeleton kind="page" /> : loggedIn ? <Outlet /> : null}
       </main>
       {loggedIn ? (
         <nav className="bottom-nav nav-5 show-mobile no-print" aria-label="Mobile">

@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-r
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
 
 export function RegisterPage() {
@@ -16,7 +17,8 @@ export function RegisterPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const next = params.get("next") || `/${lang}/account`;
 
-  if (!loading && member) {
+  if (loading) return <PageSkeleton kind="register" />;
+  if (member) {
     return <Navigate to={next.startsWith("/") ? next : `/${lang}/account`} replace />;
   }
 

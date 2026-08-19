@@ -5,12 +5,14 @@ import { api, localized } from "../../api";
 import { useLiveTick } from "../../live";
 import type { AdminEvent, AdminStats } from "../../types";
 import { ScratchFeed } from "../../components/ScratchFeed";
+import { PageSkeleton } from "../../components/PageSkeleton";
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
   const { lang } = useParams();
   const [event, setEvent] = useState<AdminEvent | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const tick = useLiveTick();
@@ -19,10 +21,14 @@ export function DashboardPage() {
     const data = await api.adminEvent();
     setEvent(data.event);
     setStats(data.stats);
+    setReady(true);
   }
 
   useEffect(() => {
-    load().catch(() => setMessage(t("errors.generic")));
+    load().catch(() => {
+      setReady(true);
+      setMessage(t("errors.generic"));
+    });
   }, [t, tick]);
 
   async function setStatus(status: "on_sale" | "closed") {
@@ -38,6 +44,7 @@ export function DashboardPage() {
     }
   }
 
+  if (!ready) return <PageSkeleton kind="stats" />;
   if (!event || !stats) {
     return (
       <section>
@@ -54,7 +61,7 @@ export function DashboardPage() {
     { label: t("admin.paid"), value: stats.paidTickets },
     { label: t("admin.reserved"), value: stats.reservedTickets },
     { label: t("admin.remaining"), value: stats.remainingTickets },
-    ...(event.status === "drawn"
+    ...(event.status === "drawn" && event.drawMode !== "roulette"
       ? [{ label: t("admin.scratched"), value: `${stats.scratchedTickets ?? 0}/${stats.paidTickets}` }]
       : []),
   ];
@@ -95,7 +102,7 @@ export function DashboardPage() {
       ) : (
         <>
           <p className="mt-4">{t("admin.locked")}</p>
-          <ScratchFeed />
+          {event.drawMode !== "roulette" ? <ScratchFeed /> : null}
         </>
       )}
       {message ? <p className="mt-3 text-sm text-ticket">{message}</p> : null}

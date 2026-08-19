@@ -34,7 +34,7 @@
   "landing": {
     "kicker": "Club",
     "heroTitle": "La tombola du club, en ligne",
-    "heroLede": "Connectez-vous, achetez un ticket à gratter, payez au club, puis découvrez votre lot après le tirage. Un compte pour toutes les tombolas du club.",
+    "heroLede": "Connectez-vous, achetez un ticket, payez au club, puis suivez le tirage. Un compte pour toutes les tombolas du club.",
     "howCta": "Comment ça marche",
     "howTitle": "Comment ça marche",
     "step1Title": "1. Créez un compte",
@@ -43,8 +43,8 @@
     "step2Text": "Choisissez le nombre de tickets. Chaque ticket a un numéro unique, rattaché à votre compte.",
     "step3Title": "3. Payez",
     "step3Text": "Espèces au club, ou Wave. Seuls les tickets payés participent au tirage.",
-    "step4Title": "4. Grattez",
-    "step4Text": "Après le tirage, grattez la zone argentée : lot ou pas de lot. Retrouvez toutes vos tombolas dans votre compte.",
+    "step4Title": "4. Le tirage",
+    "step4Text": "L’organisateur choisit le format : tickets à gratter, ou roulette en public que tout le monde suit.",
     "currentTitle": "Tombola en cours",
     "seeTombola": "Voir la tombola",
     "status": "Statut",
@@ -56,7 +56,9 @@
   },
   "buy": {
     "title": "Acheter des tickets",
-    "intro": "Connectez-vous, puis réservez vos tickets à gratter. Payez en espèces ou via Wave : seuls les tickets payés participent. Après le tirage, grattez pour voir si vous avez un lot.",
+    "intro": "Connectez-vous, puis réservez vos tickets. Payez en espèces ou via Wave : seuls les tickets payés participent.",
+    "introScratch": "Après le tirage, grattez pour voir si votre numéro a un lot.",
+    "introRoulette": "Le tirage se fait en public à la roulette : tout le monde voit qui gagne.",
     "needAccount": "Créez un compte ou connectez-vous pour réserver des tickets. Le même compte suit toutes les tombolas du club.",
     "loggedInAs": "Achat pour {{name}} ({{email}})",
     "name": "Nom",
@@ -77,6 +79,7 @@
     "statusReserved": "En attente de paiement",
     "statusPaid": "Payé — vos tickets sont dans le tirage",
     "yourTickets": "Vos tickets à gratter",
+    "yourPlainTickets": "Vos tickets",
     "winner": "Gagnant : {{prize}}"
   },
   "pay": {
@@ -108,9 +111,23 @@
     "instruction": "Grattez la zone argentée : le lot a déjà été attribué à ce ticket au tirage.",
     "howto": "Le tirage attribue les lots aux tickets. Une fois le tirage fait, grattez pour découvrir si votre numéro a un lot."
   },
+  "deck": {
+    "hintScratch": "Grattez la zone argentée, puis glissez la carte pour le ticket suivant.",
+    "hintRoulette": "Glissez pour passer au ticket suivant.",
+    "count": "{{current}} sur {{total}}",
+    "next": "Ticket suivant",
+    "done": "Vous avez vu tous vos tickets.",
+    "replay": "Revoir la pile"
+  },
+  "ticket": {
+    "plain": "Ticket",
+    "howto": "Vos tickets portent un numéro. Le tirage se fait à la roulette, en public : tout le monde voit qui gagne.",
+    "waitRoulette": "En attente du tirage public"
+  },
   "results": {
     "title": "Tirage au sort",
     "empty": "Le tirage n’a pas encore eu lieu.",
+    "scratchHidden": "Les lots sont sur les tickets. Grattez le vôtre pour découvrir le résultat — le palmarès n’est pas affiché ici.",
     "ticket": "Ticket n°{{number}}",
     "unawarded": "Lot non attribué"
   },

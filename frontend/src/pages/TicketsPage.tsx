@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, formatMoney, localized } from "../api";
-import type { OrderView } from "../types";
-import { ScratchTicket, StatusPill } from "../components/ScratchTicket";
+import type { OrderTicket, OrderView } from "../types";
+import { NumberedTicket, ScratchTicket, StatusPill } from "../components/ScratchTicket";
+import { TicketDeck } from "../components/TicketDeck";
+import { PageSkeleton } from "../components/PageSkeleton";
 import { useRealtime } from "../useRealtime";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
@@ -30,7 +32,7 @@ export function TicketsPage() {
   });
 
   if (error) return <p>{t("errors.generic")}</p>;
-  if (!order) return <p className="lede">…</p>;
+  if (!order) return <PageSkeleton kind="tickets" />;
 
   const tickets = order.tickets?.length
     ? order.tickets
@@ -45,10 +47,41 @@ export function TicketsPage() {
   const pay = localized(order, i18n.language, "paymentInstructions");
   const title = localized(order, i18n.language, "title") || t("home.kicker");
   const href = window.location.href;
+  const accessToken = order.token;
   const drawn = order.eventStatus === "drawn";
   const paid = order.status === "paid";
-  const canScratch = paid && drawn;
-  const lockedLabel = !paid ? t("scratch.payFirst") : t("scratch.wait");
+  const scratchMode = order.drawMode !== "roulette";
+  const canScratch = paid && drawn && scratchMode;
+  const lockedLabel = !paid ? t("scratch.payFirst") : scratchMode ? t("scratch.wait") : t("ticket.waitRoulette");
+
+  function applyScratch(ticketNumber: number, result: {
+    scratchedAt: string;
+    prizeRank: number | null;
+    prizeNameFr: string | null;
+    prizeNameEn: string | null;
+  }) {
+    setOrder((current) => {
+      if (!current?.tickets) return current;
+      return {
+        ...current,
+        tickets: current.tickets.map((ticket) =>
+          ticket.number === ticketNumber
+            ? {
+                ...ticket,
+                scratchedAt: result.scratchedAt,
+                prizeRank: result.prizeRank,
+                prizeNameFr: result.prizeNameFr,
+                prizeNameEn: result.prizeNameEn,
+              }
+            : ticket,
+        ),
+      };
+    });
+  }
+
+  function recordScratch(ticket: OrderTicket) {
+    void api.scratch(accessToken, ticket.number).then((result) => applyScratch(ticket.number, result));
+  }
 
   return (
     <>
@@ -63,7 +96,7 @@ export function TicketsPage() {
             {paid ? t("confirm.statusPaid") : t("confirm.statusReserved")}
           </StatusPill>
         </div>
-        <p className="lede">{t("scratch.howto")}</p>
+        <p className="lede">{scratchMode ? t("scratch.howto") : t("ticket.howto")}</p>
         <p className="lede">
           {t("confirm.saveLink")}{" "}
           <a href={href} className="break-all font-semibold">
@@ -73,26 +106,39 @@ export function TicketsPage() {
       </section>
 
       <section className="section">
-        <h2>{t("confirm.yourTickets")}</h2>
-        <div className="scratch-grid">
-          {tickets.map((ticket) => (
-            <ScratchTicket
-              key={ticket.number}
-              number={ticket.number}
-              title={title}
-              buyerName={order.buyerName}
-              token={order.token}
-              canScratch={canScratch}
-              lockedLabel={lockedLabel}
-              prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
-              prizeRank={ticket.prizeRank}
-              alreadyOpen={Boolean(ticket.scratchedAt)}
-              onReveal={() => {
-                void api.scratch(order.token, ticket.number);
-              }}
-            />
-          ))}
-        </div>
+        <h2>{scratchMode ? t("confirm.yourTickets") : t("confirm.yourPlainTickets")}</h2>
+        <TicketDeck hint={scratchMode ? t("deck.hintScratch") : t("deck.hintRoulette")}>
+          {tickets.map((ticket) =>
+            scratchMode ? (
+              <ScratchTicket
+                key={ticket.number}
+                number={ticket.number}
+                title={title}
+                buyerName={order.buyerName}
+                token={order.token}
+                canScratch={canScratch}
+                lockedLabel={lockedLabel}
+                prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                prizeRank={ticket.prizeRank}
+                alreadyOpen={Boolean(ticket.scratchedAt)}
+                onStart={() => recordScratch(ticket)}
+                onReveal={() => recordScratch(ticket)}
+              />
+            ) : (
+              <NumberedTicket
+                key={ticket.number}
+                number={ticket.number}
+                title={title}
+                buyerName={order.buyerName}
+                prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                prizeRank={ticket.prizeRank}
+                drawn={drawn}
+                paid={paid}
+                waitLabel={lockedLabel}
+              />
+            ),
+          )}
+        </TicketDeck>
       </section>
 
       <section className="section" style={{ borderBottom: 0 }}>

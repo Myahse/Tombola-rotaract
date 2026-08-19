@@ -22,6 +22,7 @@ const eventSchema = z.object({
   ticketPriceCents: z.number().int().min(0),
   currency: z.string().trim().min(3).max(8).default("XOF"),
   totalTickets: z.number().int().min(1).max(10000),
+  drawMode: z.enum(["scratch", "roulette"]).default("scratch"),
   prizes: z
     .array(
       z.object({
@@ -216,6 +217,7 @@ adminRouter.post("/event", requireAdmin, async (req, res) => {
         ticketPriceCents: data.ticketPriceCents,
         currency: data.currency,
         totalTickets: data.totalTickets,
+        drawMode: data.drawMode,
         status: data.prizes.length ? "on_sale" : "draft",
       })
       .returning();
@@ -280,6 +282,7 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
         ticketPriceCents: data.ticketPriceCents,
         currency: data.currency,
         totalTickets: data.totalTickets,
+        drawMode: data.drawMode,
         updatedAt: new Date(),
       })
       .where(eq(events.id, event.id))
@@ -575,6 +578,7 @@ async function emailDrawResults() {
       ticketsUrl: siteUrl(`/fr/tickets/${token}`),
       prizes: board,
       wins,
+      drawMode: event.drawMode === "roulette" ? ("roulette" as const) : ("scratch" as const),
     });
   }
 

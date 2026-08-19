@@ -14,6 +14,7 @@ import { hashPassword, verifyPassword } from "../lib/passwords.js";
 import { notifyMemberRegistered } from "../lib/mail.js";
 import { parseAvatar } from "../lib/avatar.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
+import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 
 export const authRouter = Router();
 
@@ -153,6 +154,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       titleFr: events.titleFr,
       titleEn: events.titleEn,
       eventStatus: events.status,
+      drawMode: events.drawMode,
       ticketPriceCents: events.ticketPriceCents,
       currency: events.currency,
       ticketNumber: tickets.number,
@@ -176,6 +178,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       titleFr: string;
       titleEn: string;
       status: string;
+      drawMode: string;
       ticketPriceCents: number;
       currency: string;
       orders: Map<
@@ -207,6 +210,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
         titleFr: row.titleFr,
         titleEn: row.titleEn,
         status: row.eventStatus,
+        drawMode: row.drawMode,
         ticketPriceCents: row.ticketPriceCents,
         currency: row.currency,
         orders: new Map(),
@@ -241,15 +245,19 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       titleFr: event.titleFr,
       titleEn: event.titleEn,
       status: event.status,
+      drawMode: drawModeOf(event.drawMode),
       ticketPriceCents: event.ticketPriceCents,
       currency: event.currency,
       orders: [...event.orders.values()].map((order) => ({
         ...order,
         createdAt: order.createdAt.toISOString(),
-        tickets: order.tickets.map((ticket) => ({
-          ...ticket,
-          scratchedAt: ticket.scratchedAt?.toISOString() ?? null,
-        })),
+        tickets: maskScratchPrizes(
+          order.tickets.map((ticket) => ({
+            ...ticket,
+            scratchedAt: ticket.scratchedAt?.toISOString() ?? null,
+          })),
+          drawModeOf(event.drawMode),
+        ),
       })),
     })),
   });
