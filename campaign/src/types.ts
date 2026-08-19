@@ -45,6 +45,14 @@ export type CampaignMeta = {
   audience: { members: number; optedIn: number; buyers: number };
 };
 
+export type CampaignPerson = {
+  email: string;
+  name: string;
+  member: boolean;
+  buyer: boolean;
+  optedIn: boolean;
+};
+
 export type AudiencePreview = {
   total: number;
   invalid: number;

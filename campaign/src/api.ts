@@ -5,6 +5,7 @@ import type {
   CampaignAttachment,
   CampaignDraft,
   CampaignMeta,
+  CampaignPerson,
   CampaignRecipient,
 } from "./types";
 
@@ -31,6 +32,7 @@ export const api = {
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),
   me: () => request<{ ok: boolean }>("/api/admin/me"),
   meta: () => request<CampaignMeta>("/api/admin/campaigns/meta"),
+  people: () => request<{ people: CampaignPerson[] }>("/api/admin/campaigns/people"),
   previewAudience: (body: Partial<CampaignDraft>) =>
     request<AudiencePreview>("/api/admin/campaigns/preview-audience", {
       method: "POST",

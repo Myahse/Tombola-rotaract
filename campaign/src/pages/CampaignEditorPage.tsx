@@ -3,10 +3,20 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { EmailPreview } from "../components/EmailPreview";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { PeoplePicker } from "../components/PeoplePicker";
+import { selectedFromDraft } from "../audience";
 import { SAMPLE_PERSON, type PreviewPerson } from "../emailPreview";
 import { api, attachmentUrl } from "../api";
 import { resizeCampaignImage } from "../resizeImage";
-import type { AudiencePreview, Campaign, CampaignAttachment, CampaignDraft, CampaignMeta, CampaignRecipient } from "../types";
+import type {
+  AudiencePreview,
+  Campaign,
+  CampaignAttachment,
+  CampaignDraft,
+  CampaignMeta,
+  CampaignPerson,
+  CampaignRecipient,
+} from "../types";
 
 function draftFrom(campaign: Campaign): CampaignDraft {
   return {
@@ -46,6 +56,7 @@ export function CampaignEditorPage() {
   const [attachments, setAttachments] = useState<CampaignAttachment[]>([]);
   const [recipients, setRecipients] = useState<CampaignRecipient[]>([]);
   const [meta, setMeta] = useState<CampaignMeta | null>(null);
+  const [people, setPeople] = useState<CampaignPerson[]>([]);
   const [audience, setAudience] = useState<AudiencePreview | null>(null);
   const [person, setPerson] = useState<PreviewPerson>(SAMPLE_PERSON);
   const [testEmail, setTestEmail] = useState("");
@@ -53,6 +64,7 @@ export function CampaignEditorPage() {
   const [busy, setBusy] = useState<"save" | "test" | "send" | "image" | "delete" | "">("");
   const [focusField, setFocusField] = useState<"subject" | "preheader" | "heading" | "body" | "ctaLabel">("body");
   const [askingDelete, setAskingDelete] = useState(false);
+  const [askingSend, setAskingSend] = useState(false);
   const fieldRefs = {
     subject: useRef<HTMLInputElement>(null),
     preheader: useRef<HTMLInputElement>(null),
@@ -65,12 +77,13 @@ export function CampaignEditorPage() {
 
   async function load() {
     if (!id) return;
-    const [detail, info] = await Promise.all([api.get(id), api.meta()]);
+    const [detail, info, directory] = await Promise.all([api.get(id), api.meta(), api.people()]);
     setCampaign(detail.campaign);
     setDraft(draftFrom(detail.campaign));
     setAttachments(detail.attachments);
     setRecipients(detail.recipients);
     setMeta(info);
+    setPeople(directory.people);
   }
 
   useEffect(() => {
@@ -188,13 +201,12 @@ export function CampaignEditorPage() {
 
   async function sendAll() {
     if (!id || !draft) return;
-    const count = audience?.total ?? 0;
-    if (!window.confirm(t("campaign.sendingConfirm", { count }))) return;
     setBusy("send");
     setMessage("");
     try {
       await api.save(id, draft);
       await api.send(id);
+      setAskingSend(false);
       await load();
     } catch (error) {
       setMessage(errorText(t, error));
@@ -232,6 +244,16 @@ export function CampaignEditorPage() {
     }),
     [t],
   );
+
+  const previewPeople = useMemo(() => {
+    if (!draft) return [SAMPLE_PERSON];
+    const selected = selectedFromDraft(draft, people);
+    const fromDir = people.filter((item) => selected.has(item.email));
+    const extras = (audience?.recipients ?? []).filter(
+      (item) => !people.some((person) => person.email === item.email.toLowerCase()),
+    );
+    return [...fromDir, ...extras];
+  }, [audience, draft, people]);
 
   if (!campaign || !draft) {
     return <p className="lede">…</p>;
@@ -355,57 +377,7 @@ export function CampaignEditorPage() {
             </label>
           </div>
 
-          <fieldset className="pay-options">
-            <legend>{t("campaign.audience")}</legend>
-            <label className={`pay-option ${draft.includeMembers ? "active" : ""}`}>
-              <input
-                type="checkbox"
-                disabled={locked}
-                checked={draft.includeMembers}
-                onChange={(e) => patch({ includeMembers: e.target.checked })}
-              />
-              <span>
-                <strong>{t("campaign.members")}</strong>
-                {meta ? <em>{meta.audience.members}</em> : null}
-              </span>
-            </label>
-            {draft.includeMembers ? (
-              <label className={`pay-option ${draft.optedInOnly ? "active" : ""}`}>
-                <input
-                  type="checkbox"
-                  disabled={locked}
-                  checked={draft.optedInOnly}
-                  onChange={(e) => patch({ optedInOnly: e.target.checked })}
-                />
-                <span>
-                  <strong>{t("campaign.optedIn")}</strong>
-                  {meta ? <em>{meta.audience.optedIn}</em> : null}
-                </span>
-              </label>
-            ) : null}
-            <label className={`pay-option ${draft.includeBuyers ? "active" : ""}`}>
-              <input
-                type="checkbox"
-                disabled={locked}
-                checked={draft.includeBuyers}
-                onChange={(e) => patch({ includeBuyers: e.target.checked })}
-              />
-              <span>
-                <strong>{t("campaign.buyers")}</strong>
-                {meta ? <em>{meta.audience.buyers}</em> : null}
-              </span>
-            </label>
-          </fieldset>
-          <label>
-            {t("campaign.custom")}
-            <textarea
-              rows={4}
-              value={draft.extraEmails}
-              disabled={locked}
-              onChange={(e) => patch({ extraEmails: e.target.value })}
-            />
-            <span className="hint">{t("campaign.customHelp")}</span>
-          </label>
+          <PeoplePicker people={people} draft={draft} locked={locked} onPatch={patch} />
           {audience ? (
             <p className="hint">
               {t("campaign.audienceTotal", { count: audience.total })}
@@ -456,7 +428,7 @@ export function CampaignEditorPage() {
               <button className="btn-outline" disabled={Boolean(busy)}>
                 {busy === "save" ? t("campaign.saving") : t("campaign.save")}
               </button>
-              <button type="button" className="btn-primary" disabled={Boolean(busy) || !meta?.brevo} onClick={() => void sendAll()}>
+              <button type="button" className="btn-primary" disabled={Boolean(busy) || !meta?.brevo} onClick={() => setAskingSend(true)}>
                 {busy === "send" ? t("campaign.sending") : t("campaign.send")}
               </button>
             </div>
@@ -468,7 +440,7 @@ export function CampaignEditorPage() {
             draft={draft}
             campaignId={campaign.id}
             attachments={attachments}
-            people={[SAMPLE_PERSON, ...(audience?.recipients ?? [])]}
+            people={previewPeople}
             person={person}
             onPerson={setPerson}
           />
@@ -542,6 +514,19 @@ export function CampaignEditorPage() {
           ) : null}
         </div>
       </div>
+      {askingSend ? (
+        <ConfirmModal
+          title={t("campaign.send")}
+          body={t("campaign.sendingConfirm", { count: audience?.total ?? 0 })}
+          confirmLabel={busy === "send" ? t("campaign.sending") : t("campaign.send")}
+          cancelLabel={t("campaign.cancel")}
+          busy={busy === "send"}
+          onConfirm={() => void sendAll()}
+          onCancel={() => {
+            if (busy !== "send") setAskingSend(false);
+          }}
+        />
+      ) : null}
       {askingDelete ? (
         <ConfirmModal
           title={t("campaign.delete")}
