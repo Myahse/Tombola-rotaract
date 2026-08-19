@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
+import { ConfirmModal } from "../components/ConfirmModal";
 import type { Campaign, CampaignMeta } from "../types";
 
 function statusClass(status: Campaign["status"]) {
@@ -18,7 +19,8 @@ export function CampaignsPage() {
   const [meta, setMeta] = useState<CampaignMeta | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const [deletingId, setDeletingId] = useState("");
+  const [pendingId, setPendingId] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     Promise.all([api.list(), api.meta()])
@@ -54,17 +56,18 @@ export function CampaignsPage() {
     }
   }
 
-  async function remove(id: string) {
-    if (!window.confirm(t("campaign.deleteConfirm"))) return;
-    setDeletingId(id);
+  async function remove() {
+    if (!pendingId) return;
+    setDeleting(true);
     setMessage("");
     try {
-      await api.remove(id);
-      setCampaigns((current) => current?.filter((item) => item.id !== id) ?? null);
+      await api.remove(pendingId);
+      setCampaigns((current) => current?.filter((item) => item.id !== pendingId) ?? null);
+      setPendingId("");
     } catch {
       setMessage(t("errors.generic"));
     } finally {
-      setDeletingId("");
+      setDeleting(false);
     }
   }
 
@@ -115,8 +118,8 @@ export function CampaignsPage() {
                   <button
                     type="button"
                     className="btn-danger"
-                    disabled={Boolean(deletingId)}
-                    onClick={() => void remove(item.id)}
+                    disabled={deleting}
+                    onClick={() => setPendingId(item.id)}
                   >
                     {t("campaign.delete")}
                   </button>
@@ -126,6 +129,19 @@ export function CampaignsPage() {
           ))}
         </div>
       )}
+      {pendingId ? (
+        <ConfirmModal
+          title={t("campaign.delete")}
+          body={t("campaign.deleteConfirm")}
+          confirmLabel={deleting ? t("campaign.deleting") : t("campaign.delete")}
+          cancelLabel={t("campaign.cancel")}
+          busy={deleting}
+          onConfirm={() => void remove()}
+          onCancel={() => {
+            if (!deleting) setPendingId("");
+          }}
+        />
+      ) : null}
     </section>
   );
 }
