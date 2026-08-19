@@ -370,7 +370,7 @@ a:hover { color: var(--primary); }
 .pillar h3 { font-size: 0.95rem; margin-bottom: 0.3rem; }
 .pillar p { color: var(--muted); font-size: 0.92rem; }
 
-.btn-primary, .btn-ghost, .btn-outline {
+.btn-primary, .btn-ghost, .btn-outline, .btn-danger {
   border: 0;
   border-radius: 8px;
   padding: 0.65rem 1rem;
@@ -393,6 +393,13 @@ a:hover { color: var(--primary); }
   border: 1px solid var(--line);
 }
 .btn-outline:hover { background: var(--surface); color: var(--ink); }
+.btn-danger {
+  background: transparent;
+  color: var(--error);
+  border: 1px solid var(--line);
+}
+.btn-danger:hover { background: var(--surface); color: var(--error); }
+.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-block { width: 100%; }
 
 .modal-backdrop {
@@ -421,6 +428,12 @@ a:hover { color: var(--primary); }
   color: var(--muted);
   font-size: 0.92rem;
   line-height: 1.5;
+}
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
 }
 
 .badge {

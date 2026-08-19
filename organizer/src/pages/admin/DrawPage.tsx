@@ -7,6 +7,7 @@ import { Avatar } from "../../components/Avatar";
 import { DrawReel, reelOffsetForWinner } from "../../components/DrawReel";
 import { ScratchFeed } from "../../components/ScratchFeed";
 import { PageSkeleton } from "../../components/PageSkeleton";
+import { ConfirmModal } from "../../components/ConfirmModal";
 
 export function DrawPage() {
   const { t, i18n } = useTranslation();
@@ -24,6 +25,7 @@ export function DrawPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
+  const [askingDraw, setAskingDraw] = useState(false);
   const animating = useRef(false);
   const tick = useLiveTick();
 
@@ -48,7 +50,7 @@ export function DrawPage() {
   }, [tick]);
 
   async function runDraw() {
-    if (!window.confirm(t(drawMode === "scratch" ? "admin.drawHelpScratch" : "admin.drawHelp"))) return;
+    setAskingDraw(false);
     setBusy(true);
     setMessage("");
     try {
@@ -66,7 +68,13 @@ export function DrawPage() {
     } catch (error) {
       animating.current = false;
       const code = error instanceof Error ? error.message : "";
-      setMessage(code === "no_paid_tickets" ? t("admin.noPaid") : t("errors.generic"));
+      setMessage(
+        code === "no_paid_tickets"
+          ? t("admin.noPaid")
+          : code === "sales_open"
+            ? t("admin.closeSalesFirst")
+            : t("errors.generic"),
+      );
       setPhase("idle");
     } finally {
       setBusy(false);
@@ -113,7 +121,10 @@ export function DrawPage() {
     <section className="grid gap-5">
       <h1>{t("admin.draw")}</h1>
       <p className="lede">{t(drawMode === "scratch" ? "admin.drawShowHelpScratch" : "admin.drawShowHelp")}</p>
-      {reservedOrders > 0 && status !== "drawn" ? (
+      {status !== "drawn" && status !== "closed" ? (
+        <p className="badge wait w-fit">{t("admin.closeSalesFirst")}</p>
+      ) : null}
+      {reservedOrders > 0 && status === "closed" ? (
         <p className="badge wait w-fit">{t("admin.drawWarn")}</p>
       ) : null}
 
@@ -148,7 +159,11 @@ export function DrawPage() {
       ) : null}
 
       {status !== "drawn" && phase !== "spinning" ? (
-        <button disabled={busy || paidTickets < 1} onClick={() => void runDraw()} className="btn-primary no-print btn-block">
+        <button
+          disabled={busy || paidTickets < 1 || status !== "closed"}
+          onClick={() => setAskingDraw(true)}
+          className="btn-primary no-print btn-block"
+        >
           {busy ? t("admin.drawing") : t(drawMode === "scratch" ? "admin.startAssign" : "admin.startDraw")}
         </button>
       ) : status === "drawn" && phase !== "spinning" ? (
@@ -182,6 +197,21 @@ export function DrawPage() {
       ) : null}
 
       {status === "drawn" && drawMode === "scratch" ? <ScratchFeed /> : null}
+
+      {askingDraw ? (
+        <ConfirmModal
+          title={t("admin.draw")}
+          body={t(drawMode === "scratch" ? "admin.drawHelpScratch" : "admin.drawHelp")}
+          confirmLabel={t(drawMode === "scratch" ? "admin.startAssign" : "admin.startDraw")}
+          cancelLabel={t("admin.back")}
+          busy={busy}
+          danger
+          onConfirm={() => void runDraw()}
+          onCancel={() => {
+            if (!busy) setAskingDraw(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }

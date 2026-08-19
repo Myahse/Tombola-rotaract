@@ -4,9 +4,9 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
-import { shuffle } from "../lib/tickets.js";
+import { shuffle, randomTicketNumbers, drawModeOf } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
-import { notifyDrawResults } from "../lib/mail.js";
+import { notifyDrawResults, notifyPurchase } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
@@ -142,7 +142,7 @@ async function statsFor(eventId: string, totalTickets: number) {
     reservedOrders,
     paidTickets,
     reservedTickets,
-    remainingTickets: Math.max(0, totalTickets - paidTickets - reservedTickets),
+    remainingTickets: Math.max(0, totalTickets - paidTickets),
     scratchedTickets: Number(scratched?.n ?? 0),
   };
 }
@@ -381,22 +381,147 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
     res.status(409).json({ error: "event_locked" });
     return;
   }
-  const [order] = await db
-    .update(orders)
-    .set({ status: "paid", paidAt: new Date() })
-    .where(
-      and(
-        eq(orders.id, orderId),
-        eq(orders.eventId, event.id),
-        eq(orders.status, "reserved"),
-      ),
-    )
-    .returning();
-  if (!order) {
+
+  try {
+    const marked = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${event.id}::text))`);
+
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.id, orderId),
+            eq(orders.eventId, event.id),
+            eq(orders.status, "reserved"),
+          ),
+        )
+        .limit(1);
+      if (!order) {
+        throw Object.assign(new Error("not_found"), { status: 404 });
+      }
+
+      const existingTickets = await tx
+        .select({ number: tickets.number })
+        .from(tickets)
+        .where(eq(tickets.orderId, order.id));
+
+      let numbers = existingTickets.map((row) => row.number).sort((a, b) => a - b);
+      if (!numbers.length) {
+        const usedRows = await tx
+          .select({ number: tickets.number })
+          .from(tickets)
+          .innerJoin(orders, eq(tickets.orderId, orders.id))
+          .where(and(eq(tickets.eventId, event.id), ne(orders.status, "cancelled")));
+        numbers = randomTicketNumbers(
+          usedRows.map((row) => row.number),
+          event.totalTickets,
+          order.quantity,
+        );
+        if (numbers.length < order.quantity) {
+          throw Object.assign(new Error("not_enough_tickets"), { status: 409 });
+        }
+        await tx.insert(tickets).values(
+          numbers.map((number) => ({
+            eventId: event.id,
+            orderId: order.id,
+            number,
+          })),
+        );
+      }
+
+      const [updated] = await tx
+        .update(orders)
+        .set({ status: "paid", paidAt: new Date() })
+        .where(eq(orders.id, order.id))
+        .returning();
+      if (!updated) {
+        throw Object.assign(new Error("not_found"), { status: 404 });
+      }
+
+      const [paidRow] = await tx
+        .select({ n: count() })
+        .from(tickets)
+        .innerJoin(orders, eq(tickets.orderId, orders.id))
+        .where(and(eq(tickets.eventId, event.id), eq(orders.status, "paid")));
+      if (event.status === "on_sale" && Number(paidRow?.n ?? 0) >= event.totalTickets) {
+        await tx
+          .update(events)
+          .set({ status: "closed", updatedAt: new Date() })
+          .where(eq(events.id, event.id));
+      }
+
+      return { order: updated, numbers, event };
+    });
+
+    const { accessToken: _accessToken, ...safeOrder } = marked.order;
+    res.json({ order: { ...safeOrder, numbers: marked.numbers } });
+    void publishChange("order");
+    void notifyPurchase({
+      name: marked.order.buyerName,
+      email: marked.order.buyerEmail,
+      eventTitleFr: marked.event.titleFr,
+      eventTitleEn: marked.event.titleEn,
+      quantity: marked.order.quantity,
+      ticketPriceCents: marked.event.ticketPriceCents,
+      currency: marked.event.currency,
+      numbers: marked.numbers,
+      paymentMethod: marked.order.paymentMethod,
+      drawMode: drawModeOf(marked.event.drawMode),
+      ticketsUrl: siteUrl(`/fr/tickets/${marked.order.accessToken}`),
+    });
+  } catch (error) {
+    const err = error as Error & { status?: number };
+    if (err.message === "not_found") {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (err.message === "not_enough_tickets") {
+      res.status(409).json({ error: "not_enough_tickets" });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
+adminRouter.post("/orders/:id/unpaid", requireAdmin, async (req, res) => {
+  const event = await latestEvent();
+  const orderId = String(req.params.id ?? "");
+  if (!z.string().uuid().safeParse(orderId).success) {
+    res.status(400).json({ error: "invalid_id" });
+    return;
+  }
+  if (!event || event.status === "drawn") {
+    res.status(409).json({ error: "event_locked" });
+    return;
+  }
+  const reversed = await db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(orders)
+      .where(
+        and(
+          eq(orders.id, orderId),
+          eq(orders.eventId, event.id),
+          eq(orders.status, "paid"),
+        ),
+      )
+      .limit(1);
+    if (!order) return null;
+    await tx.delete(tickets).where(eq(tickets.orderId, order.id));
+    const [updated] = await tx
+      .update(orders)
+      .set({ status: "reserved", paidAt: null })
+      .where(eq(orders.id, order.id))
+      .returning();
+    return updated;
+  });
+  if (!reversed) {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  const { accessToken: _accessToken, ...safeOrder } = order;
+  const { accessToken: _accessToken, ...safeOrder } = reversed;
   res.json({ order: safeOrder });
   void publishChange("order");
 });
@@ -448,6 +573,7 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
       const [event] = await tx.select().from(events).orderBy(desc(events.createdAt)).limit(1);
       if (!event) throw Object.assign(new Error("no_event"), { status: 404 });
       if (event.status === "drawn") throw Object.assign(new Error("already_drawn"), { status: 409 });
+      if (event.status !== "closed") throw Object.assign(new Error("sales_open"), { status: 409 });
 
       const eventPrizes = await tx
         .select()

@@ -1,11 +1,10 @@
-import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
+import { useState, type FormEvent, type MouseEvent } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
-import { TermsBody } from "./TermsPage";
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -18,17 +17,7 @@ export function RegisterPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptEmails, setAcceptEmails] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
   const next = params.get("next") || `/${lang}/account`;
-
-  useEffect(() => {
-    if (!showTerms) return;
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setShowTerms(false);
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showTerms]);
 
   if (loading) return <PageSkeleton kind="register" />;
   if (member) {
@@ -128,7 +117,7 @@ export function RegisterPage() {
         </label>
         <fieldset className="pay-options">
           <legend>{t("auth.termsLegend")}</legend>
-          <label className={`pay-option ${acceptTerms ? "active" : ""}`}>
+          <label className={`pay-option legal-check ${acceptTerms ? "active" : ""}`}>
             <input
               type="checkbox"
               name="acceptTerms"
@@ -137,25 +126,19 @@ export function RegisterPage() {
               required
             />
             <span>
-              <strong>
-                {t("auth.acceptTermsPrefix")}
-                <a
-                  href={`/${lang}/terms`}
-                  className="terms-link"
-                  onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-                    event.stopPropagation();
-                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-                    event.preventDefault();
-                    setShowTerms(true);
-                  }}
-                >
-                  {t("auth.termsLink")}
-                </a>
-                {t("auth.acceptTermsSuffix")}
-              </strong>
+              {t("auth.acceptTerms")}{" "}
+              <a
+                href={`/${lang}/terms`}
+                className="terms-link"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event: MouseEvent<HTMLAnchorElement>) => event.stopPropagation()}
+              >
+                {t("auth.termsLink")}
+              </a>
             </span>
           </label>
-          <label className={`pay-option ${acceptEmails ? "active" : ""}`}>
+          <label className={`pay-option legal-check ${acceptEmails ? "active" : ""}`}>
             <input
               type="checkbox"
               name="acceptEmails"
@@ -163,10 +146,7 @@ export function RegisterPage() {
               onChange={(e) => setAcceptEmails(e.target.checked)}
               required
             />
-            <span>
-              <strong>{t("auth.acceptEmails")}</strong>
-              <em>{t("auth.acceptEmailsHint")}</em>
-            </span>
+            <span>{t("auth.acceptEmails")}</span>
           </label>
         </fieldset>
         {error ? <p className="text-sm text-ticket">{error}</p> : null}
@@ -178,25 +158,6 @@ export function RegisterPage() {
         {t("auth.haveAccount")}{" "}
         <Link to={`/${lang}/login?next=${encodeURIComponent(next)}`}>{t("nav.login")}</Link>
       </p>
-      {showTerms ? (
-        <div
-          className="modal-backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="terms-title"
-          onClick={() => setShowTerms(false)}
-        >
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <h1 id="terms-title">{t("auth.termsTitle")}</h1>
-            <TermsBody />
-            <div className="modal-actions">
-              <button type="button" className="btn-primary btn-block" onClick={() => setShowTerms(false)}>
-                {t("auth.termsClose")}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }

@@ -6,6 +6,9 @@ import { useLiveTick } from "../../live";
 import type { AdminEvent, AdminOrder } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
 import { PageSkeleton } from "../../components/PageSkeleton";
+import { ConfirmModal } from "../../components/ConfirmModal";
+
+type PendingAction = { type: "paid" | "unpaid" | "cancel"; order: AdminOrder } | null;
 
 export function BuyersPage() {
   const { t, i18n } = useTranslation();
@@ -14,6 +17,8 @@ export function BuyersPage() {
   const [event, setEvent] = useState<AdminEvent | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [pending, setPending] = useState<PendingAction>(null);
+  const [error, setError] = useState("");
   const tick = useLiveTick();
 
   async function load() {
@@ -36,21 +41,21 @@ export function BuyersPage() {
     return 0;
   });
 
-  async function markPaid(id: string) {
-    setBusyId(id);
+  async function runPending() {
+    if (!pending) return;
+    const { type, order } = pending;
+    setBusyId(order.id);
+    setError("");
     try {
-      await api.markPaid(id);
+      if (type === "paid") await api.markPaid(order.id);
+      if (type === "unpaid") await api.unmarkPaid(order.id);
+      if (type === "cancel") await api.cancelOrder(order.id);
+      setPending(null);
       await load();
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function cancelOrder(id: string) {
-    setBusyId(id);
-    try {
-      await api.cancelOrder(id);
-      await load();
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setError(code === "not_enough_tickets" ? t("errors.notEnough") : t("errors.generic"));
+      setPending(null);
     } finally {
       setBusyId(null);
     }
@@ -79,19 +84,37 @@ export function BuyersPage() {
     return <span className="badge wait">{t("admin.reserved")}</span>;
   }
 
+  function numbers(order: AdminOrder) {
+    if (order.numbers.length) return order.numbers.join(", ");
+    if (order.status === "reserved") return t("admin.ticketsAfterPaid", { count: order.quantity });
+    return "—";
+  }
+
   function actions(order: AdminOrder) {
-    if (order.status !== "reserved" || locked) return null;
+    if (locked) return null;
     const busy = busyId === order.id;
-    return (
-      <div className="buyer-actions">
-        <button className="btn-primary" disabled={busy} onClick={() => void markPaid(order.id)}>
-          {t("admin.markPaid")}
-        </button>
-        <button className="btn-outline" disabled={busy} onClick={() => void cancelOrder(order.id)}>
-          {t("admin.cancel")}
-        </button>
-      </div>
-    );
+    if (order.status === "reserved") {
+      return (
+        <div className="buyer-actions">
+          <button className="btn-primary" disabled={busy} onClick={() => setPending({ type: "paid", order })}>
+            {t("admin.markPaid")}
+          </button>
+          <button className="btn-outline" disabled={busy} onClick={() => setPending({ type: "cancel", order })}>
+            {t("admin.cancel")}
+          </button>
+        </div>
+      );
+    }
+    if (order.status === "paid") {
+      return (
+        <div className="buyer-actions">
+          <button className="btn-outline" disabled={busy} onClick={() => setPending({ type: "unpaid", order })}>
+            {t("admin.unmarkPaid")}
+          </button>
+        </div>
+      );
+    }
+    return null;
   }
 
   if (!ready) return <PageSkeleton kind="list" />;
@@ -112,6 +135,7 @@ export function BuyersPage() {
         </Link>
       </div>
       <p className="lede mt-3">{t("admin.waveHelp")}</p>
+      {error ? <p className="text-sm text-ticket mt-3">{error}</p> : null}
 
       {!sorted.length ? (
         <p className="lede mt-6">{t("admin.noBuyers")}</p>
@@ -133,7 +157,7 @@ export function BuyersPage() {
                 <dl className="buyer-facts">
                   <div>
                     <dt>{t("confirm.yourTickets")}</dt>
-                    <dd>{order.numbers.join(", ") || "—"}</dd>
+                    <dd>{numbers(order)}</dd>
                   </div>
                   <div>
                     <dt>{t("admin.amount")}</dt>
@@ -171,7 +195,7 @@ export function BuyersPage() {
                     <td>
                       {order.buyerPhone ? <a href={`tel:${order.buyerPhone}`}>{order.buyerPhone}</a> : "—"}
                     </td>
-                    <td>{order.numbers.join(", ")}</td>
+                    <td>{numbers(order)}</td>
                     <td>{amount(order)}</td>
                     <td>{payment(order)}</td>
                     <td>{statusBadge(order.status)}</td>
@@ -183,6 +207,39 @@ export function BuyersPage() {
           </div>
         </>
       )}
+
+      {pending ? (
+        <ConfirmModal
+          title={
+            pending.type === "paid"
+              ? t("admin.markPaidTitle")
+              : pending.type === "unpaid"
+                ? t("admin.unmarkPaidTitle")
+                : t("admin.cancelTitle")
+          }
+          body={
+            pending.type === "paid"
+              ? t("admin.markPaidBody", { name: pending.order.buyerName, amount: amount(pending.order) })
+              : pending.type === "unpaid"
+                ? t("admin.unmarkPaidBody", { name: pending.order.buyerName })
+                : t("admin.cancelBody", { name: pending.order.buyerName })
+          }
+          confirmLabel={
+            pending.type === "paid"
+              ? t("admin.markPaid")
+              : pending.type === "unpaid"
+                ? t("admin.unmarkPaid")
+                : t("admin.cancel")
+          }
+          cancelLabel={t("admin.back")}
+          busy={busyId === pending.order.id}
+          danger={pending.type !== "paid"}
+          onConfirm={() => void runPending()}
+          onCancel={() => {
+            if (!busyId) setPending(null);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
