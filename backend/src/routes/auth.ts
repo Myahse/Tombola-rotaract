@@ -32,6 +32,8 @@ const registerSchema = z.object({
     .regex(/^[0-9+().\s-]{8,40}$/),
   password: z.string().min(8).max(100),
   avatarUrl: z.string().max(120_000).optional().or(z.literal("")),
+  clubName: z.string().trim().min(2).max(120),
+  clubRole: z.string().trim().min(2).max(80),
   acceptTerms: z.literal(true),
   acceptEmails: z.literal(true),
 });
@@ -60,19 +62,29 @@ const profileSchema = z.object({
     .regex(/^[0-9+().\s-]{8,40}$/)
     .optional(),
   avatarUrl: z.string().max(120_000).optional(),
+  clubName: z.string().trim().max(120).optional(),
+  clubRole: z.string().trim().max(80).optional(),
   currentPassword: z.string().min(1).max(100).optional(),
   password: z.string().min(8).max(100).optional(),
 });
 
 function publicMember(row: typeof members.$inferSelect) {
-  return { id: row.id, name: row.name, email: row.email, phone: row.phone, avatarUrl: row.avatarUrl };
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    avatarUrl: row.avatarUrl,
+    clubName: row.clubName,
+    clubRole: row.clubRole,
+  };
 }
 
-async function claimGuestOrders(memberId: string, email: string) {
+async function claimGuestOrders(member: { id: string; name: string; email: string; phone: string | null }) {
   await db
     .update(orders)
-    .set({ memberId })
-    .where(and(eq(orders.buyerEmail, email), isNull(orders.memberId)));
+    .set({ memberId: member.id, buyerName: member.name, buyerPhone: member.phone })
+    .where(and(eq(orders.buyerEmail, member.email), isNull(orders.memberId)));
 }
 
 authRouter.post("/auth/register", async (req, res) => {
@@ -105,6 +117,8 @@ authRouter.post("/auth/register", async (req, res) => {
         email,
         phone: parsed.data.phone,
         avatarUrl: parseAvatar(parsed.data.avatarUrl),
+        clubName: parsed.data.clubName,
+        clubRole: parsed.data.clubRole,
         passwordHash: await hashPassword(parsed.data.password),
         termsAcceptedAt: new Date(),
         emailsAcceptedAt: new Date(),
@@ -125,7 +139,7 @@ authRouter.post("/auth/register", async (req, res) => {
     return;
   }
 
-  await claimGuestOrders(member.id, email);
+  await claimGuestOrders(member);
   setMemberSession(res, member.id);
   res.status(201).json({ member: publicMember(member) });
   void notifyMemberRegistered({ name: member.name, email: member.email });
@@ -149,7 +163,7 @@ authRouter.post("/auth/login", async (req, res) => {
     return;
   }
 
-  await claimGuestOrders(member.id, email);
+  await claimGuestOrders(member);
   setMemberSession(res, member.id);
   res.json({ member: publicMember(member) });
 });
@@ -258,6 +272,8 @@ authRouter.patch("/auth/me", requireMember, async (req, res) => {
     name: parsed.data.name ?? member.name,
     phone: parsed.data.phone ?? member.phone,
     avatarUrl: parsed.data.avatarUrl === undefined ? member.avatarUrl : parseAvatar(parsed.data.avatarUrl),
+    clubName: parsed.data.clubName === undefined ? member.clubName : parsed.data.clubName || null,
+    clubRole: parsed.data.clubRole === undefined ? member.clubRole : parsed.data.clubRole || null,
     passwordHash: parsed.data.password ? await hashPassword(parsed.data.password) : member.passwordHash,
   };
 

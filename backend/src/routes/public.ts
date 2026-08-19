@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
@@ -9,6 +9,8 @@ import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
 import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
+import { notifyGiftTickets } from "../lib/mail.js";
+import { siteUrl } from "../emails/layout.js";
 
 export const publicRouter = Router();
 
@@ -215,6 +217,171 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
     drawMode: drawModeOf(event?.drawMode),
     tickets: maskScratchPrizes(orderTickets, drawModeOf(event?.drawMode)),
   });
+});
+
+const shareSchema = z.object({
+  email: z.string().trim().email().max(120),
+  numbers: z.array(z.number().int().min(1)).max(20).optional(),
+});
+
+publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
+  if (!allowRequest(`share:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const token = typeof req.params.token === "string" ? req.params.token : "";
+  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) {
+    res.status(400).json({ error: "missing_token" });
+    return;
+  }
+  const parsed = shareSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+
+  const memberId = (req as MemberRequest).memberId;
+  const email = parsed.data.email.trim().toLowerCase();
+
+  try {
+    const gifted = await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
+      if (!order || order.status === "cancelled") {
+        throw Object.assign(new Error("not_found"), { status: 404 });
+      }
+      if (order.memberId !== memberId) {
+        throw Object.assign(new Error("forbidden"), { status: 403 });
+      }
+      if (order.status !== "paid") {
+        throw Object.assign(new Error("not_paid"), { status: 409 });
+      }
+
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${order.eventId}::text))`);
+
+      const [event] = await tx.select().from(events).where(eq(events.id, order.eventId)).limit(1);
+      if (!event || event.status === "drawn") {
+        throw Object.assign(new Error("event_locked"), { status: 409 });
+      }
+
+      const [giver] = await tx.select().from(members).where(eq(members.id, memberId)).limit(1);
+      if (!giver) {
+        throw Object.assign(new Error("login_required"), { status: 401 });
+      }
+      if (giver.email === email) {
+        throw Object.assign(new Error("self"), { status: 400 });
+      }
+
+      const orderTickets = await tx
+        .select({ id: tickets.id, number: tickets.number })
+        .from(tickets)
+        .where(eq(tickets.orderId, order.id));
+      if (!orderTickets.length) {
+        throw Object.assign(new Error("not_paid"), { status: 409 });
+      }
+
+      const wanted = parsed.data.numbers?.length
+        ? [...new Set(parsed.data.numbers)]
+        : orderTickets.map((row) => row.number);
+      const owned = new Set(orderTickets.map((row) => row.number));
+      if (!wanted.length || wanted.some((number) => !owned.has(number))) {
+        throw Object.assign(new Error("invalid_tickets"), { status: 400 });
+      }
+
+      const [recipient] = await tx.select().from(members).where(eq(members.email, email)).limit(1);
+      const moving = orderTickets.filter((row) => wanted.includes(row.number));
+      const all = moving.length === orderTickets.length;
+      const giftToken = newAccessToken();
+
+      let giftOrder = order;
+      if (all) {
+        const [updated] = await tx
+          .update(orders)
+          .set({
+            memberId: recipient?.id ?? null,
+            buyerName: recipient?.name ?? email,
+            buyerEmail: email,
+            buyerPhone: recipient?.phone ?? null,
+            accessToken: giftToken,
+          })
+          .where(eq(orders.id, order.id))
+          .returning();
+        if (!updated) throw Object.assign(new Error("not_found"), { status: 404 });
+        giftOrder = updated;
+      } else {
+        const [created] = await tx
+          .insert(orders)
+          .values({
+            eventId: order.eventId,
+            memberId: recipient?.id ?? null,
+            buyerName: recipient?.name ?? email,
+            buyerEmail: email,
+            buyerPhone: recipient?.phone ?? null,
+            quantity: moving.length,
+            paymentMethod: order.paymentMethod,
+            status: "paid",
+            paidAt: order.paidAt ?? new Date(),
+            accessToken: giftToken,
+          })
+          .returning();
+        if (!created) throw new Error("order_failed");
+        await tx
+          .update(tickets)
+          .set({ orderId: created.id })
+          .where(
+            and(
+              eq(tickets.orderId, order.id),
+              inArray(
+                tickets.number,
+                moving.map((row) => row.number),
+              ),
+            ),
+          );
+        await tx
+          .update(orders)
+          .set({ quantity: order.quantity - moving.length })
+          .where(eq(orders.id, order.id));
+        giftOrder = created;
+      }
+
+      return {
+        remaining: !all,
+        token: all ? null : order.accessToken,
+        giftToken: giftOrder.accessToken,
+        numbers: moving.map((row) => row.number).sort((a, b) => a - b),
+        giverName: giver.name,
+        recipientName: recipient?.name ?? email,
+        recipientEmail: email,
+        hasAccount: Boolean(recipient),
+        eventTitleFr: event.titleFr,
+        eventTitleEn: event.titleEn,
+      };
+    });
+
+    res.json({ ok: true, remaining: gifted.remaining, token: gifted.token });
+    void publishChange("order");
+    void notifyGiftTickets({
+      name: gifted.recipientName,
+      email: gifted.recipientEmail,
+      giverName: gifted.giverName,
+      eventTitleFr: gifted.eventTitleFr,
+      eventTitleEn: gifted.eventTitleEn,
+      numbers: gifted.numbers,
+      hasAccount: gifted.hasAccount,
+      ticketsUrl: siteUrl(
+        gifted.hasAccount
+          ? `/fr/login?next=${encodeURIComponent(`/fr/tickets/${gifted.giftToken}`)}`
+          : `/fr/register?next=${encodeURIComponent(`/fr/tickets/${gifted.giftToken}`)}`,
+      ),
+    });
+  } catch (error) {
+    const err = error as Error & { status?: number };
+    if (err.status) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
+  }
 });
 
 publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async (req, res) => {

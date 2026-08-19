@@ -18,6 +18,8 @@ export function AccountPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [clubName, setClubName] = useState("");
+  const [clubRole, setClubRole] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -30,6 +32,8 @@ export function AccountPage() {
     setAvatarUrl(member.avatarUrl ?? "");
     setName(member.name);
     setPhone(member.phone ?? "");
+    setClubName(member.clubName ?? "");
+    setClubRole(member.clubRole ?? "");
     api
       .myTombolas()
       .then((data) => setTombolas(data.tombolas))
@@ -65,6 +69,8 @@ export function AccountPage() {
         name,
         phone,
         avatarUrl,
+        clubName,
+        clubRole,
         ...(password ? { currentPassword, password } : {}),
       });
       setCurrentPassword("");
@@ -140,6 +146,37 @@ export function AccountPage() {
               autoComplete="tel"
               inputMode="tel"
             />
+          </label>
+          <label>
+            {t("auth.clubName")}
+            <input
+              value={clubName}
+              onChange={(e) => setClubName(e.target.value)}
+              minLength={2}
+              placeholder={t("auth.clubNameHint")}
+              autoComplete="organization"
+            />
+          </label>
+          <label>
+            {t("auth.clubRole")}
+            <input
+              value={clubRole}
+              onChange={(e) => setClubRole(e.target.value)}
+              minLength={2}
+              list="club-roles"
+              placeholder={t("auth.clubRoleHint")}
+            />
+            <datalist id="club-roles">
+              <option value="Membre" />
+              <option value="Président" />
+              <option value="Vice-président" />
+              <option value="Secrétaire" />
+              <option value="Trésorier" />
+              <option value="Sergent d’armes" />
+              <option value="Directeur" />
+              <option value="Past President" />
+              <option value="Ami du club" />
+            </datalist>
           </label>
           <label>
             {t("account.currentPassword")}

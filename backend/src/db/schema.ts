@@ -17,6 +17,8 @@ export const members = pgTable("members", {
   passwordHash: text("password_hash").notNull(),
   termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
   emailsAcceptedAt: timestamp("emails_accepted_at", { withTimezone: true }),
+  clubName: text("club_name"),
+  clubRole: text("club_role"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

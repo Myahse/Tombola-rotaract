@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, Navigate, useParams } from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, formatMoney, localized } from "../api";
 import { useAuth } from "../auth";
@@ -15,8 +15,14 @@ export function TicketsPage() {
   const { token, lang } = useParams();
   const { t, i18n } = useTranslation();
   const { member, loading } = useAuth();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<OrderView | null>(null);
   const [error, setError] = useState("");
+  const [shareEmail, setShareEmail] = useState("");
+  const [shareNumbers, setShareNumbers] = useState<number[]>([]);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const [shareDone, setShareDone] = useState("");
 
   const next = `/${lang}/tickets/${token ?? ""}`;
 
@@ -24,7 +30,10 @@ export function TicketsPage() {
     if (!token || !member) return;
     api
       .order(token)
-      .then(setOrder)
+      .then((data) => {
+        setOrder(data);
+        setShareNumbers((data.tickets ?? []).map((ticket) => ticket.number));
+      })
       .catch((err) => {
         const code = err instanceof Error ? err.message : "";
         setError(code || "generic");
@@ -96,6 +105,45 @@ export function TicketsPage() {
 
   function recordScratch(ticket: OrderTicket) {
     void api.scratch(accessToken, ticket.number).then((result) => applyScratch(ticket.number, result));
+  }
+
+  function toggleShareNumber(number: number) {
+    setShareNumbers((current) =>
+      current.includes(number) ? current.filter((n) => n !== number) : [...current, number],
+    );
+  }
+
+  async function onShare(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!token) return;
+    setShareBusy(true);
+    setShareError("");
+    setShareDone("");
+    try {
+      const result = await api.shareTickets(token, { email: shareEmail, numbers: shareNumbers });
+      if (!result.remaining) {
+        navigate(`/${lang}/account`, { replace: true });
+        return;
+      }
+      const data = await api.order(token);
+      setOrder(data);
+      setShareNumbers((data.tickets ?? []).map((ticket) => ticket.number));
+      setShareEmail("");
+      setShareDone(t("share.sent"));
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setShareError(
+        code === "self"
+          ? t("share.self")
+          : code === "event_locked"
+            ? t("share.locked")
+            : code === "not_paid"
+              ? t("share.unpaid")
+              : t("errors.generic"),
+      );
+    } finally {
+      setShareBusy(false);
+    }
   }
 
   return (
@@ -177,6 +225,48 @@ export function TicketsPage() {
         )}
         {pay ? <p className="whitespace-pre-wrap pay-note">{pay}</p> : null}
       </section>
+
+      {paid && tickets.length && order.eventStatus !== "drawn" ? (
+        <section className="section" style={{ borderBottom: 0 }}>
+          <h2>{t("share.title")}</h2>
+          <p>{t("share.lead")}</p>
+          <form className="mt-6 grid gap-4" onSubmit={(e) => void onShare(e)}>
+            <label>
+              {t("share.email")}
+              <input
+                type="email"
+                required
+                value={shareEmail}
+                onChange={(e) => setShareEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </label>
+            {tickets.length > 1 ? (
+              <fieldset className="share-numbers">
+                <legend>{t("share.which")}</legend>
+                {tickets.map((ticket) => (
+                  <label key={ticket.number} className="share-number">
+                    <input
+                      type="checkbox"
+                      checked={shareNumbers.includes(ticket.number)}
+                      onChange={() => toggleShareNumber(ticket.number)}
+                    />
+                    {t("results.ticket", { number: ticket.number })}
+                  </label>
+                ))}
+              </fieldset>
+            ) : null}
+            {shareError ? <p className="text-sm text-ticket">{shareError}</p> : null}
+            {shareDone ? <p className="field-ok">{shareDone}</p> : null}
+            <button
+              disabled={shareBusy || (tickets.length > 1 && shareNumbers.length < 1)}
+              className="btn-primary btn-block"
+            >
+              {shareBusy ? t("auth.submitting") : t("share.submit")}
+            </button>
+          </form>
+        </section>
+      ) : null}
     </>
   );
 }
