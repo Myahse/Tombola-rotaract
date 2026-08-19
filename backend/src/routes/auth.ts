@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../db/index.js";
+import { db, isUniqueViolation } from "../db/index.js";
 import { events, members, orders, prizes, tickets } from "../db/schema.js";
 import {
   clearMemberSession,
@@ -57,23 +57,34 @@ authRouter.post("/auth/register", async (req, res) => {
     return;
   }
 
-  const email = parsed.data.email.toLowerCase();
+  const email = parsed.data.email.trim().toLowerCase();
   const [existing] = await db.select({ id: members.id }).from(members).where(eq(members.email, email)).limit(1);
   if (existing) {
     res.status(409).json({ error: "email_taken" });
     return;
   }
 
-  const [member] = await db
-    .insert(members)
-    .values({
-      name: parsed.data.name,
-      email,
-      phone: parsed.data.phone,
-      avatarUrl: parseAvatar(parsed.data.avatarUrl),
-      passwordHash: await hashPassword(parsed.data.password),
-    })
-    .returning();
+  let member;
+  try {
+    [member] = await db
+      .insert(members)
+      .values({
+        name: parsed.data.name,
+        email,
+        phone: parsed.data.phone,
+        avatarUrl: parseAvatar(parsed.data.avatarUrl),
+        passwordHash: await hashPassword(parsed.data.password),
+      })
+      .returning();
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      res.status(409).json({ error: "email_taken" });
+      return;
+    }
+    console.error("Register insert failed", error);
+    res.status(500).json({ error: "server_error" });
+    return;
+  }
 
   if (!member) {
     res.status(500).json({ error: "server_error" });

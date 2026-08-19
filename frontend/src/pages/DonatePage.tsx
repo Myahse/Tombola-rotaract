@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
+import { BrandLogo } from "../components/BrandLogo";
 
 export function DonatePage() {
   const { t } = useTranslation();
@@ -20,15 +21,7 @@ export function DonatePage() {
   return (
     <>
       <section className="vitrine-hero">
-        <img
-          src="/logo.png"
-          alt="Rotaract IUGB Club"
-          className="brand-logo hero"
-          width={960}
-          height={614}
-          decoding="async"
-          fetchPriority="high"
-        />
+        <BrandLogo hero />
         <p className="eyebrow">{t("donate.kicker")}</p>
         <h1>{t("donate.title")}</h1>
         <p className="lede">{t("donate.lede")}</p>

@@ -4,8 +4,9 @@ export function WaveLogo({ className = "" }: { className?: string }) {
       src="/wave-logo.png"
       alt=""
       className={`wave-logo ${className}`.trim()}
-      width={64}
-      height={64}
+      width={96}
+      height={96}
+      decoding="async"
     />
   );
 }

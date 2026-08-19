@@ -11,6 +11,7 @@ import { attachRealtime } from "./lib/realtime.js";
 import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
 import { publicRouter } from "./routes/public.js";
+import { ensureSchema } from "./db/index.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
@@ -99,9 +100,16 @@ const server = createServer(app);
 attachRealtime(server);
 
 if (!isVercel) {
-  server.listen(port, "0.0.0.0", () => {
-    console.log(`Tombola API + WebSocket on port ${port}`);
-  });
+  void ensureSchema()
+    .then(() => {
+      server.listen(port, "0.0.0.0", () => {
+        console.log(`Tombola API + WebSocket on port ${port}`);
+      });
+    })
+    .catch((error) => {
+      console.error("Database schema check failed", error);
+      process.exit(1);
+    });
 }
 
 export default server;
