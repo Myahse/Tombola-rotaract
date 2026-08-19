@@ -187,7 +187,14 @@
     "submitRegister": "Créer mon compte",
     "submitting": "Veuillez patienter…",
     "haveAccount": "Déjà un compte ?",
-    "noAccount": "Pas encore de compte ?"
+    "noAccount": "Pas encore de compte ?",
+    "termsTitle": "Conditions d’utilisation",
+    "termsBody": "Le Rotaract Club IUGB utilise ce compte pour vos tickets de tombola : réservation, paiement, tirage et résultats. Vous êtes responsable des informations fournies. Seuls les tickets payés participent au tirage.",
+    "termsEmails": "Nous pouvons utiliser votre adresse e-mail pour vous écrire au sujet de vos tickets, des tombolas en cours, et pour des campagnes e-mail du club (annonces, invitations, collectes, actualités) ainsi que d’autres communications du Rotaract Club IUGB.",
+    "termsLegend": "Pour créer un compte",
+    "acceptTerms": "J’ai lu et j’accepte les conditions d’utilisation.",
+    "acceptEmails": "J’accepte que le club utilise mon e-mail pour des campagnes et d’autres communications.",
+    "acceptEmailsHint": "Tombolas, invitations, collectes et actualités du Rotaract Club IUGB."
   },
   "account": {
     "title": "Mes tombolas",
@@ -206,6 +213,7 @@
     "weakPassword": "Le mot de passe doit contenir au moins 8 caractères.",
     "invalidRegister": "Vérifiez votre nom, e-mail, téléphone (8 caractères minimum) et mot de passe.",
     "passwordMismatch": "Les mots de passe ne correspondent pas.",
+    "termsRequired": "Cochez les deux cases pour créer un compte.",
     "notEnough": "Il ne reste pas assez de tickets.",
     "notOnSale": "La billetterie n’est pas ouverte."
   },

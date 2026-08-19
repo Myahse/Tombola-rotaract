@@ -15,6 +15,8 @@ export function RegisterPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [acceptEmails, setAcceptEmails] = useState(false);
   const next = params.get("next") || `/${lang}/account`;
 
   if (loading) return <PageSkeleton kind="register" />;
@@ -40,6 +42,10 @@ export function RegisterPage() {
       setError(t("errors.passwordMismatch"));
       return;
     }
+    if (!acceptTerms || !acceptEmails) {
+      setError(t("errors.termsRequired"));
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -49,6 +55,8 @@ export function RegisterPage() {
         phone: String(form.get("phone") ?? ""),
         password,
         avatarUrl: avatarUrl || undefined,
+        acceptTerms: true,
+        acceptEmails: true,
       });
       await refresh();
       navigate(next.startsWith("/") ? next : `/${lang}/account`, { replace: true });
@@ -57,7 +65,9 @@ export function RegisterPage() {
       setError(
         code === "email_taken"
           ? t("errors.emailTaken")
-          : code === "invalid_form"
+          : code === "terms_required"
+            ? t("errors.termsRequired")
+            : code === "invalid_form"
             ? t("errors.invalidRegister")
             : t("errors.generic"),
       );
@@ -106,8 +116,41 @@ export function RegisterPage() {
           {t("auth.confirmPassword")}
           <input name="confirm" type="password" required minLength={8} autoComplete="new-password" />
         </label>
+        <aside className="terms-box">
+          <h2>{t("auth.termsTitle")}</h2>
+          <p>{t("auth.termsBody")}</p>
+          <p>{t("auth.termsEmails")}</p>
+        </aside>
+        <fieldset className="pay-options">
+          <legend>{t("auth.termsLegend")}</legend>
+          <label className={`pay-option ${acceptTerms ? "active" : ""}`}>
+            <input
+              type="checkbox"
+              name="acceptTerms"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              required
+            />
+            <span>
+              <strong>{t("auth.acceptTerms")}</strong>
+            </span>
+          </label>
+          <label className={`pay-option ${acceptEmails ? "active" : ""}`}>
+            <input
+              type="checkbox"
+              name="acceptEmails"
+              checked={acceptEmails}
+              onChange={(e) => setAcceptEmails(e.target.checked)}
+              required
+            />
+            <span>
+              <strong>{t("auth.acceptEmails")}</strong>
+              <em>{t("auth.acceptEmailsHint")}</em>
+            </span>
+          </label>
+        </fieldset>
         {error ? <p className="text-sm text-ticket">{error}</p> : null}
-        <button disabled={busy} className="btn-primary btn-block">
+        <button disabled={busy || !acceptTerms || !acceptEmails} className="btn-primary btn-block">
           {busy ? t("auth.submitting") : t("auth.submitRegister")}
         </button>
       </form>

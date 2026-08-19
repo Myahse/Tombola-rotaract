@@ -29,6 +29,8 @@ const registerSchema = z.object({
     .regex(/^[0-9+().\s-]{8,40}$/),
   password: z.string().min(8).max(100),
   avatarUrl: z.string().max(120_000).optional().or(z.literal("")),
+  acceptTerms: z.literal(true),
+  acceptEmails: z.literal(true),
 });
 
 const loginSchema = z.object({
@@ -54,7 +56,10 @@ authRouter.post("/auth/register", async (req, res) => {
   }
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "invalid_form" });
+    const fields = parsed.error.flatten().fieldErrors;
+    res.status(400).json({
+      error: fields.acceptTerms || fields.acceptEmails ? "terms_required" : "invalid_form",
+    });
     return;
   }
 
@@ -75,6 +80,8 @@ authRouter.post("/auth/register", async (req, res) => {
         phone: parsed.data.phone,
         avatarUrl: parseAvatar(parsed.data.avatarUrl),
         passwordHash: await hashPassword(parsed.data.password),
+        termsAcceptedAt: new Date(),
+        emailsAcceptedAt: new Date(),
       })
       .returning();
   } catch (error) {

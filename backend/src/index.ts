@@ -10,6 +10,7 @@ import { isAllowedOrigin } from "./lib/origins.js";
 import { attachRealtime } from "./lib/realtime.js";
 import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
+import { campaignRouter } from "./routes/campaigns.js";
 import { publicRouter } from "./routes/public.js";
 import { ensureSchema } from "./db/index.js";
 
@@ -60,7 +61,11 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "400kb" }));
+app.use((req, res, next) => {
+  const large =
+    req.method === "POST" && /\/api\/admin\/campaigns\/[^/]+\/attachments\/?$/.test(req.path);
+  express.json({ limit: large ? "6mb" : "400kb" })(req, res, next);
+});
 app.use(cookieParser());
 
 app.get("/", (_req, res) => {
@@ -73,6 +78,7 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api", authRouter);
 app.use("/api", publicRouter);
+app.use("/api/admin/campaigns", campaignRouter);
 app.use("/api/admin", adminRouter);
 
 if (process.env.NODE_ENV === "production" && process.env.SERVE_FRONTEND === "1") {

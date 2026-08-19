@@ -148,6 +148,27 @@ function RegisterSkeleton() {
           {t("auth.confirmPassword")}
           <input disabled className="skeleton" aria-hidden tabIndex={-1} />
         </label>
+        <aside className="terms-box">
+          <h2>{t("auth.termsTitle")}</h2>
+          <p>{t("auth.termsBody")}</p>
+          <p>{t("auth.termsEmails")}</p>
+        </aside>
+        <fieldset className="pay-options">
+          <legend>{t("auth.termsLegend")}</legend>
+          <label className="pay-option">
+            <input type="checkbox" disabled tabIndex={-1} />
+            <span>
+              <strong>{t("auth.acceptTerms")}</strong>
+            </span>
+          </label>
+          <label className="pay-option">
+            <input type="checkbox" disabled tabIndex={-1} />
+            <span>
+              <strong>{t("auth.acceptEmails")}</strong>
+              <em>{t("auth.acceptEmailsHint")}</em>
+            </span>
+          </label>
+        </fieldset>
         <button type="button" className="btn-primary btn-block" disabled tabIndex={-1}>
           {t("auth.submitRegister")}
         </button>

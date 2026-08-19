@@ -1,3 +1,9 @@
+export type EmailAttachment = {
+  name: string;
+  content: string;
+  contentId?: string;
+};
+
 type SendArgs = {
   to: { email: string; name?: string };
   subject: string;
@@ -5,7 +11,12 @@ type SendArgs = {
   text: string;
   templateId?: number;
   params?: Record<string, string>;
+  attachments?: EmailAttachment[];
 };
+
+export function isBrevoConfigured() {
+  return Boolean(configured());
+}
 
 function configured() {
   const apiKey = process.env.BREVO_API_KEY?.trim();
@@ -37,6 +48,14 @@ export async function sendBrevoEmail(args: SendArgs) {
   } else {
     body.htmlContent = args.html;
     body.textContent = args.text;
+  }
+
+  if (args.attachments?.length) {
+    body.attachment = args.attachments.map((file) => ({
+      name: file.name,
+      content: file.content,
+      ...(file.contentId ? { contentId: file.contentId } : {}),
+    }));
   }
 
   const response = await fetch("https://api.brevo.com/v3/smtp/email", {

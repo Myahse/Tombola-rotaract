@@ -1,6 +1,6 @@
 const isProd = process.env.NODE_ENV === "production";
 
-const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:5174")
+const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:5174,http://localhost:5175")
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
@@ -8,6 +8,7 @@ const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localh
 const vercelPreviewHosts = new Set([
   "rotaract-tombola.vercel.app",
   "rotaract-organisateurs.vercel.app",
+  "rotaract-campagnes.vercel.app",
 ]);
 
 export function isAllowedOrigin(origin: string | undefined) {
