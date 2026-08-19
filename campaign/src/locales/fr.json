@@ -77,6 +77,8 @@
     "brevoOff": "Brevo n’est pas configuré sur l’API. Impossible d’envoyer tant que BREVO_API_KEY et BREVO_SENDER_EMAIL ne sont pas renseignés.",
     "delete": "Supprimer",
     "deleteConfirm": "Supprimer cette campagne ? Cette action est définitive.",
+    "cancel": "Annuler",
+    "deleting": "Suppression…",
     "duplicate": "Dupliquer en brouillon",
     "sentAt": "Envoyée",
     "ok": "Remis",

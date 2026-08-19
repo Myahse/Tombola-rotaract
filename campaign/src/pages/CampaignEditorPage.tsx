@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { EmailPreview } from "../components/EmailPreview";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { SAMPLE_PERSON, type PreviewPerson } from "../emailPreview";
 import { api, attachmentUrl } from "../api";
 import { resizeCampaignImage } from "../resizeImage";
@@ -51,6 +52,7 @@ export function CampaignEditorPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState<"save" | "test" | "send" | "image" | "delete" | "">("");
   const [focusField, setFocusField] = useState<"subject" | "preheader" | "heading" | "body" | "ctaLabel">("body");
+  const [askingDelete, setAskingDelete] = useState(false);
   const fieldRefs = {
     subject: useRef<HTMLInputElement>(null),
     preheader: useRef<HTMLInputElement>(null),
@@ -208,7 +210,7 @@ export function CampaignEditorPage() {
   }
 
   async function remove() {
-    if (!id || !window.confirm(t("campaign.deleteConfirm"))) return;
+    if (!id) return;
     setBusy("delete");
     setMessage("");
     try {
@@ -216,6 +218,7 @@ export function CampaignEditorPage() {
       navigate(`/${lang}`);
     } catch (error) {
       setMessage(errorText(t, error));
+      setAskingDelete(false);
     } finally {
       setBusy("");
     }
@@ -251,7 +254,7 @@ export function CampaignEditorPage() {
             {t("campaign.duplicate")}
           </button>
           {campaign.status !== "sending" ? (
-            <button type="button" className="btn-danger" disabled={Boolean(busy)} onClick={() => void remove()}>
+            <button type="button" className="btn-danger" disabled={Boolean(busy)} onClick={() => setAskingDelete(true)}>
               {t("campaign.delete")}
             </button>
           ) : null}
@@ -539,6 +542,19 @@ export function CampaignEditorPage() {
           ) : null}
         </div>
       </div>
+      {askingDelete ? (
+        <ConfirmModal
+          title={t("campaign.delete")}
+          body={t("campaign.deleteConfirm")}
+          confirmLabel={busy === "delete" ? t("campaign.deleting") : t("campaign.delete")}
+          cancelLabel={t("campaign.cancel")}
+          busy={busy === "delete"}
+          onConfirm={() => void remove()}
+          onCancel={() => {
+            if (busy !== "delete") setAskingDelete(false);
+          }}
+        />
+      ) : null}
     </section>
   );
 }
