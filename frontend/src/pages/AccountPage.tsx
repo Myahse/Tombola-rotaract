@@ -79,8 +79,9 @@ export function AccountPage() {
                       ) : (
                         t("pay.cash")
                       )}
-                      {" · "}
-                      {order.tickets.map((ticket) => ticket.number).join(", ")}
+                      {order.tickets.length
+                        ? ` · ${order.tickets.map((ticket) => ticket.number).join(", ")}`
+                        : ` · ${t("account.waitingNumbers", { count: order.quantity })}`}
                     </p>
                     <Link to={`/${lang}/tickets/${order.token}`} className="btn-outline">
                       {t("account.openTickets")}

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, Navigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, formatMoney, localized } from "../api";
+import { useAuth } from "../auth";
 import type { OrderTicket, OrderView } from "../types";
 import { NumberedTicket, ScratchTicket, StatusPill } from "../components/ScratchTicket";
 import { TicketDeck } from "../components/TicketDeck";
@@ -11,42 +12,56 @@ import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
 
 export function TicketsPage() {
-  const { token } = useParams();
+  const { token, lang } = useParams();
   const { t, i18n } = useTranslation();
+  const { member, loading } = useAuth();
   const [order, setOrder] = useState<OrderView | null>(null);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
+
+  const next = `/${lang}/tickets/${token ?? ""}`;
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !member) return;
     api
       .order(token)
       .then(setOrder)
-      .catch(() => setError(true));
-  }, [token]);
+      .catch((err) => {
+        const code = err instanceof Error ? err.message : "";
+        setError(code || "generic");
+      });
+  }, [token, member]);
 
   useRealtime("public", (message) => {
-    if (!token) return;
+    if (!token || !member) return;
     if (message.type === "public.snapshot" || message.type === "draw.done") {
       api.order(token).then(setOrder).catch(() => undefined);
     }
   });
 
+  if (loading) return <PageSkeleton kind="tickets" />;
+  if (!member) {
+    return <Navigate to={`/${lang}/login?next=${encodeURIComponent(next)}`} replace />;
+  }
+  if (error === "login_required") {
+    return <Navigate to={`/${lang}/login?next=${encodeURIComponent(next)}`} replace />;
+  }
+  if (error === "forbidden") {
+    return (
+      <section className="section" style={{ borderBottom: 0 }}>
+        <h1>{t("confirm.notYours")}</h1>
+        <p>{t("confirm.notYoursHelp")}</p>
+        <Link to={`/${lang}/account`} className="btn-primary">
+          {t("nav.account")}
+        </Link>
+      </section>
+    );
+  }
   if (error) return <p>{t("errors.generic")}</p>;
   if (!order) return <PageSkeleton kind="tickets" />;
 
-  const tickets = order.tickets?.length
-    ? order.tickets
-    : (order.numbers ?? []).map((number) => ({
-        number,
-        prizeId: null,
-        prizeRank: null,
-        prizeNameFr: null,
-        prizeNameEn: null,
-        scratchedAt: null,
-      }));
+  const tickets = order.tickets ?? [];
   const pay = localized(order, i18n.language, "paymentInstructions");
   const title = localized(order, i18n.language, "title") || t("home.kicker");
-  const href = window.location.href;
   const accessToken = order.token;
   const drawn = order.eventStatus === "drawn";
   const paid = order.status === "paid";
@@ -89,57 +104,54 @@ export function TicketsPage() {
         <p className="eyebrow">{t("home.kicker")}</p>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1>{t("confirm.title")}</h1>
+            <h1>{paid ? t("confirm.titlePaid") : t("confirm.title")}</h1>
             <p>{order.buyerName}</p>
           </div>
           <StatusPill tone={paid ? "ok" : "wait"}>
             {paid ? t("confirm.statusPaid") : t("confirm.statusReserved")}
           </StatusPill>
         </div>
-        <p className="lede">{scratchMode ? t("scratch.howto") : t("ticket.howto")}</p>
-        <p className="lede">
-          {t("confirm.saveLink")}{" "}
-          <a href={href} className="break-all font-semibold">
-            {href}
-          </a>
-        </p>
+        <p className="lede">{paid ? (scratchMode ? t("scratch.howto") : t("ticket.howto")) : t("confirm.waitingTickets")}</p>
+        <p className="lede">{t("confirm.saveLink")}</p>
       </section>
 
-      <section className="section">
-        <h2>{scratchMode ? t("confirm.yourTickets") : t("confirm.yourPlainTickets")}</h2>
-        <TicketDeck hint={scratchMode ? t("deck.hintScratch") : t("deck.hintRoulette")}>
-          {tickets.map((ticket) =>
-            scratchMode ? (
-              <ScratchTicket
-                key={ticket.number}
-                number={ticket.number}
-                title={title}
-                buyerName={order.buyerName}
-                token={order.token}
-                canScratch={canScratch}
-                lockedLabel={lockedLabel}
-                prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
-                prizeRank={ticket.prizeRank}
-                alreadyOpen={Boolean(ticket.scratchedAt)}
-                onStart={() => recordScratch(ticket)}
-                onReveal={() => recordScratch(ticket)}
-              />
-            ) : (
-              <NumberedTicket
-                key={ticket.number}
-                number={ticket.number}
-                title={title}
-                buyerName={order.buyerName}
-                prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
-                prizeRank={ticket.prizeRank}
-                drawn={drawn}
-                paid={paid}
-                waitLabel={lockedLabel}
-              />
-            ),
-          )}
-        </TicketDeck>
-      </section>
+      {paid && tickets.length ? (
+        <section className="section">
+          <h2>{scratchMode ? t("confirm.yourTickets") : t("confirm.yourPlainTickets")}</h2>
+          <TicketDeck hint={scratchMode ? t("deck.hintScratch") : t("deck.hintRoulette")}>
+            {tickets.map((ticket) =>
+              scratchMode ? (
+                <ScratchTicket
+                  key={ticket.number}
+                  number={ticket.number}
+                  title={title}
+                  buyerName={order.buyerName}
+                  token={order.token}
+                  canScratch={canScratch}
+                  lockedLabel={lockedLabel}
+                  prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                  prizeRank={ticket.prizeRank}
+                  alreadyOpen={Boolean(ticket.scratchedAt)}
+                  onStart={() => recordScratch(ticket)}
+                  onReveal={() => recordScratch(ticket)}
+                />
+              ) : (
+                <NumberedTicket
+                  key={ticket.number}
+                  number={ticket.number}
+                  title={title}
+                  buyerName={order.buyerName}
+                  prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                  prizeRank={ticket.prizeRank}
+                  drawn={drawn}
+                  paid={paid}
+                  waitLabel={lockedLabel}
+                />
+              ),
+            )}
+          </TicketDeck>
+        </section>
+      ) : null}
 
       <section className="section" style={{ borderBottom: 0 }}>
         <h2>{t("confirm.pay")}</h2>

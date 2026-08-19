@@ -7,10 +7,8 @@ import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.j
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
 import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
-import { nextTicketNumbers, drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
+import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
-import { notifyPurchase } from "../lib/mail.js";
-import { siteUrl } from "../emails/layout.js";
 
 export const publicRouter = Router();
 
@@ -107,13 +105,11 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
         .innerJoin(orders, eq(tickets.orderId, orders.id))
         .where(and(eq(tickets.eventId, event.id), ne(orders.status, "cancelled")));
 
-      const used = usedRows.map((row) => row.number);
-      const remaining = event.totalTickets - used.length;
+      const remaining = event.totalTickets - usedRows.length;
       if (parsed.data.quantity > remaining) {
         throw Object.assign(new Error("not_enough_tickets"), { status: 409, remaining });
       }
 
-      const numbers = nextTicketNumbers(used, event.totalTickets, parsed.data.quantity);
       const token = newAccessToken();
 
       const [order] = await tx
@@ -133,25 +129,7 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
 
       if (!order) throw new Error("order_failed");
 
-      const insertedTickets = await tx
-        .insert(tickets)
-        .values(
-          numbers.map((number) => ({
-            eventId: event.id,
-            orderId: order.id,
-            number,
-          })),
-        )
-        .returning();
-
-      if (used.length + numbers.length >= event.totalTickets) {
-        await tx
-          .update(events)
-          .set({ status: "closed", updatedAt: new Date() })
-          .where(eq(events.id, event.id));
-      }
-
-      return { event, order, tickets: insertedTickets };
+      return { event, order };
     });
 
     res.status(201).json({
@@ -168,22 +146,10 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       paymentInstructionsEn: created.event.paymentInstructionsEn,
       eventStatus: created.event.status,
       drawMode: drawModeOf(created.event.drawMode),
-      numbers: created.tickets.map((ticket) => ticket.number).sort((a, b) => a - b),
+      numbers: [],
+      tickets: [],
     });
     void publishChange("order");
-    void notifyPurchase({
-      name: created.order.buyerName,
-      email: created.order.buyerEmail,
-      eventTitleFr: created.event.titleFr,
-      eventTitleEn: created.event.titleEn,
-      quantity: created.order.quantity,
-      ticketPriceCents: created.event.ticketPriceCents,
-      currency: created.event.currency,
-      numbers: created.tickets.map((ticket) => ticket.number).sort((a, b) => a - b),
-      paymentMethod: created.order.paymentMethod,
-      drawMode: drawModeOf(created.event.drawMode),
-      ticketsUrl: siteUrl(`/fr/tickets/${created.order.accessToken}`),
-    });
   } catch (error) {
     const err = error as Error & { status?: number; remaining?: number };
     if (err.message === "not_on_sale") {
@@ -199,8 +165,8 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
   }
 });
 
-publicRouter.get("/orders/:token", async (req, res) => {
-  const token = req.params.token;
+publicRouter.get("/orders/:token", requireMember, async (req, res) => {
+  const token = typeof req.params.token === "string" ? req.params.token : "";
   if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) {
     res.status(400).json({ error: "missing_token" });
     return;
@@ -209,6 +175,10 @@ publicRouter.get("/orders/:token", async (req, res) => {
   const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
   if (!order || order.status === "cancelled") {
     res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (order.memberId !== (req as MemberRequest).memberId) {
+    res.status(403).json({ error: "forbidden" });
     return;
   }
 
@@ -230,7 +200,6 @@ publicRouter.get("/orders/:token", async (req, res) => {
   res.json({
     token: order.accessToken,
     buyerName: order.buyerName,
-    buyerEmail: order.buyerEmail,
     quantity: order.quantity,
     paymentMethod: order.paymentMethod,
     wavePayUrl: wavePayUrl(),
@@ -248,12 +217,12 @@ publicRouter.get("/orders/:token", async (req, res) => {
   });
 });
 
-publicRouter.post("/orders/:token/tickets/:number/scratch", async (req, res) => {
+publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async (req, res) => {
   if (!allowRequest(`scratch:${clientKey(req)}`, 40, 60_000)) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
-  const token = req.params.token;
+  const token = typeof req.params.token === "string" ? req.params.token : "";
   const number = Number(req.params.number);
   if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token) || !Number.isInteger(number) || number < 1) {
     res.status(400).json({ error: "invalid_form" });
@@ -263,6 +232,10 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", async (req, res) => 
   const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
   if (!order || order.status === "cancelled") {
     res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (order.memberId !== (req as MemberRequest).memberId) {
+    res.status(403).json({ error: "forbidden" });
     return;
   }
   if (order.status !== "paid") {

@@ -173,7 +173,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
     })
     .from(orders)
     .innerJoin(events, eq(orders.eventId, events.id))
-    .innerJoin(tickets, eq(tickets.orderId, orders.id))
+    .leftJoin(tickets, eq(tickets.orderId, orders.id))
     .leftJoin(prizes, eq(tickets.prizeId, prizes.id))
     .where(and(eq(orders.memberId, memberId), ne(orders.status, "cancelled")))
     .orderBy(desc(orders.createdAt), asc(tickets.number));
@@ -236,14 +236,16 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       };
       event.orders.set(row.token, order);
     }
-    order.tickets.push({
-      number: row.ticketNumber,
-      prizeId: row.prizeId,
-      prizeRank: row.prizeRank,
-      prizeNameFr: row.prizeNameFr,
-      prizeNameEn: row.prizeNameEn,
-      scratchedAt: row.scratchedAt,
-    });
+    if (row.ticketNumber != null) {
+      order.tickets.push({
+        number: row.ticketNumber,
+        prizeId: row.prizeId,
+        prizeRank: row.prizeRank,
+        prizeNameFr: row.prizeNameFr,
+        prizeNameEn: row.prizeNameEn,
+        scratchedAt: row.scratchedAt,
+      });
+    }
   }
 
   res.json({

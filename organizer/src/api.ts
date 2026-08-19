@@ -54,6 +54,8 @@ export const api = {
   orders: () => request<{ orders: AdminOrder[] }>("/api/admin/orders"),
   markPaid: (id: string) =>
     request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/paid`, { method: "POST" }),
+  unmarkPaid: (id: string) =>
+    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/unpaid`, { method: "POST" }),
   cancelOrder: (id: string) =>
     request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   draw: () =>

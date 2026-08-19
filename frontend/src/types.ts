@@ -44,7 +44,7 @@ export type OrderTicket = {
 export type OrderView = {
   token: string;
   buyerName: string;
-  buyerEmail: string;
+  buyerEmail?: string;
   quantity: number;
   paymentMethod?: PaymentMethod;
   wavePayUrl?: string;

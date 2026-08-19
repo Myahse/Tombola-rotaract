@@ -45,3 +45,13 @@ export function nextTicketNumbers(used: number[], total: number, quantity: numbe
   }
   return numbers;
 }
+
+export function randomTicketNumbers(used: number[], total: number, quantity: number) {
+  const taken = new Set(used);
+  const pool: number[] = [];
+  for (let n = 1; n <= total; n += 1) {
+    if (!taken.has(n)) pool.push(n);
+  }
+  if (pool.length < quantity) return [];
+  return shuffle(pool).slice(0, quantity);
+}

@@ -149,22 +149,15 @@ function RegisterSkeleton() {
         </label>
         <fieldset className="pay-options">
           <legend>{t("auth.termsLegend")}</legend>
-          <label className="pay-option">
+          <label className="pay-option legal-check">
             <input type="checkbox" disabled tabIndex={-1} />
             <span>
-              <strong>
-                {t("auth.acceptTermsPrefix")}
-                <span className="terms-link">{t("auth.termsLink")}</span>
-                {t("auth.acceptTermsSuffix")}
-              </strong>
+              {t("auth.acceptTerms")} <span className="terms-link">{t("auth.termsLink")}</span>
             </span>
           </label>
-          <label className="pay-option">
+          <label className="pay-option legal-check">
             <input type="checkbox" disabled tabIndex={-1} />
-            <span>
-              <strong>{t("auth.acceptEmails")}</strong>
-              <em>{t("auth.acceptEmailsHint")}</em>
-            </span>
+            <span>{t("auth.acceptEmails")}</span>
           </label>
         </fieldset>
         <button type="button" className="btn-primary btn-block" disabled tabIndex={-1}>
