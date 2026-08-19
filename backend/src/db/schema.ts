@@ -79,6 +79,7 @@ export const tickets = pgTable(
       .references(() => orders.id, { onDelete: "cascade" }),
     number: integer("number").notNull(),
     prizeId: uuid("prize_id").references(() => prizes.id, { onDelete: "set null" }),
+    scratchedAt: timestamp("scratched_at", { withTimezone: true }),
   },
   (table) => [unique().on(table.eventId, table.number)],
 );

@@ -5,6 +5,7 @@ import { useLiveTick } from "../../live";
 import type { Contestant, Winner } from "../../types";
 import { Avatar } from "../../components/Avatar";
 import { DrawReel, reelOffsetForWinner } from "../../components/DrawReel";
+import { ScratchFeed } from "../../components/ScratchFeed";
 
 export function DrawPage() {
   const { t, i18n } = useTranslation();
@@ -172,6 +173,8 @@ export function DrawPage() {
           ))}
         </ol>
       ) : null}
+
+      {status === "drawn" ? <ScratchFeed /> : null}
     </section>
   );
 }

@@ -36,6 +36,7 @@ export type OrderTicket = {
   prizeRank: number | null;
   prizeNameFr: string | null;
   prizeNameEn: string | null;
+  scratchedAt?: string | null;
 };
 
 export type OrderView = {

@@ -72,7 +72,7 @@ export async function publicSnapshot() {
   };
 }
 
-export async function publishChange(reason: "order" | "event" | "draw") {
+export async function publishChange(reason: "order" | "event" | "draw" | "scratch") {
   const event = await publicSnapshot();
   broadcast({ type: "public.snapshot", event });
   broadcast({ type: "organizer.changed", reason }, "organizer");

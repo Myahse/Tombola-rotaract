@@ -37,6 +37,11 @@ export const api = {
   buy: (body: { quantity: number; phone?: string; paymentMethod: "cash" | "wave" }) =>
     request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
   order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
+  scratch: (token: string, number: number) =>
+    request<{ ok: boolean; scratchedAt: string }>(
+      `/api/orders/${encodeURIComponent(token)}/tickets/${number}/scratch`,
+      { method: "POST" },
+    ),
   register: (body: { name: string; email: string; phone: string; password: string; avatarUrl?: string }) =>
     request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
   memberLogin: (body: { email: string; password: string }) =>

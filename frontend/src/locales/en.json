@@ -105,8 +105,8 @@
     "payFirst": "Pay first to take part",
     "lose": "No prize",
     "win": "Prize {{rank}}",
-    "instruction": "Scratch the silver panel after the draw.",
-    "howto": "Each ticket is a scratch card. The panel unlocks after the club has drawn the prizes."
+    "instruction": "Scratch the silver panel: the prize was already assigned to this ticket at the draw.",
+    "howto": "The draw assigns prizes to tickets. After the draw, scratch to see whether your number won a prize."
   },
   "results": {
     "title": "The draw",

@@ -36,6 +36,7 @@ export type OrderTicket = {
   prizeRank: number | null;
   prizeNameFr: string | null;
   prizeNameEn: string | null;
+  scratchedAt?: string | null;
 };
 
 export type OrderView = {
@@ -71,12 +72,22 @@ export type Contestant = {
   avatarUrl?: string | null;
 };
 
+export type ScratchedTicket = {
+  ticketNumber: number;
+  buyerName: string;
+  scratchedAt: string;
+  prizeRank: number | null;
+  prizeNameFr: string | null;
+  prizeNameEn: string | null;
+};
+
 export type AdminStats = {
   paidOrders: number;
   reservedOrders: number;
   paidTickets: number;
   reservedTickets: number;
   remainingTickets: number;
+  scratchedTickets?: number;
 };
 
 export type AdminEvent = {

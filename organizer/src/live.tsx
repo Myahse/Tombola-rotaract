@@ -10,7 +10,8 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     if (
       message.type === "organizer.changed" ||
       message.type === "public.snapshot" ||
-      message.type === "draw.done"
+      message.type === "draw.done" ||
+      message.type === "ticket.scratched"
     ) {
       setTick((value) => value + 1);
     }

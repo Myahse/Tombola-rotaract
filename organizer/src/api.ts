@@ -7,6 +7,7 @@ import type {
   OrderView,
   Prize,
   PublicEvent,
+  ScratchedTicket,
   Winner,
 } from "./types";
 
@@ -61,6 +62,7 @@ export const api = {
     }),
   contestants: () => request<{ contestants: Contestant[] }>("/api/admin/contestants"),
   winners: () => request<{ event: AdminEvent | null; winners: Winner[] }>("/api/admin/winners"),
+  scratches: () => request<{ scratches: ScratchedTicket[] }>("/api/admin/scratches"),
 };
 
 export function formatMoney(amount: number, currency: string, lang: string) {

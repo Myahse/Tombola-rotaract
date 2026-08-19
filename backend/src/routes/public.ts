@@ -5,6 +5,7 @@ import { db } from "../db/index.js";
 import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.js";
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
+import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
 import { nextTicketNumbers } from "../lib/tickets.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
@@ -213,6 +214,7 @@ publicRouter.get("/orders/:token", async (req, res) => {
       prizeRank: prizes.rank,
       prizeNameFr: prizes.nameFr,
       prizeNameEn: prizes.nameEn,
+      scratchedAt: tickets.scratchedAt,
     })
     .from(tickets)
     .leftJoin(prizes, eq(tickets.prizeId, prizes.id))
@@ -237,4 +239,67 @@ publicRouter.get("/orders/:token", async (req, res) => {
     paymentInstructionsEn: event?.paymentInstructionsEn ?? "",
     tickets: orderTickets,
   });
+});
+
+publicRouter.post("/orders/:token/tickets/:number/scratch", async (req, res) => {
+  if (!allowRequest(`scratch:${clientKey(req)}`, 40, 60_000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const token = req.params.token;
+  const number = Number(req.params.number);
+  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token) || !Number.isInteger(number) || number < 1) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+
+  const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
+  if (!order || order.status === "cancelled") {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (order.status !== "paid") {
+    res.status(409).json({ error: "not_paid" });
+    return;
+  }
+
+  const [event] = await db.select().from(events).where(eq(events.id, order.eventId)).limit(1);
+  if (!event || event.status !== "drawn") {
+    res.status(409).json({ error: "not_drawn" });
+    return;
+  }
+
+  const [ticket] = await db
+    .select()
+    .from(tickets)
+    .where(and(eq(tickets.orderId, order.id), eq(tickets.number, number)))
+    .limit(1);
+  if (!ticket) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+
+  const scratchedAt = ticket.scratchedAt ?? new Date();
+  if (!ticket.scratchedAt) {
+    await db.update(tickets).set({ scratchedAt }).where(eq(tickets.id, ticket.id));
+    const [prize] = ticket.prizeId
+      ? await db.select().from(prizes).where(eq(prizes.id, ticket.prizeId)).limit(1)
+      : [];
+    broadcast(
+      {
+        type: "ticket.scratched",
+        ticket: {
+          ticketNumber: ticket.number,
+          buyerName: order.buyerName,
+          scratchedAt: scratchedAt.toISOString(),
+          prizeRank: prize?.rank ?? null,
+          prizeNameFr: prize?.nameFr ?? null,
+          prizeNameEn: prize?.nameEn ?? null,
+        },
+      },
+      "organizer",
+    );
+  }
+
+  res.json({ ok: true, scratchedAt: scratchedAt.toISOString() });
 });

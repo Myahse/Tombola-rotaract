@@ -10,6 +10,8 @@ type ScratchTicketProps = {
   lockedLabel: string;
   prizeName?: string | null;
   prizeRank?: number | null;
+  alreadyOpen?: boolean;
+  onReveal?: () => void;
 };
 
 export function StatusPill({
@@ -32,6 +34,8 @@ export function ScratchTicket({
   lockedLabel,
   prizeName,
   prizeRank,
+  alreadyOpen,
+  onReveal,
 }: ScratchTicketProps) {
   const { t } = useTranslation();
   const padded = String(number).padStart(3, "0");
@@ -50,6 +54,8 @@ export function ScratchTicket({
         enabled={canScratch}
         storageKey={`scratch:${token}:${number}`}
         label={canScratch ? t("scratch.here") : lockedLabel}
+        alreadyOpen={alreadyOpen}
+        onReveal={onReveal}
       >
         {canScratch ? (
           won ? (
@@ -77,17 +83,37 @@ function ScratchPanel({
   enabled,
   storageKey,
   label,
+  alreadyOpen,
+  onReveal,
   children,
 }: {
   enabled: boolean;
   storageKey: string;
   label: string;
+  alreadyOpen?: boolean;
+  onReveal?: () => void;
   children: ReactNode;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [cleared, setCleared] = useState(() => localStorage.getItem(storageKey) === "1");
+  const [cleared, setCleared] = useState(
+    () => Boolean(alreadyOpen) || localStorage.getItem(storageKey) === "1",
+  );
   const drawing = useRef(false);
+  const revealed = useRef(Boolean(alreadyOpen));
+
+  useEffect(() => {
+    if (alreadyOpen) {
+      setCleared(true);
+      revealed.current = true;
+    }
+  }, [alreadyOpen]);
+
+  useEffect(() => {
+    if (!cleared || revealed.current || !enabled) return;
+    revealed.current = true;
+    onReveal?.();
+  }, [cleared, enabled, onReveal]);
 
   useEffect(() => {
     if (cleared) return;

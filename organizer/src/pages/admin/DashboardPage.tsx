@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, localized } from "../../api";
 import { useLiveTick } from "../../live";
 import type { AdminEvent, AdminStats } from "../../types";
+import { ScratchFeed } from "../../components/ScratchFeed";
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -53,6 +54,9 @@ export function DashboardPage() {
     { label: t("admin.paid"), value: stats.paidTickets },
     { label: t("admin.reserved"), value: stats.reservedTickets },
     { label: t("admin.remaining"), value: stats.remainingTickets },
+    ...(event.status === "drawn"
+      ? [{ label: t("admin.scratched"), value: `${stats.scratchedTickets ?? 0}/${stats.paidTickets}` }]
+      : []),
   ];
 
   return (
@@ -89,7 +93,10 @@ export function DashboardPage() {
           )}
         </div>
       ) : (
-        <p className="mt-4">{t("admin.locked")}</p>
+        <>
+          <p className="mt-4">{t("admin.locked")}</p>
+          <ScratchFeed />
+        </>
       )}
       {message ? <p className="mt-3 text-sm text-ticket">{message}</p> : null}
     </section>
