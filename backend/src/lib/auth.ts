@@ -163,3 +163,7 @@ export function optionalMemberId(req: Request) {
 export function newAccessToken() {
   return randomBytes(24).toString("base64url");
 }
+
+export function hashToken(token: string) {
+  return createHmac("sha256", secret()).update(token).digest("hex");
+}

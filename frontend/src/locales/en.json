@@ -191,6 +191,15 @@
     "submitting": "Please wait…",
     "haveAccount": "Already have an account?",
     "noAccount": "No account yet?",
+    "forgotLink": "Forgot your password?",
+    "forgotTitle": "Forgot password",
+    "forgotLead": "Enter the email of your account. If it exists, you will receive a link to choose a new password.",
+    "forgotSubmit": "Send the link",
+    "forgotSent": "If an account exists with this email, a link has just been sent. It expires in one hour.",
+    "forgotBack": "Back to log in",
+    "resetTitle": "New password",
+    "resetLead": "Choose a password of at least 8 characters.",
+    "resetSubmit": "Save the password",
     "termsTitle": "General terms of use, participation and sale of tombolas",
     "termsLegend": "Acceptance",
     "termsLink": "Read the full document",
@@ -210,7 +219,14 @@
     "ticketCount": "{{count}} ticket",
     "ticketCount_other": "{{count}} tickets",
     "waitingNumbers": "{{count}} ticket, numbers after payment",
-    "waitingNumbers_other": "{{count}} tickets, numbers after payment"
+    "waitingNumbers_other": "{{count}} tickets, numbers after payment",
+    "profileTitle": "My profile",
+    "saveProfile": "Save",
+    "saved": "Profile updated.",
+    "currentPassword": "Current password (to change it)",
+    "newPassword": "New password",
+    "emailLocked": "Email is how you log in. It cannot be changed here.",
+    "removePhoto": "Remove photo"
   },
   "errors": {
     "generic": "Something went wrong.",
@@ -222,7 +238,10 @@
     "passwordMismatch": "The passwords do not match.",
     "termsRequired": "Tick both boxes to create an account.",
     "notEnough": "Not enough tickets left.",
-    "notOnSale": "Ticket sales are not open."
+    "notOnSale": "Ticket sales are not open.",
+    "tooMany": "Too many attempts. Try again in a moment.",
+    "invalidToken": "This link is no longer valid. Request a new one.",
+    "currentRequired": "Enter your current password to choose a new one."
   },
   "prizeRank": "{{rank, ordinal}} prize"
 }
