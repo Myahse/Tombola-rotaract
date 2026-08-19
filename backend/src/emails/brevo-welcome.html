@@ -2,26 +2,43 @@
 <html lang="fr">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="supported-color-schemes" content="light dark" />
   <title>Bienvenue — Rotaract IUGB Club</title>
+  <style>
+    :root { color-scheme: light dark; }
+    @media (prefers-color-scheme: dark) {
+      .email-body, .email-shell { background: #121214 !important; color: #f3f3f5 !important; }
+      .email-card { background: #1c1c21 !important; border-color: #2c2c32 !important; }
+      .email-hairline { border-color: #2c2c32 !important; }
+      .email-heading { color: #f3f3f5 !important; }
+      .email-copy, .email-copy p, .email-copy strong { color: #f3f3f5 !important; }
+      .email-cta { background: #be034d !important; color: #ffffff !important; }
+      .email-logo-light { display: none !important; }
+      .email-logo-dark { display: block !important; }
+    }
+  </style>
 </head>
-<body style="margin:0;padding:0;background:#fafafa;color:#141416;font-family:Manrope,'Segoe UI',Arial,sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;padding:24px 12px;">
+<body class="email-body" style="margin:0;padding:0;background:#fafafa;color:#141416;font-family:Manrope,'Segoe UI',Arial,sans-serif;">
+  <table class="email-shell" role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fafafa;padding:24px 12px;">
     <tr>
       <td align="center">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#ffffff;border:1px solid #ececee;border-radius:16px;overflow:hidden;">
+        <table class="email-card" role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#ffffff;border:1px solid #ececee;border-radius:16px;overflow:hidden;">
           <tr>
-            <td align="center" style="padding:28px 32px 18px;border-bottom:1px solid #ececee;">
-              <img src="{{ params.logoUrl }}" alt="Rotaract IUGB Club" width="220" style="display:block;margin:0 auto;width:220px;max-width:86%;height:auto;" />
+            <td class="email-hairline" align="center" style="padding:28px 32px 18px;border-bottom:1px solid #ececee;">
+              <img class="email-logo-light" src="{{ params.logoUrl }}" alt="Rotaract IUGB Club" width="220" style="display:block;margin:0 auto;width:220px;max-width:86%;height:auto;" />
+              <img class="email-logo-dark" src="{{ params.logoDarkUrl }}" alt="Rotaract IUGB Club" width="220" style="display:none;margin:0 auto;width:220px;max-width:86%;height:auto;" />
             </td>
           </tr>
           <tr>
             <td style="padding:28px 32px 8px;">
               <p style="margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;font-weight:650;color:#a1a1a8;">Tombola du club</p>
-              <h1 style="margin:0;font-size:24px;line-height:1.25;">Bienvenue, {{ params.name }}</h1>
+              <h1 class="email-heading" style="margin:0;font-size:24px;line-height:1.25;">Bienvenue, {{ params.name }}</h1>
             </td>
           </tr>
           <tr>
-            <td style="padding:12px 32px 24px;color:#73737a;font-size:15px;line-height:1.6;">
+            <td class="email-copy" style="padding:12px 32px 24px;color:#73737a;font-size:15px;line-height:1.6;">
               <p style="margin:0 0 14px;color:#141416;">Votre compte est créé. Il servira pour chaque tombola du club : cérémonie, réunion, ou autre événement.</p>
               <p style="margin:0 0 14px;">Connectez-vous, réservez vos tickets, payez au club, puis grattez après le tirage. Tout votre historique reste dans <strong>Mes tombolas</strong>.</p>
               <p style="margin:0;font-size:13px;"><em>EN</em> — Your Rotaract IUGB Club account is ready. Use it for every tombola.</p>
@@ -29,7 +46,7 @@
           </tr>
           <tr>
             <td style="padding:0 32px 28px;">
-              <a href="{{ params.accountUrl }}" style="display:inline-block;background:#141416;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 18px;border-radius:8px;">Voir mes tombolas</a>
+              <a class="email-cta" href="{{ params.accountUrl }}" style="display:inline-block;background:#141416;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 18px;border-radius:8px;">Voir mes tombolas</a>
             </td>
           </tr>
         </table>

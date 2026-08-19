@@ -52,6 +52,7 @@ export function giftTicketsEmail(data: GiftTicketsEmail) {
       numbers,
       ticketsUrl: data.ticketsUrl,
       logoUrl: siteUrl("/logo.png"),
+      logoDarkUrl: siteUrl("/logo-white.png"),
     },
   };
 }

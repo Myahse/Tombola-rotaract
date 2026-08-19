@@ -55,6 +55,7 @@ export function drawResultsEmail(data: DrawResultsEmail) {
         buyUrl,
         donateUrl,
         logoUrl: siteUrl("/logo.png"),
+        logoDarkUrl: siteUrl("/logo-white.png"),
       },
     };
   }
@@ -147,6 +148,7 @@ export function drawResultsEmail(data: DrawResultsEmail) {
       buyUrl,
       donateUrl,
       logoUrl: siteUrl("/logo.png"),
+      logoDarkUrl: siteUrl("/logo-white.png"),
     },
   };
 }

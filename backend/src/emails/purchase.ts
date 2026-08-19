@@ -90,6 +90,7 @@ export function purchaseEmail(data: PurchaseEmail) {
       buyUrl,
       donateUrl,
       logoUrl: siteUrl("/logo.png"),
+      logoDarkUrl: siteUrl("/logo-white.png"),
     },
   };
 }
