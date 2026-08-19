@@ -4,8 +4,8 @@ export function BrandLogo({ hero = false }: { hero?: boolean }) {
       src="/logo.png"
       alt="Rotaract IUGB Club"
       className={hero ? "brand-logo hero" : "brand-logo"}
-      width={480}
-      height={307}
+      width={960}
+      height={614}
       decoding="async"
       fetchPriority="high"
     />
