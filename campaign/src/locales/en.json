@@ -19,7 +19,7 @@
   },
   "campaign": {
     "title": "Email campaigns",
-    "lede": "Write one message, send it to registered members, ticket buyers, and any extra addresses. Attach photos — they appear in the email.",
+    "lede": "Write one message, send it to registered members, ticket buyers, and any extra addresses. Attach photos: they appear in the email.",
     "empty": "No campaign yet.",
     "new": "New campaign",
     "draft": "Draft",

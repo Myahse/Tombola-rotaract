@@ -1,10 +1,11 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type MouseEvent } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
+import { TermsBody } from "./TermsPage";
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -17,7 +18,17 @@ export function RegisterPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptEmails, setAcceptEmails] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const next = params.get("next") || `/${lang}/account`;
+
+  useEffect(() => {
+    if (!showTerms) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setShowTerms(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showTerms]);
 
   if (loading) return <PageSkeleton kind="register" />;
   if (member) {
@@ -93,7 +104,6 @@ export function RegisterPage() {
               </span>
             )}
             <input type="file" accept="image/*" onChange={(e) => void onPhoto(e.target.files?.[0])} />
-            <em>{t("auth.photoHint")}</em>
           </span>
         </label>
         <label>
@@ -116,11 +126,6 @@ export function RegisterPage() {
           {t("auth.confirmPassword")}
           <input name="confirm" type="password" required minLength={8} autoComplete="new-password" />
         </label>
-        <aside className="terms-box">
-          <h2>{t("auth.termsTitle")}</h2>
-          <p>{t("auth.termsBody")}</p>
-          <p>{t("auth.termsEmails")}</p>
-        </aside>
         <fieldset className="pay-options">
           <legend>{t("auth.termsLegend")}</legend>
           <label className={`pay-option ${acceptTerms ? "active" : ""}`}>
@@ -132,7 +137,22 @@ export function RegisterPage() {
               required
             />
             <span>
-              <strong>{t("auth.acceptTerms")}</strong>
+              <strong>
+                {t("auth.acceptTermsPrefix")}
+                <a
+                  href={`/${lang}/terms`}
+                  className="terms-link"
+                  onClick={(event: MouseEvent<HTMLAnchorElement>) => {
+                    event.stopPropagation();
+                    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+                    event.preventDefault();
+                    setShowTerms(true);
+                  }}
+                >
+                  {t("auth.termsLink")}
+                </a>
+                {t("auth.acceptTermsSuffix")}
+              </strong>
             </span>
           </label>
           <label className={`pay-option ${acceptEmails ? "active" : ""}`}>
@@ -158,6 +178,25 @@ export function RegisterPage() {
         {t("auth.haveAccount")}{" "}
         <Link to={`/${lang}/login?next=${encodeURIComponent(next)}`}>{t("nav.login")}</Link>
       </p>
+      {showTerms ? (
+        <div
+          className="modal-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="terms-title"
+          onClick={() => setShowTerms(false)}
+        >
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <h1 id="terms-title">{t("auth.termsTitle")}</h1>
+            <TermsBody />
+            <div className="modal-actions">
+              <button type="button" className="btn-primary btn-block" onClick={() => setShowTerms(false)}>
+                {t("auth.termsClose")}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
