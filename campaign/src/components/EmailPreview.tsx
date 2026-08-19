@@ -131,7 +131,7 @@ export function EmailPreview({
             <header className="mail-brand">
               <picture>
                 <source srcSet="/logo-white.png" media="(prefers-color-scheme: dark)" />
-                <img src="/logo.png" alt="Rotaract IUGB Club" width={220} height={141} />
+                  <img src="/logo.png" alt="Rotaract IUGB Club" width={220} height={83} />
               </picture>
             </header>
             <div className="mail-body">

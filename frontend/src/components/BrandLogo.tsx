@@ -12,8 +12,8 @@ export function BrandLogo({ hero = false }: { hero?: boolean }) {
         src="/logo.png"
         alt="Rotaract IUGB Club"
         className={className}
-        width={960}
-        height={614}
+        width={751}
+        height={284}
         decoding="async"
         fetchPriority="high"
         onError={() => setUseWhite(false)}
