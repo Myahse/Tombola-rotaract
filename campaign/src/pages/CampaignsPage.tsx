@@ -18,6 +18,7 @@ export function CampaignsPage() {
   const [meta, setMeta] = useState<CampaignMeta | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
 
   useEffect(() => {
     Promise.all([api.list(), api.meta()])
@@ -50,6 +51,20 @@ export function CampaignsPage() {
       setMessage(t("errors.generic"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm(t("campaign.deleteConfirm"))) return;
+    setDeletingId(id);
+    setMessage("");
+    try {
+      await api.remove(id);
+      setCampaigns((current) => current?.filter((item) => item.id !== id) ?? null);
+    } catch {
+      setMessage(t("errors.generic"));
+    } finally {
+      setDeletingId("");
     }
   }
 
@@ -96,6 +111,16 @@ export function CampaignsPage() {
                 <Link className="btn-outline" to={`/${lang}/${item.id}`}>
                   {t("campaign.open")}
                 </Link>
+                {item.status !== "sending" ? (
+                  <button
+                    type="button"
+                    className="btn-danger"
+                    disabled={Boolean(deletingId)}
+                    onClick={() => void remove(item.id)}
+                  >
+                    {t("campaign.delete")}
+                  </button>
+                ) : null}
               </div>
             </article>
           ))}
