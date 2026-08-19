@@ -49,7 +49,7 @@ export function CampaignEditorPage() {
   const [person, setPerson] = useState<PreviewPerson>(SAMPLE_PERSON);
   const [testEmail, setTestEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState<"save" | "test" | "send" | "image" | "">("");
+  const [busy, setBusy] = useState<"save" | "test" | "send" | "image" | "delete" | "">("");
   const [focusField, setFocusField] = useState<"subject" | "preheader" | "heading" | "body" | "ctaLabel">("body");
   const fieldRefs = {
     subject: useRef<HTMLInputElement>(null),
@@ -208,9 +208,17 @@ export function CampaignEditorPage() {
   }
 
   async function remove() {
-    if (!id || !window.confirm(t("campaign.delete"))) return;
-    await api.remove(id);
-    navigate(`/${lang}`);
+    if (!id || !window.confirm(t("campaign.deleteConfirm"))) return;
+    setBusy("delete");
+    setMessage("");
+    try {
+      await api.remove(id);
+      navigate(`/${lang}`);
+    } catch (error) {
+      setMessage(errorText(t, error));
+    } finally {
+      setBusy("");
+    }
   }
 
   const sourceLabel = useMemo(
@@ -243,7 +251,7 @@ export function CampaignEditorPage() {
             {t("campaign.duplicate")}
           </button>
           {campaign.status !== "sending" ? (
-            <button type="button" className="btn-ghost" onClick={() => void remove()}>
+            <button type="button" className="btn-danger" disabled={Boolean(busy)} onClick={() => void remove()}>
               {t("campaign.delete")}
             </button>
           ) : null}

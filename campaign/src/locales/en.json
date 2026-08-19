@@ -76,6 +76,7 @@
     "truncated": "List capped at 800 addresses.",
     "brevoOff": "Brevo is not configured on the API. Campaigns cannot be sent until BREVO_API_KEY and BREVO_SENDER_EMAIL are set.",
     "delete": "Delete",
+    "deleteConfirm": "Delete this campaign? This cannot be undone.",
     "duplicate": "Duplicate as draft",
     "sentAt": "Sent",
     "ok": "Delivered",
