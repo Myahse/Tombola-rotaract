@@ -11,11 +11,16 @@ function run(args, cwd) {
 }
 
 function appFromVercel() {
-  if (process.env.TOMBOLA_APP === "organizer" || process.env.TOMBOLA_APP === "frontend") {
+  if (
+    process.env.TOMBOLA_APP === "organizer" ||
+    process.env.TOMBOLA_APP === "frontend" ||
+    process.env.TOMBOLA_APP === "campaign"
+  ) {
     return process.env.TOMBOLA_APP;
   }
   const hint = `${process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ""} ${process.env.VERCEL_URL ?? ""}`.toLowerCase();
   if (hint.includes("organisateur")) return "organizer";
+  if (hint.includes("campagne")) return "campaign";
   return "frontend";
 }
 
@@ -34,4 +39,5 @@ if (process.env.VERCEL) {
 } else {
   buildApp("frontend");
   buildApp("organizer");
+  buildApp("campaign");
 }

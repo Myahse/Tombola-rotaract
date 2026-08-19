@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   pgTable,
   text,
@@ -14,6 +15,8 @@ export const members = pgTable("members", {
   phone: text("phone"),
   avatarUrl: text("avatar_url"),
   passwordHash: text("password_hash").notNull(),
+  termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+  emailsAcceptedAt: timestamp("emails_accepted_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -103,8 +106,57 @@ export const drawResults = pgTable(
   (table) => [unique().on(table.eventId, table.prizeId)],
 );
 
+export const campaigns = pgTable("campaigns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  subject: text("subject").notNull(),
+  preheader: text("preheader").notNull().default(""),
+  heading: text("heading").notNull().default(""),
+  body: text("body").notNull().default(""),
+  ctaLabel: text("cta_label").notNull().default(""),
+  ctaUrl: text("cta_url").notNull().default(""),
+  includeMembers: boolean("include_members").notNull().default(true),
+  includeBuyers: boolean("include_buyers").notNull().default(false),
+  optedInOnly: boolean("opted_in_only").notNull().default(true),
+  extraEmails: text("extra_emails").notNull().default(""),
+  status: text("status").notNull().default("draft"),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  recipientCount: integer("recipient_count").notNull().default(0),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+});
+
+export const campaignAttachments = pgTable("campaign_attachments", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id")
+    .notNull()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  content: text("content").notNull(),
+  inline: boolean("inline").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const campaignRecipients = pgTable("campaign_recipients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  campaignId: uuid("campaign_id")
+    .notNull()
+    .references(() => campaigns.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  name: text("name").notNull().default(""),
+  source: text("source").notNull(),
+  status: text("status").notNull().default("pending"),
+  error: text("error"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+});
+
 export type MemberRow = typeof members.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type PrizeRow = typeof prizes.$inferSelect;
 export type OrderRow = typeof orders.$inferSelect;
 export type TicketRow = typeof tickets.$inferSelect;
+export type CampaignRow = typeof campaigns.$inferSelect;

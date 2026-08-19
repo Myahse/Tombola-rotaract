@@ -22,7 +22,7 @@ services:
       - key: ADMIN_EMAIL
         sync: false
       - key: CORS_ORIGIN
-        value: https://tombola.rotaractiugb.com,https://organisateurs.rotaractiugb.com
+        value: https://tombola.rotaractiugb.com,https://organisateurs.rotaractiugb.com,https://campagnes.rotaractiugb.com
       - key: PUBLIC_SITE_URL
         value: https://tombola.rotaractiugb.com
       - key: WAVE_PAY_URL

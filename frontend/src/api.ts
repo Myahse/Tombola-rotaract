@@ -51,8 +51,15 @@ export const api = {
       `/api/orders/${encodeURIComponent(token)}/tickets/${number}/scratch`,
       { method: "POST" },
     ),
-  register: (body: { name: string; email: string; phone: string; password: string; avatarUrl?: string }) =>
-    request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
+  register: (body: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    avatarUrl?: string;
+    acceptTerms: true;
+    acceptEmails: true;
+  }) => request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
   memberLogin: (body: { email: string; password: string }) =>
     request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   memberLogout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),

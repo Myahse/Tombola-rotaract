@@ -470,6 +470,25 @@ a:hover { color: var(--primary); }
   font-size: 0.92rem;
 }
 
+.terms-box {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  display: grid;
+  gap: 0.55rem;
+}
+.terms-box h2 {
+  font-size: 0.95rem;
+}
+.terms-box p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
 .badge {
   font-size: 0.72rem;
   padding: 0.15rem 0.45rem;
