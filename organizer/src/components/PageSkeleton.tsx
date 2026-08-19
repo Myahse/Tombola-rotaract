@@ -31,38 +31,31 @@ export function PageSkeleton({ kind = "page" }: { kind?: Kind }) {
 
 function StatsSkeleton() {
   const { t } = useTranslation();
+  const stats = [
+    t("admin.paid"),
+    t("admin.reserved"),
+    t("admin.remaining"),
+  ];
   return (
     <section>
       <p className="eyebrow">
-        <Bone w="9rem" h="0.7rem" />
+        <Bone w="8.5rem" h="0.72rem" className="skeleton-inline" />
       </p>
       <h1>
-        <Bone w="16rem" h="1.8rem" />
+        <Bone w="min(16rem, 90%)" h="1.85rem" />
       </h1>
       <dl className="stat-list mt-4">
-        <div className="fact">
-          <dt>{t("admin.paid")}</dt>
-          <dd>
-            <Bone w="2rem" h="1.2rem" />
-          </dd>
-        </div>
-        <div className="fact">
-          <dt>{t("admin.reserved")}</dt>
-          <dd>
-            <Bone w="2rem" h="1.2rem" />
-          </dd>
-        </div>
-        <div className="fact">
-          <dt>{t("admin.remaining")}</dt>
-          <dd>
-            <Bone w="2rem" h="1.2rem" />
-          </dd>
-        </div>
+        {stats.map((label) => (
+          <div key={label} className="fact">
+            <dt>{label}</dt>
+            <dd>
+              <Bone w="2.4rem" h="1.35rem" className="skeleton-stat-value" />
+            </dd>
+          </div>
+        ))}
       </dl>
       <div className="no-print mt-6 flex flex-wrap gap-2">
-        <button type="button" className="btn-primary btn-block" disabled tabIndex={-1}>
-          {t("admin.openSales")}
-        </button>
+        <span className="skeleton skeleton-cta" aria-hidden />
       </div>
     </section>
   );

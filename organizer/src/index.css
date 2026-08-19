@@ -895,6 +895,9 @@ a:hover { color: var(--primary); }
     padding: 0.65rem 0;
     text-align: left;
   }
+  .skeleton-cta {
+    width: 12rem;
+  }
 }
 
 .skeleton {
@@ -904,7 +907,19 @@ a:hover { color: var(--primary); }
   animation: skeleton-shimmer 1.15s ease-in-out infinite;
 }
 .skeleton-gap { margin-top: 0.4rem; }
+.skeleton-inline { display: inline-block; vertical-align: middle; }
 .badge .skeleton { display: inline-block; vertical-align: middle; }
+.skeleton-stat-value {
+  display: inline-block;
+  vertical-align: middle;
+}
+.skeleton-cta {
+  display: block;
+  width: 100%;
+  height: 2.55rem;
+  border-radius: 8px;
+  box-shadow: inset 0 0 0 1px #c9c9cf;
+}
 input.skeleton,
 textarea.skeleton {
   color: transparent;
