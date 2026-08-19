@@ -196,7 +196,7 @@ export function DrawPage() {
         </ol>
       ) : null}
 
-      {status === "drawn" && drawMode === "scratch" ? <ScratchFeed /> : null}
+      {drawMode === "scratch" ? <ScratchFeed /> : null}
 
       {askingDraw ? (
         <ConfirmModal

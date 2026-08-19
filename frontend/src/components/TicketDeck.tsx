@@ -7,30 +7,20 @@ export function TicketDeck({ children, hint }: { children: ReactNode; hint: stri
   const [index, setIndex] = useState(0);
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
-  const [leaving, setLeaving] = useState<"left" | "right" | null>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
   const total = cards.length;
 
-  function reset() {
-    setIndex(0);
-    setDx(0);
-    setLeaving(null);
-    setDragging(false);
-  }
-
-  function goNext(dir: "left" | "right") {
-    if (leaving || index >= total) return;
-    setDragging(false);
-    setLeaving(dir);
-    window.setTimeout(() => {
-      setIndex((value) => value + 1);
+  function go(delta: number) {
+    const next = index + delta;
+    if (next < 0 || next >= total) {
       setDx(0);
-      setLeaving(null);
-    }, 280);
+      return;
+    }
+    setIndex(next);
+    setDx(0);
   }
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (leaving) return;
     const target = event.target as HTMLElement;
     if (target.closest(".scratch-foil")) return;
     start.current = { x: event.clientX, y: event.clientY };
@@ -39,7 +29,7 @@ export function TicketDeck({ children, hint }: { children: ReactNode; hint: stri
   }
 
   function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!dragging || !start.current || leaving) return;
+    if (!dragging || !start.current) return;
     const mx = event.clientX - start.current.x;
     const my = event.clientY - start.current.y;
     if (Math.abs(mx) < 8 && Math.abs(my) > Math.abs(mx)) return;
@@ -50,25 +40,12 @@ export function TicketDeck({ children, hint }: { children: ReactNode; hint: stri
     if (!dragging) return;
     start.current = null;
     setDragging(false);
-    if (Math.abs(dx) > 88) {
-      goNext(dx > 0 ? "right" : "left");
-      return;
-    }
-    setDx(0);
+    if (dx > 88) go(-1);
+    else if (dx < -88) go(1);
+    else setDx(0);
   }
 
   if (!total) return null;
-
-  if (index >= total) {
-    return (
-      <div className="ticket-deck-done">
-        <p>{t("deck.done")}</p>
-        <button type="button" className="btn-outline" onClick={reset}>
-          {t("deck.replay")}
-        </button>
-      </div>
-    );
-  }
 
   const visible = cards.slice(index, index + 3);
 
@@ -81,8 +58,7 @@ export function TicketDeck({ children, hint }: { children: ReactNode; hint: stri
       <div className="ticket-deck">
         {visible.map((card, offset) => {
           const front = offset === 0;
-          const fly = front && leaving ? (leaving === "right" ? 460 : -460) : front ? dx : 0;
-          const rot = front && leaving ? (leaving === "right" ? 16 : -16) : front ? dx / 18 : 0;
+          const rot = front ? dx / 18 : 0;
           return (
             <div
               key={index + offset}
@@ -90,10 +66,9 @@ export function TicketDeck({ children, hint }: { children: ReactNode; hint: stri
               style={{
                 zIndex: 5 - offset,
                 transform: front
-                  ? `translateX(${fly}px) rotate(${rot}deg)`
+                  ? `translateX(${dx}px) rotate(${rot}deg)`
                   : `translateY(${offset * 10}px) scale(${1 - offset * 0.045})`,
-                opacity: leaving && front ? 0 : 1,
-                transition: dragging && front ? "none" : "transform 0.28s ease, opacity 0.28s ease",
+                transition: dragging && front ? "none" : "transform 0.28s ease",
               }}
               onPointerDown={front ? onPointerDown : undefined}
               onPointerMove={front ? onPointerMove : undefined}
@@ -106,7 +81,10 @@ export function TicketDeck({ children, hint }: { children: ReactNode; hint: stri
         })}
       </div>
       <div className="ticket-deck-actions">
-        <button type="button" className="btn-outline btn-block" disabled={Boolean(leaving)} onClick={() => goNext("left")}>
+        <button type="button" className="btn-outline" disabled={index === 0} onClick={() => go(-1)}>
+          {t("deck.prev")}
+        </button>
+        <button type="button" className="btn-outline" disabled={index >= total - 1} onClick={() => go(1)}>
           {t("deck.next")}
         </button>
       </div>

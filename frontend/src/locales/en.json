@@ -57,7 +57,7 @@
   "buy": {
     "title": "Buy tickets",
     "intro": "Log in, then buy. Pay in cash or via Wave. Tickets, with a random number, appear only when the club confirms payment.",
-    "introScratch": "After the draw, scratch to see if your number won a prize.",
+    "introScratch": "As soon as the club confirms payment, a prize is already on the ticket, at random. Scratch to see.",
     "introRoulette": "The draw is public, on the wheel: everyone sees who wins.",
     "needAccount": "Create an account or log in to buy tickets. The same account follows every club tombola.",
     "loggedInAs": "Buying as {{name}} ({{email}})",
@@ -119,18 +119,22 @@
   "scratch": {
     "ticket": "Scratch ticket",
     "here": "Scratch here",
-    "wait": "Scratch after the draw",
+    "wait": "Scratch once paid",
     "payFirst": "Pay first to take part",
     "lose": "No prize",
     "win": "Prize {{rank}}",
-    "instruction": "Scratch the silver panel: the prize was already assigned to this ticket at the draw.",
-    "howto": "The draw assigns prizes to tickets. After the draw, scratch to see whether your number won a prize."
+    "instruction": "Scratch the silver panel. The prize was drawn at random when this ticket was created.",
+    "howto": "When the club confirms payment, each ticket already has a random prize, or none. Scratch to see yours. Your tickets stay here unless an organizer removes them."
   },
   "deck": {
-    "hintScratch": "Scratch the silver panel, then swipe the card for the next ticket.",
-    "hintRoulette": "Swipe for the next ticket.",
+    "hintScratch": "Scratch the silver panel. Swipe or use the buttons to change ticket. Nothing is lost.",
+    "hintRoulette": "Swipe or use the buttons to change ticket. Nothing is lost.",
     "count": "{{current}} of {{total}}",
-    "next": "Next ticket",
+    "next": "Next",
+    "prev": "Previous",
+    "view": "Ticket layout",
+    "viewCards": "Cards",
+    "viewList": "List",
     "done": "You have seen all your tickets.",
     "replay": "See the stack again"
   },
@@ -142,7 +146,7 @@
   "results": {
     "title": "The draw",
     "empty": "The draw has not taken place yet.",
-    "scratchHidden": "Prizes are on the tickets. Scratch yours to see the result. The winners list is not shown here.",
+    "scratchHidden": "Prizes are already on the tickets. Scratch yours. The winners list is not shown here.",
     "ticket": "Ticket no. {{number}}",
     "unawarded": "Prize not awarded"
   },

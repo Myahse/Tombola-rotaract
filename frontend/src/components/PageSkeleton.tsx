@@ -253,7 +253,17 @@ function TicketsSkeleton() {
         <p className="lede">{t("confirm.saveLink")}</p>
       </section>
       <section className="section">
-        <h2>{t("confirm.yourTickets")}</h2>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2>{t("confirm.yourTickets")}</h2>
+          <div className="view-toggle" role="group">
+            <button type="button" className="active" disabled tabIndex={-1}>
+              {t("deck.viewCards")}
+            </button>
+            <button type="button" disabled tabIndex={-1}>
+              {t("deck.viewList")}
+            </button>
+          </div>
+        </div>
         <div className="ticket-deck-wrap">
           <p className="ticket-deck-meta">
             <Bone w="4.5rem" h="0.8rem" />
@@ -271,7 +281,10 @@ function TicketsSkeleton() {
             </div>
           </div>
           <div className="ticket-deck-actions">
-            <button type="button" className="btn-outline btn-block" disabled tabIndex={-1}>
+            <button type="button" className="btn-outline" disabled tabIndex={-1}>
+              {t("deck.prev")}
+            </button>
+            <button type="button" className="btn-outline" disabled tabIndex={-1}>
               {t("deck.next")}
             </button>
           </div>

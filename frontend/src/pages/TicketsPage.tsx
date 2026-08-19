@@ -23,6 +23,9 @@ export function TicketsPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState("");
   const [shareDone, setShareDone] = useState("");
+  const [view, setView] = useState<"deck" | "list">(() =>
+    localStorage.getItem("tombola-tickets-view") === "list" ? "list" : "deck",
+  );
 
   const next = `/${lang}/tickets/${token ?? ""}`;
 
@@ -75,8 +78,8 @@ export function TicketsPage() {
   const drawn = order.eventStatus === "drawn";
   const paid = order.status === "paid";
   const scratchMode = order.drawMode !== "roulette";
-  const canScratch = paid && drawn && scratchMode;
-  const lockedLabel = !paid ? t("scratch.payFirst") : scratchMode ? t("scratch.wait") : t("ticket.waitRoulette");
+  const canScratch = paid && scratchMode;
+  const lockedLabel = !paid ? t("scratch.payFirst") : t("ticket.waitRoulette");
 
   function applyScratch(ticketNumber: number, result: {
     scratchedAt: string;
@@ -165,39 +168,98 @@ export function TicketsPage() {
 
       {paid && tickets.length ? (
         <section className="section">
-          <h2>{scratchMode ? t("confirm.yourTickets") : t("confirm.yourPlainTickets")}</h2>
-          <TicketDeck hint={scratchMode ? t("deck.hintScratch") : t("deck.hintRoulette")}>
-            {tickets.map((ticket) =>
-              scratchMode ? (
-                <ScratchTicket
-                  key={ticket.number}
-                  number={ticket.number}
-                  title={title}
-                  buyerName={order.buyerName}
-                  token={order.token}
-                  canScratch={canScratch}
-                  lockedLabel={lockedLabel}
-                  prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
-                  prizeRank={ticket.prizeRank}
-                  alreadyOpen={Boolean(ticket.scratchedAt)}
-                  onStart={() => recordScratch(ticket)}
-                  onReveal={() => recordScratch(ticket)}
-                />
-              ) : (
-                <NumberedTicket
-                  key={ticket.number}
-                  number={ticket.number}
-                  title={title}
-                  buyerName={order.buyerName}
-                  prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
-                  prizeRank={ticket.prizeRank}
-                  drawn={drawn}
-                  paid={paid}
-                  waitLabel={lockedLabel}
-                />
-              ),
-            )}
-          </TicketDeck>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2>{scratchMode ? t("confirm.yourTickets") : t("confirm.yourPlainTickets")}</h2>
+            <div className="view-toggle" role="group" aria-label={t("deck.view")}>
+              <button
+                type="button"
+                className={view === "deck" ? "active" : ""}
+                onClick={() => {
+                  setView("deck");
+                  localStorage.setItem("tombola-tickets-view", "deck");
+                }}
+              >
+                {t("deck.viewCards")}
+              </button>
+              <button
+                type="button"
+                className={view === "list" ? "active" : ""}
+                onClick={() => {
+                  setView("list");
+                  localStorage.setItem("tombola-tickets-view", "list");
+                }}
+              >
+                {t("deck.viewList")}
+              </button>
+            </div>
+          </div>
+          {view === "list" ? (
+            <div className="scratch-grid">
+              {tickets.map((ticket) =>
+                scratchMode ? (
+                  <ScratchTicket
+                    key={ticket.number}
+                    number={ticket.number}
+                    title={title}
+                    buyerName={order.buyerName}
+                    token={order.token}
+                    canScratch={canScratch}
+                    lockedLabel={lockedLabel}
+                    prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                    prizeRank={ticket.prizeRank}
+                    alreadyOpen={Boolean(ticket.scratchedAt)}
+                    onStart={() => recordScratch(ticket)}
+                    onReveal={() => recordScratch(ticket)}
+                  />
+                ) : (
+                  <NumberedTicket
+                    key={ticket.number}
+                    number={ticket.number}
+                    title={title}
+                    buyerName={order.buyerName}
+                    prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                    prizeRank={ticket.prizeRank}
+                    drawn={drawn}
+                    paid={paid}
+                    waitLabel={lockedLabel}
+                  />
+                ),
+              )}
+            </div>
+          ) : (
+            <TicketDeck hint={scratchMode ? t("deck.hintScratch") : t("deck.hintRoulette")}>
+              {tickets.map((ticket) =>
+                scratchMode ? (
+                  <ScratchTicket
+                    key={ticket.number}
+                    number={ticket.number}
+                    title={title}
+                    buyerName={order.buyerName}
+                    token={order.token}
+                    canScratch={canScratch}
+                    lockedLabel={lockedLabel}
+                    prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                    prizeRank={ticket.prizeRank}
+                    alreadyOpen={Boolean(ticket.scratchedAt)}
+                    onStart={() => recordScratch(ticket)}
+                    onReveal={() => recordScratch(ticket)}
+                  />
+                ) : (
+                  <NumberedTicket
+                    key={ticket.number}
+                    number={ticket.number}
+                    title={title}
+                    buyerName={order.buyerName}
+                    prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
+                    prizeRank={ticket.prizeRank}
+                    drawn={drawn}
+                    paid={paid}
+                    waitLabel={lockedLabel}
+                  />
+                ),
+              )}
+            </TicketDeck>
+          )}
         </section>
       ) : null}
 

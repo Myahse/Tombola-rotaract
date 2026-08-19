@@ -32,7 +32,7 @@ export function drawResultsEmail(data: DrawResultsEmail) {
       ctaLabel: "Gratter mes tickets",
       ctaUrl: data.ticketsUrl,
       bodyHtml: `
-        <p style="margin:0 0 14px;color:#141416;">Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> a attribué les lots aux tickets. Personne n’a vu le palmarès : grattez pour découvrir le vôtre.</p>
+        <p style="margin:0 0 14px;color:#141416;">Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est clos. Si vous n’avez pas encore gratté, vos tickets sont toujours dans votre compte.</p>
         <p style="margin:0 0 14px;color:#141416;">Un ami n’a pas joué ? <a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Qu’il prenne sa place pour la suivante</a>. Vous pouvez aussi <a href="${escapeHtml(donateUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">soutenir le club</a>.</p>
         <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — The draw for ${escapeHtml(data.eventTitleEn)} has assigned prizes to tickets. Scratch yours to see if you won. See you at the next tombola.</p>
       `,

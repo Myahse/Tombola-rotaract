@@ -54,7 +54,13 @@ export function BuyersPage() {
       await load();
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
-      setError(code === "not_enough_tickets" ? t("errors.notEnough") : t("errors.generic"));
+      setError(
+        code === "not_enough_tickets"
+          ? t("errors.notEnough")
+          : code === "already_scratched"
+            ? t("errors.alreadyScratched")
+            : t("errors.generic"),
+      );
       setPending(null);
     } finally {
       setBusyId(null);
