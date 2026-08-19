@@ -22,6 +22,8 @@ export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS draw_mode text NOT NULL DEFAULT 'scratch'`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS terms_accepted_at timestamptz`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS emails_accepted_at timestamptz`);
+  await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS club_name text`);
+  await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS club_role text`);
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS password_resets (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -118,8 +118,12 @@ function RegisterSkeleton() {
   return (
     <section className="section" style={{ borderBottom: 0 }}>
       <p className="eyebrow">{t("home.kicker")}</p>
-      <h1>{t("auth.registerTitle")}</h1>
-      <p>{t("auth.registerLead")}</p>
+      <p className="register-steps" aria-hidden>
+        <span className="is-on">1</span>
+        <span>2</span>
+      </p>
+      <h1>{t("auth.step1Title")}</h1>
+      <p>{t("auth.step1Lead")}</p>
       <div className="mt-6 grid gap-4">
         <label className="avatar-picker">
           <span>{t("auth.photo")}</span>
@@ -147,21 +151,8 @@ function RegisterSkeleton() {
           {t("auth.confirmPassword")}
           <input disabled className="skeleton" aria-hidden tabIndex={-1} />
         </label>
-        <fieldset className="pay-options">
-          <legend>{t("auth.termsLegend")}</legend>
-          <label className="pay-option legal-check">
-            <input type="checkbox" disabled tabIndex={-1} />
-            <span>
-              {t("auth.acceptTerms")} <span className="terms-link">{t("auth.termsLink")}</span>
-            </span>
-          </label>
-          <label className="pay-option legal-check">
-            <input type="checkbox" disabled tabIndex={-1} />
-            <span>{t("auth.acceptEmails")}</span>
-          </label>
-        </fieldset>
         <button type="button" className="btn-primary btn-block" disabled tabIndex={-1}>
-          {t("auth.submitRegister")}
+          {t("auth.nextStep")}
         </button>
       </div>
     </section>

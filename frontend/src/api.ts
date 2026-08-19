@@ -57,6 +57,8 @@ export const api = {
     phone: string;
     password: string;
     avatarUrl?: string;
+    clubName: string;
+    clubRole: string;
     acceptTerms: true;
     acceptEmails: true;
   }) => request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
@@ -72,9 +74,16 @@ export const api = {
     name: string;
     phone: string;
     avatarUrl?: string;
+    clubName?: string;
+    clubRole?: string;
     currentPassword?: string;
     password?: string;
   }) => request<{ member: Member }>("/api/auth/me", { method: "PATCH", body: JSON.stringify(body) }),
+  shareTickets: (token: string, body: { email: string; numbers?: number[] }) =>
+    request<{ ok: boolean; remaining: boolean; token: string | null }>(
+      `/api/orders/${encodeURIComponent(token)}/share`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
   myTombolas: () => request<{ tombolas: MemberTombola[] }>("/api/me/tombolas"),
   login: (password: string) =>
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) }),

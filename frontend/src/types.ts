@@ -77,6 +77,8 @@ export type Member = {
   email: string;
   phone: string | null;
   avatarUrl?: string | null;
+  clubName?: string | null;
+  clubRole?: string | null;
 };
 
 export type MemberOrder = {

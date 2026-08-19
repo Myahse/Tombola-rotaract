@@ -1,5 +1,6 @@
 import { drawResultsEmail, type DrawResultsEmail } from "../emails/results.js";
 import { purchaseEmail, type PurchaseEmail } from "../emails/purchase.js";
+import { giftTicketsEmail, type GiftTicketsEmail } from "../emails/gift.js";
 import { resetPasswordEmail, type ResetPasswordEmail } from "../emails/reset.js";
 import { welcomeEmail } from "../emails/welcome.js";
 import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
@@ -33,6 +34,14 @@ export async function notifyPurchase(order: PurchaseEmail) {
     await send({ email: order.email, name: order.name }, purchaseEmail(order), "BREVO_TEMPLATE_PURCHASE");
   } catch (error) {
     console.error(`Purchase email failed for ${order.email}`, error);
+  }
+}
+
+export async function notifyGiftTickets(data: GiftTicketsEmail) {
+  try {
+    await send({ email: data.email, name: data.name }, giftTicketsEmail(data));
+  } catch (error) {
+    console.error(`Gift tickets email failed for ${data.email}`, error);
   }
 }
 
