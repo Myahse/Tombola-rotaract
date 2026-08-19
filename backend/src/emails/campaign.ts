@@ -9,7 +9,7 @@ export type CampaignMailInput = {
   body: string;
   ctaLabel?: string;
   ctaUrl?: string;
-  inlineImages: { contentId: string; filename: string }[];
+  inlineImages: { url: string; filename: string }[];
 };
 
 export function personalize(template: string, person: { name: string; email: string }) {
@@ -39,7 +39,7 @@ export function campaignEmail(data: CampaignMailInput) {
   const images = data.inlineImages
     .map(
       (image) =>
-        `<p style="margin:16px 0 0;"><img src="cid:${escapeHtml(image.contentId)}" alt="${escapeHtml(image.filename)}" width="520" style="display:block;width:100%;max-width:520px;height:auto;border-radius:12px;" /></p>`,
+        `<p style="margin:16px 0 0;"><img src="${escapeHtml(image.url)}" alt="${escapeHtml(image.filename)}" width="520" style="display:block;width:100%;max-width:520px;height:auto;border:0;border-radius:12px;" /></p>`,
     )
     .join("");
   const html = wrapEmail({

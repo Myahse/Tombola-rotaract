@@ -56,7 +56,7 @@
     "tokenName": "Nom",
     "tokenEmail": "E-mail",
     "images": "Images",
-    "imagesHelp": "JPEG, PNG, WebP ou GIF. Elles sont réduites, puis affichées dans l’e-mail et jointes.",
+    "imagesHelp": "JPEG, PNG, WebP ou GIF. Elles sont réduites, puis affichées dans le message. Elles ne partent pas en pièce jointe.",
     "addImage": "Ajouter des images",
     "remove": "Retirer",
     "inline": "Dans l’e-mail",
