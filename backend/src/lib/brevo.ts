@@ -57,7 +57,9 @@ export async function sendBrevoEmail(args: SendArgs) {
   return { skipped: false as const };
 }
 
-export function optionalTemplateId(name: "BREVO_TEMPLATE_WELCOME" | "BREVO_TEMPLATE_WINNER") {
+export function optionalTemplateId(
+  name: "BREVO_TEMPLATE_WELCOME" | "BREVO_TEMPLATE_WINNER" | "BREVO_TEMPLATE_PURCHASE" | "BREVO_TEMPLATE_PARTICIPANT",
+) {
   const raw = process.env[name]?.trim();
   if (!raw) return undefined;
   const id = Number(raw);

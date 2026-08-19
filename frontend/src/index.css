@@ -227,6 +227,45 @@ a:hover { color: var(--primary); }
   justify-content: space-between;
   gap: 0.75rem;
 }
+.account-hello {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.person-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-weight: 750;
+  line-height: 1;
+}
+.person-avatar.fallback { border: 1px solid var(--line); }
+.avatar-picker span { display: block; }
+.avatar-picker-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-top: 0.4rem;
+  min-height: 72px;
+}
+.avatar-picker-row input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.avatar-picker-row em {
+  font-style: normal;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
 .account-order {
   display: flex;
   flex-wrap: wrap;
@@ -354,6 +393,82 @@ a:hover { color: var(--primary); }
 }
 .btn-outline:hover { background: var(--surface); color: var(--ink); }
 .btn-block { width: 100%; }
+
+.pay-options {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.pay-options legend {
+  padding: 0;
+  margin-bottom: 0.15rem;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.pay-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.85rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.pay-option.active {
+  border-color: var(--ink);
+  background: var(--surface);
+}
+
+.pay-option input {
+  width: auto;
+  margin-top: 0.2rem;
+  accent-color: var(--ink);
+}
+
+.pay-option span {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.pay-option em {
+  font-style: normal;
+  font-weight: 500;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.wave-logo {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4rem;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.wave-logo.lg {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.pay-option-head,
+.pay-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.pay-note {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
 
 .badge {
   font-size: 0.72rem;
@@ -496,6 +611,12 @@ a:hover { color: var(--primary); }
   margin: 0;
   padding: 0;
 }
+.results-person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.results-person p { margin: 0.15rem 0 0; }
 
 .bottom-nav {
   position: fixed;
@@ -504,7 +625,7 @@ a:hover { color: var(--primary); }
   right: 0.85rem;
   z-index: 40;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   height: var(--nav-h);
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(12px);

@@ -60,7 +60,7 @@ export function adminEmailMatches(input: string) {
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
-  if (!allowed.length) return true;
+  if (!allowed.length) return process.env.NODE_ENV !== "production";
   return allowed.includes(input.trim().toLowerCase());
 }
 
@@ -74,12 +74,28 @@ function cookieOptions() {
   };
 }
 
+function cookieClearOptions() {
+  const { maxAge: _maxAge, ...options } = cookieOptions();
+  return options;
+}
+
+export function hasAdminSessionFromCookieHeader(cookieHeader: string | undefined) {
+  if (!cookieHeader) return false;
+  for (const part of cookieHeader.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === ADMIN_COOKIE) {
+      return readSessionCookie(decodeURIComponent(rest.join("=")));
+    }
+  }
+  return false;
+}
+
 export function setSession(res: Response) {
   res.cookie(ADMIN_COOKIE, createSessionCookie(), cookieOptions());
 }
 
 export function clearSession(res: Response) {
-  res.clearCookie(ADMIN_COOKIE, { path: "/" });
+  res.clearCookie(ADMIN_COOKIE, cookieClearOptions());
 }
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
@@ -125,7 +141,7 @@ export function setMemberSession(res: Response, memberId: string) {
 }
 
 export function clearMemberSession(res: Response) {
-  res.clearCookie(MEMBER_COOKIE, { path: "/" });
+  res.clearCookie(MEMBER_COOKIE, cookieClearOptions());
 }
 
 export type MemberRequest = Request & { memberId: string };

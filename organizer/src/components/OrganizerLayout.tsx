@@ -52,14 +52,15 @@ function OrganizerShell() {
   const tabs = [
     { to: base, end: true, label: t("admin.dashboardShort") },
     { to: `${base}/tombola`, end: false, label: t("admin.tombola") },
-    { to: `${base}/buyers`, end: false, label: t("admin.buyers") },
+    { to: `${base}/buyers`, end: false, label: t("admin.buyers"), short: t("admin.buyersShort") },
+    { to: `${base}/qr`, end: false, label: t("admin.qr"), short: t("admin.qrShort") },
     { to: `${base}/draw`, end: false, label: t("admin.draw") },
   ];
 
-  const navLinks = (id: string) =>
+  const navLinks = (id: string, compact = false) =>
     tabs.map((item) => (
       <NavLink key={`${id}-${item.to}`} to={item.to} end={item.end} className={navClass}>
-        {item.label}
+        {compact ? (item.short ?? item.label) : item.label}
       </NavLink>
     ));
 
@@ -97,7 +98,8 @@ function OrganizerShell() {
                 {t("nav.viewSiteShort")}
               </a>
               <button type="button" className="header-auth" onClick={() => void onLogout()}>
-                {t("admin.logout")}
+                <span className="hide-mobile">{t("admin.logout")}</span>
+                <span className="show-mobile">{t("admin.logoutShort")}</span>
               </button>
             </>
           ) : null}
@@ -108,8 +110,8 @@ function OrganizerShell() {
         {authed === "loading" ? <p className="lede">…</p> : loggedIn ? <Outlet /> : null}
       </main>
       {loggedIn ? (
-        <nav className="bottom-nav nav-4 show-mobile no-print" aria-label="Mobile">
-          {navLinks("bottom")}
+        <nav className="bottom-nav nav-5 show-mobile no-print" aria-label="Mobile">
+          {navLinks("bottom", true)}
         </nav>
       ) : null}
       {authed === "no" ? <LoginModal onSuccess={() => setAuthed("yes")} /> : null}

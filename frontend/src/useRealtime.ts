@@ -28,7 +28,7 @@ export function useRealtime(role: RealtimeRole, onMessage: (message: RealtimeMes
       };
       socket.onclose = () => {
         setConnected(false);
-        if (!closed) timer = window.setTimeout(connect, 1500);
+        if (!closed) timer = window.setTimeout(connect, 2500);
       };
     };
 

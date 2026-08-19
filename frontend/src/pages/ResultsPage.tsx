@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
+import { Avatar } from "../components/Avatar";
 import type { Winner } from "../types";
 import { useRealtime } from "../useRealtime";
 
@@ -47,11 +48,14 @@ export function ResultsPage() {
           <ol className="results-list">
             {winners.map((winner) => (
               <li key={winner.rank} className="pillar flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h3>
-                    {winner.rank}. {localized(winner, i18n.language, "prizeName")}
-                  </h3>
-                  <p>{winner.buyerName}</p>
+                <div className="results-person">
+                  <Avatar name={winner.buyerName} src={winner.avatarUrl} size={48} />
+                  <div>
+                    <h3>
+                      {winner.rank}. {localized(winner, i18n.language, "prizeName")}
+                    </h3>
+                    <p>{winner.buyerName}</p>
+                  </div>
                 </div>
                 <span className="badge">{t("results.ticket", { number: winner.ticketNumber })}</span>
               </li>

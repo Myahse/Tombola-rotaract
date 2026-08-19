@@ -29,14 +29,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   currentEvent: () => request<{ event: PublicEvent | null }>("/api/event/current"),
+  payments: () => request<{ wavePayUrl: string }>("/api/payments"),
   results: () =>
     request<{ event: { titleFr: string; titleEn: string; status: string } | null; winners: Winner[] }>(
       "/api/event/current/results",
     ),
-  buy: (body: { quantity: number; phone?: string }) =>
+  buy: (body: { quantity: number; phone?: string; paymentMethod: "cash" | "wave" }) =>
     request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
-  order: (token: string) => request<OrderView>(`/api/orders/${token}`),
-  register: (body: { name: string; email: string; phone?: string; password: string }) =>
+  order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
+  register: (body: { name: string; email: string; phone: string; password: string; avatarUrl?: string }) =>
     request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
   memberLogin: (body: { email: string; password: string }) =>
     request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
@@ -60,9 +61,9 @@ export const api = {
     }),
   orders: () => request<{ orders: AdminOrder[] }>("/api/admin/orders"),
   markPaid: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${id}/paid`, { method: "POST" }),
+    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/paid`, { method: "POST" }),
   cancelOrder: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${id}/cancel`, { method: "POST" }),
+    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
   draw: () => request<{ awarded: number; prizes: number; unpaidOrders: number }>("/api/admin/draw", { method: "POST" }),
   winners: () => request<{ event: AdminEvent | null; winners: Winner[] }>("/api/admin/winners"),
 };

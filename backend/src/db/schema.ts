@@ -12,6 +12,7 @@ export const members = pgTable("members", {
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   phone: text("phone"),
+  avatarUrl: text("avatar_url"),
   passwordHash: text("password_hash").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -59,6 +60,7 @@ export const orders = pgTable("orders", {
   buyerEmail: text("buyer_email").notNull(),
   buyerPhone: text("buyer_phone"),
   quantity: integer("quantity").notNull(),
+  paymentMethod: text("payment_method").notNull().default("cash"),
   status: text("status").notNull().default("reserved"),
   accessToken: text("access_token").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

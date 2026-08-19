@@ -3,7 +3,9 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { useAuth } from "../auth";
+import { Avatar } from "../components/Avatar";
 import { StatusPill } from "../components/ScratchTicket";
+import { WaveLogo } from "../components/WaveLogo";
 import type { MemberTombola } from "../types";
 
 export function AccountPage() {
@@ -27,9 +29,12 @@ export function AccountPage() {
     <section className="section" style={{ borderBottom: 0 }}>
       <p className="eyebrow">{t("home.kicker")}</p>
       <h1>{t("account.title")}</h1>
-      <p>
-        {t("account.hello", { name: member.name })} {t("account.lede")}
-      </p>
+      <div className="account-hello">
+        <Avatar name={member.name} src={member.avatarUrl} size={56} />
+        <p>
+          {t("account.hello", { name: member.name })} {t("account.lede")}
+        </p>
+      </div>
 
       {tombolas === undefined ? (
         <p className="lede">…</p>
@@ -64,6 +69,15 @@ export function AccountPage() {
                   <div key={order.token} className="account-order">
                     <p>
                       {order.status === "paid" ? t("confirm.statusPaid") : t("confirm.statusReserved")}
+                      {" · "}
+                      {order.paymentMethod === "wave" ? (
+                        <span className="pay-label">
+                          <WaveLogo />
+                          {t("pay.wave")}
+                        </span>
+                      ) : (
+                        t("pay.cash")
+                      )}
                       {" · "}
                       {order.tickets.map((ticket) => ticket.number).join(", ")}
                     </p>

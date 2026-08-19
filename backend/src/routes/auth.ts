@@ -12,14 +12,22 @@ import {
 } from "../lib/auth.js";
 import { hashPassword, verifyPassword } from "../lib/passwords.js";
 import { notifyMemberRegistered } from "../lib/mail.js";
+import { parseAvatar } from "../lib/avatar.js";
+import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
 export const authRouter = Router();
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(120),
-  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .min(8)
+    .max(40)
+    .regex(/^[0-9+().\s-]{8,40}$/),
   password: z.string().min(8).max(100),
+  avatarUrl: z.string().max(120_000).optional().or(z.literal("")),
 });
 
 const loginSchema = z.object({
@@ -28,7 +36,7 @@ const loginSchema = z.object({
 });
 
 function publicMember(row: typeof members.$inferSelect) {
-  return { id: row.id, name: row.name, email: row.email, phone: row.phone };
+  return { id: row.id, name: row.name, email: row.email, phone: row.phone, avatarUrl: row.avatarUrl };
 }
 
 async function claimGuestOrders(memberId: string, email: string) {
@@ -39,9 +47,13 @@ async function claimGuestOrders(memberId: string, email: string) {
 }
 
 authRouter.post("/auth/register", async (req, res) => {
+  if (!allowRequest(`register:${clientKey(req)}`, 8, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
   const parsed = registerSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "invalid_form", details: parsed.error.flatten() });
+    res.status(400).json({ error: "invalid_form" });
     return;
   }
 
@@ -57,7 +69,8 @@ authRouter.post("/auth/register", async (req, res) => {
     .values({
       name: parsed.data.name,
       email,
-      phone: parsed.data.phone || null,
+      phone: parsed.data.phone,
+      avatarUrl: parseAvatar(parsed.data.avatarUrl),
       passwordHash: await hashPassword(parsed.data.password),
     })
     .returning();
@@ -74,6 +87,10 @@ authRouter.post("/auth/register", async (req, res) => {
 });
 
 authRouter.post("/auth/login", async (req, res) => {
+  if (!allowRequest(`login:${clientKey(req)}`, 15, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "invalid_form" });
@@ -119,6 +136,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       token: orders.accessToken,
       status: orders.status,
       quantity: orders.quantity,
+      paymentMethod: orders.paymentMethod,
       createdAt: orders.createdAt,
       eventId: events.id,
       titleFr: events.titleFr,
@@ -154,6 +172,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
           token: string;
           status: string;
           quantity: number;
+          paymentMethod: string;
           createdAt: Date;
           tickets: {
             number: number;
@@ -187,6 +206,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
         token: row.token,
         status: row.status,
         quantity: row.quantity,
+        paymentMethod: row.paymentMethod,
         createdAt: row.createdAt,
         tickets: [],
       };

@@ -57,9 +57,18 @@ export function DashboardPage() {
 
   return (
     <section>
-      <p className="eyebrow">{event.status}</p>
+      <p className="eyebrow">
+        {event.status === "draft"
+          ? t("admin.statusDraft")
+          : event.status === "on_sale"
+            ? t("admin.statusOnSale")
+            : event.status === "closed"
+              ? t("admin.statusClosed")
+              : t("admin.statusDrawn")}
+      </p>
       <h1>{localized(event, i18n.language, "title")}</h1>
-      <dl className="fact-list mt-4">
+      {event.status === "draft" ? <p className="lede mt-3">{t("admin.draftHelp")}</p> : null}
+      <dl className="stat-list mt-4">
         {cards.map((card) => (
           <div key={card.label} className="fact">
             <dt>{card.label}</dt>
@@ -70,11 +79,11 @@ export function DashboardPage() {
       {event.status !== "drawn" ? (
         <div className="no-print mt-6 flex flex-wrap gap-2">
           {event.status !== "on_sale" ? (
-            <button disabled={busy} onClick={() => setStatus("on_sale")} className="btn-primary">
+            <button disabled={busy} onClick={() => setStatus("on_sale")} className="btn-primary btn-block">
               {t("admin.openSales")}
             </button>
           ) : (
-            <button disabled={busy} onClick={() => setStatus("closed")} className="btn-outline">
+            <button disabled={busy} onClick={() => setStatus("closed")} className="btn-outline btn-block">
               {t("admin.closeSales")}
             </button>
           )}

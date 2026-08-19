@@ -26,6 +26,7 @@ export function Layout() {
     { to: base, end: true, label: t("nav.home") },
     { to: `${base}/tombola`, end: false, label: t("nav.tombola") },
     { to: `${base}/buy`, end: false, label: t("nav.buyShort") },
+    { to: `${base}/donate`, end: false, label: t("nav.donate") },
     { to: `${base}/results`, end: false, label: t("nav.results") },
     member
       ? { to: `${base}/account`, end: false, label: t("nav.accountShort") }

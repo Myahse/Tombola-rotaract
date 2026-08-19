@@ -6,6 +6,7 @@ import type { NextFunction, Request, Response } from "express";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isAllowedOrigin } from "./lib/origins.js";
 import { attachRealtime } from "./lib/realtime.js";
 import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
@@ -14,25 +15,38 @@ import { publicRouter } from "./routes/public.js";
 const app = express();
 const port = Number(process.env.PORT ?? 3001);
 const isVercel = Boolean(process.env.VERCEL);
-const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:5174")
-  .split(",")
-  .map((value) => value.trim())
-  .filter(Boolean);
+const isProd = process.env.NODE_ENV === "production";
 
-function isAllowedOrigin(origin: string | undefined) {
-  if (!origin) return true;
-  if (origins.includes(origin)) return true;
-  try {
-    const { hostname } = new URL(origin);
-    if (hostname.endsWith(".vercel.app") || hostname.endsWith(".onrender.com")) return true;
-    if (hostname === "rotaractiugb.com" || hostname.endsWith(".rotaractiugb.com")) return true;
-  } catch {
-    return false;
+function assertRuntimeSecrets() {
+  const secret = process.env.SESSION_SECRET?.trim() ?? "";
+  if (!secret) {
+    throw new Error("SESSION_SECRET is not set");
   }
-  return false;
+  if (isProd && secret.length < 16) {
+    throw new Error("SESSION_SECRET must be at least 16 characters");
+  }
+  if (isProd && !process.env.ADMIN_PASSWORD?.trim()) {
+    throw new Error("ADMIN_PASSWORD must be set in production");
+  }
+  if (isProd && !(process.env.ADMIN_EMAIL ?? "").split(",").map((value) => value.trim()).filter(Boolean).length) {
+    console.warn("ADMIN_EMAIL is empty: organizer login is disabled in production until it is set");
+  }
 }
 
+assertRuntimeSecrets();
+
 app.set("trust proxy", 1);
+app.disable("x-powered-by");
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (isProd) {
+    res.setHeader("Strict-Transport-Security", "max-age=15552000; includeSubDomains");
+  }
+  next();
+});
 app.use(
   cors({
     origin(origin, callback) {
@@ -45,7 +59,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "400kb" }));
 app.use(cookieParser());
 
 app.get("/", (_req, res) => {
@@ -70,6 +84,10 @@ if (process.env.NODE_ENV === "production" && process.env.SERVE_FRONTEND === "1")
 }
 
 app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof Error && err.message === "Not allowed by CORS") {
+    res.status(403).json({ error: "origin_not_allowed" });
+    return;
+  }
   if (err instanceof SyntaxError) {
     res.status(400).json({ error: "invalid_json" });
     return;
