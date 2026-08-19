@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
@@ -23,6 +23,7 @@ function OrganizerShell() {
   const { lang } = useParams();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const [authed, setAuthed] = useState<"loading" | "yes" | "no">("loading");
 
   useEffect(() => {
@@ -101,7 +102,9 @@ function OrganizerShell() {
         </div>
       </header>
       <main className="page">
-        {authed === "loading" ? <PageSkeleton kind="page" /> : loggedIn ? <Outlet /> : null}
+        <div key={authed === "loading" ? "auth" : location.pathname} className="page-appear">
+          {authed === "loading" ? <PageSkeleton kind="page" /> : loggedIn ? <Outlet /> : null}
+        </div>
       </main>
       {loggedIn ? (
         <nav className="bottom-nav nav-5 show-mobile no-print" aria-label="Mobile">

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { isLanguage } from "../i18n";
@@ -10,6 +10,7 @@ export function Layout() {
   const { lang } = useParams();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { member, logout } = useAuth();
 
   useEffect(() => {
@@ -64,7 +65,9 @@ export function Layout() {
         </div>
       </header>
       <main className="page">
-        <Outlet />
+        <div key={location.pathname} className="page-appear">
+          <Outlet />
+        </div>
       </main>
       <nav className="bottom-nav show-mobile no-print" aria-label="Mobile">
         {navLinks("bottom")}
