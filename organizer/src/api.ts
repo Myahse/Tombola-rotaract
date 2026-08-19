@@ -64,6 +64,12 @@ export const api = {
     }),
   contestants: () => request<{ contestants: Contestant[] }>("/api/admin/contestants"),
   winners: () => request<{ event: AdminEvent | null; winners: Winner[] }>("/api/admin/winners"),
+  assignments: () =>
+    request<{ sealed: boolean; totalTickets: number; assignments: Winner[] }>("/api/admin/assignments"),
+  sealPrizes: () =>
+    request<{ sealed: boolean; totalTickets: number; assignments: Winner[] }>("/api/admin/seal", {
+      method: "POST",
+    }),
   scratches: () => request<{ scratches: ScratchedTicket[] }>("/api/admin/scratches"),
 };
 

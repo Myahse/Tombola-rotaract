@@ -4,7 +4,16 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
-import { shuffle, randomTicketNumbers, drawModeOf, assignScratchPrizes } from "../lib/tickets.js";
+import {
+  shuffle,
+  randomTicketNumbers,
+  drawModeOf,
+  publicPrizes,
+  sealWinningNumbers,
+  attachPrizesToTickets,
+  prizeAssignmentsOf,
+  prizesAreSealed,
+} from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
 import { notifyDrawResults, notifyPurchase } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
@@ -137,6 +146,10 @@ async function statsFor(eventId: string, totalTickets: number) {
     .innerJoin(orders, eq(tickets.orderId, orders.id))
     .where(and(eq(tickets.eventId, eventId), eq(orders.status, "paid"), isNotNull(tickets.scratchedAt)));
 
+  const prizeRows = await db.select({ ticketNumber: prizes.ticketNumber }).from(prizes).where(eq(prizes.eventId, eventId));
+  const prizeCount = prizeRows.length;
+  const sealedCount = prizeRows.filter((row) => row.ticketNumber != null).length;
+
   return {
     paidOrders,
     reservedOrders,
@@ -144,6 +157,8 @@ async function statsFor(eventId: string, totalTickets: number) {
     reservedTickets,
     remainingTickets: Math.max(0, totalTickets - paidTickets),
     scratchedTickets: Number(scratched?.n ?? 0),
+    prizeCount,
+    prizesSealed: prizeCount > 0 && sealedCount === prizeCount,
   };
 }
 
@@ -187,7 +202,7 @@ adminRouter.get("/event", requireAdmin, async (_req, res) => {
     .where(eq(prizes.eventId, event.id))
     .orderBy(asc(prizes.rank));
   const stats = await statsFor(event.id, event.totalTickets);
-  res.json({ event, prizes: eventPrizes, stats });
+  res.json({ event, prizes: publicPrizes(eventPrizes), stats });
 });
 
 adminRouter.post("/event", requireAdmin, async (req, res) => {
@@ -288,6 +303,16 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
       .where(eq(events.id, event.id))
       .returning();
 
+    const priorPrizes = await tx
+      .select({ rank: prizes.rank, ticketNumber: prizes.ticketNumber })
+      .from(prizes)
+      .where(eq(prizes.eventId, event.id));
+    const priorByRank = new Map(
+      priorPrizes
+        .filter((prize) => prize.ticketNumber != null)
+        .map((prize) => [prize.rank, prize.ticketNumber as number]),
+    );
+
     await tx.delete(prizes).where(eq(prizes.eventId, event.id));
     if (data.prizes.length) {
       await tx.insert(prizes).values(
@@ -300,6 +325,19 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
           descriptionEn: prize.descriptionEn,
         })),
       );
+    }
+
+    if (drawModeOf(data.drawMode) === "scratch") {
+      const nextPrizes = await tx.select().from(prizes).where(eq(prizes.eventId, event.id));
+      for (const prize of nextPrizes) {
+        const ticketNumber = priorByRank.get(prize.rank);
+        if (ticketNumber && ticketNumber >= 1 && ticketNumber <= data.totalTickets) {
+          await tx.update(prizes).set({ ticketNumber }).where(eq(prizes.id, prize.id));
+        }
+      }
+      await attachPrizesToTickets(tx, event.id);
+    } else if (drawModeOf(event.drawMode) === "scratch") {
+      await tx.update(tickets).set({ prizeId: null }).where(eq(tickets.eventId, event.id));
     }
     return next;
   });
@@ -440,7 +478,7 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
       }
 
       if (drawModeOf(event.drawMode) === "scratch") {
-        await assignScratchPrizes(tx, event);
+        await attachPrizesToTickets(tx, event.id);
       }
 
       const [paidRow] = await tx
@@ -588,6 +626,69 @@ adminRouter.post("/orders/:id/cancel", requireAdmin, async (req, res) => {
   void publishChange("order");
 });
 
+adminRouter.get("/assignments", requireAdmin, async (_req, res) => {
+  const event = await latestEvent();
+  if (!event) {
+    res.json({ sealed: false, totalTickets: 0, assignments: [] });
+    return;
+  }
+  const eventPrizes = await db
+    .select()
+    .from(prizes)
+    .where(eq(prizes.eventId, event.id))
+    .orderBy(asc(prizes.rank));
+  res.json({
+    sealed: prizesAreSealed(eventPrizes, event.totalTickets),
+    totalTickets: event.totalTickets,
+    assignments: prizeAssignmentsOf(eventPrizes),
+  });
+});
+
+adminRouter.post("/seal", requireAdmin, async (_req, res) => {
+  try {
+    const result = await db.transaction(async (tx) => {
+      const [event] = await tx.select().from(events).orderBy(desc(events.createdAt)).limit(1);
+      if (!event) throw Object.assign(new Error("no_event"), { status: 404 });
+      if (event.status === "drawn") throw Object.assign(new Error("event_locked"), { status: 409 });
+      if (drawModeOf(event.drawMode) !== "scratch") throw Object.assign(new Error("not_scratch"), { status: 409 });
+
+      const eventPrizes = await tx
+        .select()
+        .from(prizes)
+        .where(eq(prizes.eventId, event.id))
+        .orderBy(asc(prizes.rank));
+      if (!eventPrizes.length) throw Object.assign(new Error("need_prizes"), { status: 409 });
+
+      if (!prizesAreSealed(eventPrizes, event.totalTickets)) {
+        const anySealed = eventPrizes.some((prize) => prize.ticketNumber != null);
+        await sealWinningNumbers(tx, event, { reshuffle: !anySealed });
+        await attachPrizesToTickets(tx, event.id);
+      }
+
+      const nextPrizes = await tx
+        .select()
+        .from(prizes)
+        .where(eq(prizes.eventId, event.id))
+        .orderBy(asc(prizes.rank));
+      return {
+        sealed: prizesAreSealed(nextPrizes, event.totalTickets),
+        totalTickets: event.totalTickets,
+        assignments: prizeAssignmentsOf(nextPrizes),
+      };
+    });
+    res.json(result);
+    void publishChange("event");
+  } catch (error) {
+    const err = error as Error & { status?: number };
+    if (err.status) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
 adminRouter.post("/draw", requireAdmin, async (_req, res) => {
   try {
     const result = await db.transaction(async (tx) => {
@@ -623,7 +724,11 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
       const scratch = drawModeOf(event.drawMode) === "scratch";
 
       if (scratch) {
-        await assignScratchPrizes(tx, event);
+        const sealed = eventPrizes.every(
+          (prize) => prize.ticketNumber && prize.ticketNumber >= 1 && prize.ticketNumber <= event.totalTickets,
+        );
+        if (!sealed) throw Object.assign(new Error("need_assignment"), { status: 409 });
+        await attachPrizesToTickets(tx, event.id);
         const winners = await tx
           .select({ id: tickets.id, prizeId: tickets.prizeId })
           .from(tickets)

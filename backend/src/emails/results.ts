@@ -27,14 +27,14 @@ export function drawResultsEmail(data: DrawResultsEmail) {
 
   if (data.drawMode === "scratch") {
     const html = wrapEmail({
-      preheader: `${name}, le tirage a attribué les lots. Grattez vos tickets pour voir.`,
+      preheader: `${name}, la tombola est close. Grattez vos tickets pour voir.`,
       heading: `${name}, c’est le moment de gratter`,
       ctaLabel: "Gratter mes tickets",
       ctaUrl: data.ticketsUrl,
       bodyHtml: `
-        <p style="margin:0 0 14px;color:#141416;">Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est clos. Si vous n’avez pas encore gratté, vos tickets sont toujours dans votre compte.</p>
+        <p style="margin:0 0 14px;color:#141416;">La tombola <strong>${escapeHtml(data.eventTitleFr)}</strong> est close. Les lots ont été attribués à des numéros à la roulette dès la création. Si vous n’avez pas encore gratté, vos tickets sont toujours dans votre compte.</p>
         <p style="margin:0 0 14px;color:#141416;">Un ami n’a pas joué ? <a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Qu’il prenne sa place pour la suivante</a>. Vous pouvez aussi <a href="${escapeHtml(donateUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">soutenir le club</a>.</p>
-        <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — The draw for ${escapeHtml(data.eventTitleEn)} has assigned prizes to tickets. Scratch yours to see if you won. See you at the next tombola.</p>
+        <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — The tombola for ${escapeHtml(data.eventTitleEn)} is closed. Prizes were assigned to ticket numbers on the wheel at creation. Scratch yours to see if you won. See you at the next tombola.</p>
       `,
     });
     return {
@@ -42,7 +42,7 @@ export function drawResultsEmail(data: DrawResultsEmail) {
       html,
       text: [
         `${name}, c’est le moment de gratter.`,
-        `Le tirage de ${data.eventTitleFr} a attribué les lots. Découvrez le vôtre en grattant.`,
+        `La tombola ${data.eventTitleFr} est close. Les lots ont été attribués à des numéros à la roulette dès la création. Découvrez le vôtre en grattant.`,
         `Vos tickets : ${data.ticketsUrl}`,
         `EN — Scratch your tickets for ${data.eventTitleEn}.`,
       ].join("\n"),

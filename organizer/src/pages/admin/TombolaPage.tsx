@@ -97,12 +97,16 @@ export function TombolaPage() {
         setEvent(created.event);
         setPrizes(namedPrizes.length ? namedPrizes : [emptyPrize(1)]);
         setMessage(namedPrizes.length ? t("admin.createdVisible") : t("admin.createdDraft"));
-        navigate(`/${lang ?? "fr"}`);
+        navigate(payload.drawMode === "scratch" && namedPrizes.length ? `/${lang ?? "fr"}/draw` : `/${lang ?? "fr"}`);
         return;
       }
       const saved = await api.saveEvent(payload);
       setEvent(saved.event);
       setPrizes(namedPrizes.length ? namedPrizes : [emptyPrize(1)]);
+      if (payload.drawMode === "scratch" && namedPrizes.length) {
+        navigate(`/${lang ?? "fr"}/draw`);
+        return;
+      }
       setMessage(t("admin.save"));
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
