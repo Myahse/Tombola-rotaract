@@ -1,26 +1,43 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../../api";
 import { useLiveTick } from "../../live";
-import type { AdminStats, Winner } from "../../types";
+import type { Contestant, Winner } from "../../types";
+import { Avatar } from "../../components/Avatar";
+import { DrawReel, reelOffsetForWinner } from "../../components/DrawReel";
 
 export function DrawPage() {
   const { t, i18n } = useTranslation();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [status, setStatus] = useState<string>("");
+  const [status, setStatus] = useState("");
+  const [paidTickets, setPaidTickets] = useState(0);
+  const [reservedOrders, setReservedOrders] = useState(0);
+  const [contestants, setContestants] = useState<Contestant[]>([]);
   const [winners, setWinners] = useState<Winner[]>([]);
+  const [revealed, setRevealed] = useState<Winner[]>([]);
+  const [current, setCurrent] = useState<Winner | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "spinning" | "done">("idle");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const animating = useRef(false);
   const tick = useLiveTick();
 
   async function load() {
-    const [eventData, winnerData] = await Promise.all([api.adminEvent(), api.winners()]);
-    setStats(eventData.stats);
+    const [eventData, winnerData, pool] = await Promise.all([api.adminEvent(), api.winners(), api.contestants()]);
     setStatus(eventData.event?.status ?? "");
+    setPaidTickets(eventData.stats?.paidTickets ?? 0);
+    setReservedOrders(eventData.stats?.reservedOrders ?? 0);
+    setContestants(shuffle(pool.contestants));
     setWinners(winnerData.winners);
+    if (eventData.event?.status === "drawn" && !animating.current) {
+      setRevealed(winnerData.winners);
+      setPhase("done");
+    }
   }
 
   useEffect(() => {
+    if (animating.current) return;
     load().catch(() => undefined);
   }, [tick]);
 
@@ -29,49 +46,147 @@ export function DrawPage() {
     setBusy(true);
     setMessage("");
     try {
-      await api.draw();
-      await load();
+      const pool = shuffle((await api.contestants()).contestants);
+      setContestants(pool);
+      const result = await api.draw();
+      const drawn = result.winners ?? [];
+      setWinners(drawn);
+      setPhase("spinning");
+      animating.current = true;
+      await playDraw(drawn, pool);
+      animating.current = false;
+      setPhase("done");
+      setStatus("drawn");
     } catch (error) {
+      animating.current = false;
       const code = error instanceof Error ? error.message : "";
       setMessage(code === "no_paid_tickets" ? t("admin.noPaid") : t("errors.generic"));
+      setPhase("idle");
     } finally {
       setBusy(false);
     }
   }
 
+  async function replayDraw() {
+    if (!winners.length) return;
+    setBusy(true);
+    setPhase("spinning");
+    animating.current = true;
+    try {
+      const pool = contestants.length ? shuffle(contestants) : shuffle((await api.contestants()).contestants);
+      setContestants(pool);
+      await playDraw(winners, pool);
+      setPhase("done");
+    } finally {
+      animating.current = false;
+      setBusy(false);
+    }
+  }
+
+  async function playDraw(drawn: Winner[], pool: Contestant[]) {
+    setRevealed([]);
+    const instant = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    for (const winner of drawn) {
+      setCurrent(winner);
+      setSpinning(false);
+      setOffset(0);
+      await wait(instant ? 30 : 80);
+      setSpinning(true);
+      setOffset(reelOffsetForWinner(pool, winner.ticketNumber));
+      await wait(instant ? 200 : 4200);
+      setSpinning(false);
+      setRevealed((list) => [...list, winner]);
+      await wait(instant ? 400 : 1400);
+    }
+    setCurrent(null);
+  }
+
   return (
     <section className="grid gap-5">
       <h1>{t("admin.draw")}</h1>
-      <p className="lede">{t("admin.drawHelp")}</p>
-      {stats && stats.reservedOrders > 0 && status !== "drawn" ? (
+      <p className="lede">{t("admin.drawShowHelp")}</p>
+      {reservedOrders > 0 && status !== "drawn" ? (
         <p className="badge wait w-fit">{t("admin.drawWarn")}</p>
       ) : null}
-      {status !== "drawn" ? (
-        <button
-          disabled={busy || !stats?.paidTickets}
-          onClick={runDraw}
-          className="btn-primary no-print w-fit"
-        >
-          {t("admin.startDraw")}
+
+      {contestants.length || phase !== "idle" ? (
+        <div className="draw-stage">
+          {current ? (
+            <p className="draw-prize">
+              {t("admin.drawingPrize", {
+                rank: current.rank,
+                prize: localized(current, i18n.language, "prizeName"),
+              })}
+            </p>
+          ) : null}
+          <DrawReel
+            contestants={contestants}
+            winnerTicket={current?.ticketNumber}
+            spinning={spinning}
+            offset={offset}
+          />
+          {current && !spinning ? (
+            <div className="draw-winner-banner">
+              <Avatar name={current.buyerName} src={current.avatarUrl} size={56} />
+              <div>
+                <strong>{current.buyerName}</strong>
+                <p>
+                  {localized(current, i18n.language, "prizeName")} · {t("results.ticket", { number: current.ticketNumber })}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {status !== "drawn" && phase !== "spinning" ? (
+        <button disabled={busy || paidTickets < 1} onClick={() => void runDraw()} className="btn-primary no-print btn-block">
+          {busy ? t("admin.drawing") : t("admin.startDraw")}
         </button>
-      ) : (
-        <button type="button" className="btn-outline no-print w-fit" onClick={() => window.print()}>
-          {t("admin.print")}
-        </button>
-      )}
+      ) : status === "drawn" && phase !== "spinning" ? (
+        <div className="flex flex-wrap gap-3 no-print">
+          <button type="button" className="btn-primary btn-block" disabled={busy} onClick={() => void replayDraw()}>
+            {t("admin.replayDraw")}
+          </button>
+          <button type="button" className="btn-outline btn-block" onClick={() => window.print()}>
+            {t("admin.print")}
+          </button>
+        </div>
+      ) : null}
       {message ? <p className="text-sm text-ticket">{message}</p> : null}
-      {winners.length ? (
-        <ol>
-          {winners.map((winner) => (
-            <li key={winner.rank} className="pillar flex flex-wrap justify-between gap-2">
+
+      {revealed.length ? (
+        <ol className="draw-results">
+          {revealed.map((winner) => (
+            <li key={winner.rank} className="draw-result-row">
+              <Avatar name={winner.buyerName} src={winner.avatarUrl} size={44} />
               <span>
-                <strong>{winner.rank}.</strong> {localized(winner, i18n.language, "prizeName")} — {winner.buyerName}
+                <strong>
+                  {winner.rank}. {localized(winner, i18n.language, "prizeName")}
+                </strong>
+                <p>
+                  {winner.buyerName} · {t("results.ticket", { number: winner.ticketNumber })}
+                </p>
               </span>
-              <span className="badge">{t("results.ticket", { number: winner.ticketNumber })}</span>
             </li>
           ))}
         </ol>
       ) : null}
     </section>
   );
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const current = copy[i]!;
+    copy[i] = copy[j]!;
+    copy[j] = current;
+  }
+  return copy;
 }

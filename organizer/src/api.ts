@@ -3,6 +3,7 @@ import type {
   AdminEvent,
   AdminOrder,
   AdminStats,
+  Contestant,
   OrderView,
   Prize,
   PublicEvent,
@@ -33,7 +34,7 @@ export const api = {
     ),
   buy: (body: { name: string; email: string; phone?: string; quantity: number }) =>
     request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
-  order: (token: string) => request<OrderView>(`/api/orders/${token}`),
+  order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
   login: (body: { email: string; password: string }) =>
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),
@@ -51,10 +52,14 @@ export const api = {
     }),
   orders: () => request<{ orders: AdminOrder[] }>("/api/admin/orders"),
   markPaid: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${id}/paid`, { method: "POST" }),
+    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/paid`, { method: "POST" }),
   cancelOrder: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${id}/cancel`, { method: "POST" }),
-  draw: () => request<{ awarded: number; prizes: number; unpaidOrders: number }>("/api/admin/draw", { method: "POST" }),
+    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+  draw: () =>
+    request<{ awarded: number; prizes: number; unpaidOrders: number; winners: Winner[] }>("/api/admin/draw", {
+      method: "POST",
+    }),
+  contestants: () => request<{ contestants: Contestant[] }>("/api/admin/contestants"),
   winners: () => request<{ event: AdminEvent | null; winners: Winner[] }>("/api/admin/winners"),
 };
 

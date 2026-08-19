@@ -1,5 +1,6 @@
 export type EventStatus = "draft" | "on_sale" | "closed" | "drawn";
 export type OrderStatus = "reserved" | "paid" | "cancelled";
+export type PaymentMethod = "cash" | "wave";
 
 export type Prize = {
   id?: string;
@@ -61,6 +62,13 @@ export type Winner = {
   ticketNumber: number;
   buyerName: string;
   buyerEmail?: string;
+  avatarUrl?: string | null;
+};
+
+export type Contestant = {
+  ticketNumber: number;
+  buyerName: string;
+  avatarUrl?: string | null;
 };
 
 export type AdminStats = {
@@ -91,6 +99,7 @@ export type AdminOrder = {
   buyerEmail: string;
   buyerPhone: string | null;
   quantity: number;
+  paymentMethod?: PaymentMethod;
   status: OrderStatus;
   createdAt: string;
   paidAt: string | null;

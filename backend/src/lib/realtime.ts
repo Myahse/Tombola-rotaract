@@ -1,6 +1,8 @@
 import type { IncomingMessage, Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import type { RealtimeMessage, RealtimeRole } from "../protocol.js";
+import { hasAdminSessionFromCookieHeader } from "./auth.js";
+import { isAllowedOrigin } from "./origins.js";
 
 export type { RealtimeMessage, RealtimeRole };
 
@@ -14,15 +16,26 @@ const clients = new Set<Client>();
 export function attachRealtime(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
-  wss.on("connection", (socket: WebSocket, _req: IncomingMessage) => {
+  wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
+    if (!isAllowedOrigin(req.headers.origin)) {
+      socket.close(1008, "origin_not_allowed");
+      return;
+    }
     const client: Client = { socket, role: "public" };
     clients.add(client);
 
     socket.on("message", (raw) => {
       try {
         const data = JSON.parse(String(raw)) as RealtimeMessage;
-        if (data.type === "hello" && (data.role === "public" || data.role === "organizer")) {
-          client.role = data.role;
+        if (data.type !== "hello") return;
+        if (data.role === "organizer") {
+          if (hasAdminSessionFromCookieHeader(req.headers.cookie)) {
+            client.role = "organizer";
+          }
+          return;
+        }
+        if (data.role === "public") {
+          client.role = "public";
         }
       } catch {
         // ignore malformed frames

@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-r
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { resizeImage } from "../resizeImage";
 
 export function RegisterPage() {
   const { t } = useTranslation();
@@ -12,10 +13,20 @@ export function RegisterPage() {
   const { member, loading, refresh } = useAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
   const next = params.get("next") || `/${lang}/account`;
 
   if (!loading && member) {
     return <Navigate to={next.startsWith("/") ? next : `/${lang}/account`} replace />;
+  }
+
+  async function onPhoto(file: File | undefined) {
+    if (!file) {
+      setAvatarUrl("");
+      return;
+    }
+    const dataUrl = await resizeImage(file);
+    setAvatarUrl(dataUrl ?? "");
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -35,6 +46,7 @@ export function RegisterPage() {
         email: String(form.get("email") ?? ""),
         phone: String(form.get("phone") ?? ""),
         password,
+        avatarUrl: avatarUrl || undefined,
       });
       await refresh();
       navigate(next.startsWith("/") ? next : `/${lang}/account`, { replace: true });
@@ -44,7 +56,7 @@ export function RegisterPage() {
         code === "email_taken"
           ? t("errors.emailTaken")
           : code === "invalid_form"
-            ? t("errors.weakPassword")
+            ? t("errors.invalidRegister")
             : t("errors.generic"),
       );
     } finally {
@@ -58,6 +70,20 @@ export function RegisterPage() {
       <h1>{t("auth.registerTitle")}</h1>
       <p>{t("auth.registerLead")}</p>
       <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
+        <label className="avatar-picker">
+          <span>{t("auth.photo")}</span>
+          <span className="avatar-picker-row">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="" className="person-avatar" width={72} height={72} />
+            ) : (
+              <span className="person-avatar fallback" style={{ width: 72, height: 72, fontSize: 22 }}>
+                +
+              </span>
+            )}
+            <input type="file" accept="image/*" onChange={(e) => void onPhoto(e.target.files?.[0])} />
+            <em>{t("auth.photoHint")}</em>
+          </span>
+        </label>
         <label>
           {t("auth.name")}
           <input name="name" required minLength={2} autoComplete="name" />
@@ -68,7 +94,7 @@ export function RegisterPage() {
         </label>
         <label>
           {t("auth.phone")}
-          <input name="phone" autoComplete="tel" />
+          <input name="phone" type="tel" required minLength={8} autoComplete="tel" inputMode="tel" />
         </label>
         <label>
           {t("auth.password")}

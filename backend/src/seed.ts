@@ -24,9 +24,9 @@ async function seed() {
       totalTickets: 50,
       status: "on_sale",
       paymentInstructionsFr:
-        "Payez au bar du club (espèces ou carte) ou par virement. Donnez votre nom : un organisateur marquera vos tickets comme payés. Seuls les tickets payés participent au tirage.",
+        "Espèces au club, ou Wave (Doaty Délice). Donnez votre nom : un organisateur marquera vos tickets comme payés. Seuls les tickets payés participent au tirage.",
       paymentInstructionsEn:
-        "Pay at the club bar (cash or card) or by bank transfer. Give your name: an organizer will mark your tickets as paid. Only paid tickets enter the draw.",
+        "Cash at the club, or Wave (Doaty Délice). Give your name: an organizer will mark your tickets as paid. Only paid tickets enter the draw.",
     })
     .returning();
 

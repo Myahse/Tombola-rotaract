@@ -5,17 +5,26 @@ import { db } from "../db/index.js";
 import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.js";
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
+import { wavePayUrl } from "../lib/payments.js";
 import { nextTicketNumbers } from "../lib/tickets.js";
+import { allowRequest, clientKey } from "../lib/rateLimit.js";
+import { notifyPurchase } from "../lib/mail.js";
+import { siteUrl } from "../emails/layout.js";
 
 export const publicRouter = Router();
 
 const buySchema = z.object({
   quantity: z.number().int().min(1).max(20),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
+  paymentMethod: z.enum(["cash", "wave"]).default("cash"),
 });
 
 publicRouter.get("/event/current", async (_req, res) => {
   res.json({ event: await publicSnapshot() });
+});
+
+publicRouter.get("/payments", (_req, res) => {
+  res.json({ wavePayUrl: wavePayUrl() });
 });
 
 publicRouter.get("/event/current/results", async (_req, res) => {
@@ -31,11 +40,13 @@ publicRouter.get("/event/current/results", async (_req, res) => {
       prizeNameEn: prizes.nameEn,
       ticketNumber: tickets.number,
       buyerName: orders.buyerName,
+      avatarUrl: members.avatarUrl,
     })
     .from(drawResults)
     .innerJoin(prizes, eq(drawResults.prizeId, prizes.id))
     .innerJoin(tickets, eq(drawResults.ticketId, tickets.id))
     .innerJoin(orders, eq(tickets.orderId, orders.id))
+    .leftJoin(members, eq(orders.memberId, members.id))
     .where(eq(drawResults.eventId, event.id))
     .orderBy(asc(prizes.rank));
   res.json({
@@ -49,9 +60,13 @@ publicRouter.get("/event/current/results", async (_req, res) => {
 });
 
 publicRouter.post("/orders", requireMember, async (req, res) => {
+  if (!allowRequest(`buy:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
   const parsed = buySchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "invalid_form", details: parsed.error.flatten() });
+    res.status(400).json({ error: "invalid_form" });
     return;
   }
 
@@ -106,6 +121,7 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
           buyerEmail: member.email,
           buyerPhone: phone || null,
           quantity: parsed.data.quantity,
+          paymentMethod: parsed.data.paymentMethod,
           status: "reserved",
           accessToken: token,
         })
@@ -139,6 +155,8 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       buyerName: created.order.buyerName,
       buyerEmail: created.order.buyerEmail,
       quantity: created.order.quantity,
+      paymentMethod: created.order.paymentMethod,
+      wavePayUrl: wavePayUrl(),
       status: created.order.status,
       ticketPriceCents: created.event.ticketPriceCents,
       currency: created.event.currency,
@@ -147,6 +165,18 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       numbers: created.tickets.map((ticket) => ticket.number).sort((a, b) => a - b),
     });
     void publishChange("order");
+    void notifyPurchase({
+      name: created.order.buyerName,
+      email: created.order.buyerEmail,
+      eventTitleFr: created.event.titleFr,
+      eventTitleEn: created.event.titleEn,
+      quantity: created.order.quantity,
+      ticketPriceCents: created.event.ticketPriceCents,
+      currency: created.event.currency,
+      numbers: created.tickets.map((ticket) => ticket.number).sort((a, b) => a - b),
+      paymentMethod: created.order.paymentMethod,
+      ticketsUrl: siteUrl(`/fr/tickets/${created.order.accessToken}`),
+    });
   } catch (error) {
     const err = error as Error & { status?: number; remaining?: number };
     if (err.message === "not_on_sale") {
@@ -164,7 +194,7 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
 
 publicRouter.get("/orders/:token", async (req, res) => {
   const token = req.params.token;
-  if (!token) {
+  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) {
     res.status(400).json({ error: "missing_token" });
     return;
   }
@@ -194,6 +224,8 @@ publicRouter.get("/orders/:token", async (req, res) => {
     buyerName: order.buyerName,
     buyerEmail: order.buyerEmail,
     quantity: order.quantity,
+    paymentMethod: order.paymentMethod,
+    wavePayUrl: wavePayUrl(),
     status: order.status,
     createdAt: order.createdAt,
     ticketPriceCents: event?.ticketPriceCents ?? 0,

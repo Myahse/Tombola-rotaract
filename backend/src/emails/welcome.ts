@@ -1,4 +1,4 @@
-import { siteUrl, wrapEmail } from "./layout.js";
+import { escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
 
 export type WelcomeEmail = {
   name: string;
@@ -6,36 +6,40 @@ export type WelcomeEmail = {
 };
 
 export function welcomeEmail(data: WelcomeEmail) {
-  const name = data.name.trim() || "ami(e) du club";
+  const name = firstName(data.name);
   const accountUrl = siteUrl("/fr/account");
+  const buyUrl = siteUrl("/fr/buy");
   const html = wrapEmail({
-    preheader: "Votre compte Rotaract IUGB Club est prêt. Un compte pour toutes les tombolas.",
-    heading: `Bienvenue, ${name}`,
-    ctaLabel: "Voir mes tombolas",
-    ctaUrl: accountUrl,
+    preheader: `${name}, votre place au club est prête. La tombola n’attend plus que vous.`,
+    heading: `Bienvenue dans le jeu, ${name}`,
+    ctaLabel: "Prendre mes tickets",
+    ctaUrl: buyUrl,
     bodyHtml: `
-      <p style="margin:0 0 14px;color:#141416;">Votre compte est créé. Il servira pour chaque tombola du club : cérémonie, réunion, ou autre événement.</p>
-      <p style="margin:0 0 14px;">Connectez-vous, réservez vos tickets, payez au club, puis grattez après le tirage. Tout votre historique reste dans <strong>Mes tombolas</strong>.</p>
-      <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — Your Rotaract IUGB Club account is ready. Use it for every tombola: ceremonies, meetings, and other club events. Find your tickets under My tombolas.</p>
+      <p style="margin:0 0 14px;color:#141416;">Vous faites maintenant partie de la tombola du <strong>Rotaract IUGB Club</strong>. Un compte, toutes les tombolas : cérémonie, réunion, ou la prochaine surprise du club.</p>
+      <p style="margin:0 0 14px;">Le rituel est simple — et c’est là que ça devient vivant : vous réservez, vous payez, le club tire, vous grattez. Et on recommence.</p>
+      <p style="margin:0 0 14px;">N’attendez pas le dernier jour. Les meilleurs lots partent avec ceux qui sont déjà dans le chapeau.</p>
+      <p style="margin:0;font-size:13px;color:#73737a;"><a href="${escapeHtml(accountUrl)}" style="color:#141416;font-weight:650;">Mes tombolas</a> — vos tickets, vos prochains tirages, tout reste ici.<br /><em>EN</em> — Your club account is ready. Grab tickets now, pay, then scratch after the draw. We’ll want you back for the next one.</p>
     `,
   });
 
   const text = [
-    `Bienvenue, ${name}`,
+    `Bienvenue dans le jeu, ${name}.`,
     "",
-    "Votre compte Rotaract IUGB Club est créé. Il servira pour chaque tombola du club.",
+    "Votre compte Rotaract IUGB Club est prêt. Un compte pour toutes les tombolas.",
+    `Prendre des tickets : ${buyUrl}`,
     `Mes tombolas : ${accountUrl}`,
     "",
-    "Your account is ready. Use it for every club tombola.",
+    "EN — Your account is ready. Grab tickets now — we’ll want you back for the next draw.",
   ].join("\n");
 
   return {
-    subject: "Bienvenue au club — votre compte tombola",
+    subject: `${name}, votre place au club est prête`,
     html,
     text,
     params: {
       name,
       accountUrl,
+      buyUrl,
       logoUrl: siteUrl("/logo.png"),
     },
   };

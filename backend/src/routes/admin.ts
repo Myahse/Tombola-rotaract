@@ -2,22 +2,23 @@ import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { drawResults, events, orders, prizes, tickets } from "../db/schema.js";
+import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
 import { shuffle } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
-import { notifyTombolaWinners } from "../lib/mail.js";
+import { notifyTombolaParticipants, notifyTombolaWinners } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
+import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
 export const adminRouter = Router();
 
 const eventSchema = z.object({
   titleFr: z.string().trim().min(2).max(120),
-  titleEn: z.string().trim().min(2).max(120),
+  titleEn: z.string().trim().max(120).optional().or(z.literal("")),
   descriptionFr: z.string().trim().max(2000).default(""),
-  descriptionEn: z.string().trim().max(2000).default(""),
+  descriptionEn: z.string().trim().max(2000).optional().or(z.literal("")),
   paymentInstructionsFr: z.string().trim().max(2000).default(""),
-  paymentInstructionsEn: z.string().trim().max(2000).default(""),
+  paymentInstructionsEn: z.string().trim().max(2000).optional().or(z.literal("")),
   ticketPriceCents: z.number().int().min(0),
   currency: z.string().trim().min(3).max(8).default("XOF"),
   totalTickets: z.number().int().min(1).max(10000),
@@ -25,14 +26,31 @@ const eventSchema = z.object({
     .array(
       z.object({
         rank: z.number().int().min(1),
-        nameFr: z.string().trim().min(1).max(120),
-        nameEn: z.string().trim().min(1).max(120),
+        nameFr: z.string().trim().max(120).default(""),
+        nameEn: z.string().trim().max(120).optional().or(z.literal("")),
         descriptionFr: z.string().trim().max(500).default(""),
-        descriptionEn: z.string().trim().max(500).default(""),
+        descriptionEn: z.string().trim().max(500).optional().or(z.literal("")),
       }),
     )
     .max(200),
 });
+
+function withFallbackLang(data: z.infer<typeof eventSchema>) {
+  return {
+    ...data,
+    titleEn: data.titleEn?.trim() || data.titleFr,
+    descriptionEn: data.descriptionEn?.trim() || data.descriptionFr,
+    paymentInstructionsEn: data.paymentInstructionsEn?.trim() || data.paymentInstructionsFr,
+    prizes: data.prizes
+      .filter((prize) => prize.nameFr.trim())
+      .map((prize, index) => ({
+        ...prize,
+        rank: index + 1,
+        nameEn: prize.nameEn?.trim() || prize.nameFr,
+        descriptionEn: prize.descriptionEn?.trim() || prize.descriptionFr,
+      })),
+  };
+}
 
 function slugify(title: string) {
   const base = title
@@ -48,6 +66,40 @@ function slugify(title: string) {
 async function latestEvent() {
   const [event] = await db.select().from(events).orderBy(desc(events.createdAt)).limit(1);
   return event ?? null;
+}
+
+async function contestantsFor(eventId: string) {
+  return db
+    .select({
+      ticketNumber: tickets.number,
+      buyerName: orders.buyerName,
+      avatarUrl: members.avatarUrl,
+    })
+    .from(tickets)
+    .innerJoin(orders, eq(tickets.orderId, orders.id))
+    .leftJoin(members, eq(orders.memberId, members.id))
+    .where(and(eq(tickets.eventId, eventId), eq(orders.status, "paid")))
+    .orderBy(asc(tickets.number));
+}
+
+async function winnersFor(eventId: string) {
+  return db
+    .select({
+      rank: prizes.rank,
+      prizeNameFr: prizes.nameFr,
+      prizeNameEn: prizes.nameEn,
+      ticketNumber: tickets.number,
+      buyerName: orders.buyerName,
+      buyerEmail: orders.buyerEmail,
+      avatarUrl: members.avatarUrl,
+    })
+    .from(drawResults)
+    .innerJoin(prizes, eq(drawResults.prizeId, prizes.id))
+    .innerJoin(tickets, eq(drawResults.ticketId, tickets.id))
+    .innerJoin(orders, eq(tickets.orderId, orders.id))
+    .leftJoin(members, eq(orders.memberId, members.id))
+    .where(eq(drawResults.eventId, eventId))
+    .orderBy(asc(prizes.rank));
 }
 
 async function statsFor(eventId: string, totalTickets: number) {
@@ -88,10 +140,14 @@ async function statsFor(eventId: string, totalTickets: number) {
 }
 
 adminRouter.post("/login", (req, res) => {
+  if (!allowRequest(`admin-login:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
   const parsed = z
     .object({
-      email: z.string().trim().email(),
-      password: z.string().min(1),
+      email: z.string().trim().email().max(120),
+      password: z.string().min(1).max(200),
     })
     .safeParse(req.body);
   if (!parsed.success || !adminEmailMatches(parsed.data.email) || !passwordMatches(parsed.data.password)) {
@@ -132,6 +188,7 @@ adminRouter.post("/event", requireAdmin, async (req, res) => {
     res.status(400).json({ error: "invalid_form", details: parsed.error.flatten() });
     return;
   }
+  const data = withFallbackLang(parsed.data);
   const current = await latestEvent();
   if (current && current.status !== "drawn") {
     res.status(409).json({ error: "active_event_exists" });
@@ -142,23 +199,23 @@ adminRouter.post("/event", requireAdmin, async (req, res) => {
     const [event] = await tx
       .insert(events)
       .values({
-        slug: slugify(parsed.data.titleEn || parsed.data.titleFr),
-        titleFr: parsed.data.titleFr,
-        titleEn: parsed.data.titleEn,
-        descriptionFr: parsed.data.descriptionFr,
-        descriptionEn: parsed.data.descriptionEn,
-        paymentInstructionsFr: parsed.data.paymentInstructionsFr,
-        paymentInstructionsEn: parsed.data.paymentInstructionsEn,
-        ticketPriceCents: parsed.data.ticketPriceCents,
-        currency: parsed.data.currency,
-        totalTickets: parsed.data.totalTickets,
-        status: "draft",
+        slug: slugify(data.titleFr),
+        titleFr: data.titleFr,
+        titleEn: data.titleEn,
+        descriptionFr: data.descriptionFr,
+        descriptionEn: data.descriptionEn,
+        paymentInstructionsFr: data.paymentInstructionsFr,
+        paymentInstructionsEn: data.paymentInstructionsEn,
+        ticketPriceCents: data.ticketPriceCents,
+        currency: data.currency,
+        totalTickets: data.totalTickets,
+        status: data.prizes.length ? "on_sale" : "draft",
       })
       .returning();
     if (!event) throw new Error("create_failed");
-    if (parsed.data.prizes.length) {
+    if (data.prizes.length) {
       await tx.insert(prizes).values(
-        parsed.data.prizes.map((prize) => ({
+        data.prizes.map((prize) => ({
           eventId: event.id,
           rank: prize.rank,
           nameFr: prize.nameFr,
@@ -181,6 +238,7 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
     res.status(400).json({ error: "invalid_form", details: parsed.error.flatten() });
     return;
   }
+  const data = withFallbackLang(parsed.data);
   const event = await latestEvent();
   if (!event) {
     res.status(404).json({ error: "no_event" });
@@ -197,7 +255,7 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
     .innerJoin(orders, eq(tickets.orderId, orders.id))
     .where(and(eq(tickets.eventId, event.id), ne(orders.status, "cancelled")));
   const held = Number(heldRows[0]?.n ?? 0);
-  if (parsed.data.totalTickets < held) {
+  if (data.totalTickets < held) {
     res.status(409).json({ error: "total_too_low", held });
     return;
   }
@@ -206,24 +264,24 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
     const [next] = await tx
       .update(events)
       .set({
-        titleFr: parsed.data.titleFr,
-        titleEn: parsed.data.titleEn,
-        descriptionFr: parsed.data.descriptionFr,
-        descriptionEn: parsed.data.descriptionEn,
-        paymentInstructionsFr: parsed.data.paymentInstructionsFr,
-        paymentInstructionsEn: parsed.data.paymentInstructionsEn,
-        ticketPriceCents: parsed.data.ticketPriceCents,
-        currency: parsed.data.currency,
-        totalTickets: parsed.data.totalTickets,
+        titleFr: data.titleFr,
+        titleEn: data.titleEn,
+        descriptionFr: data.descriptionFr,
+        descriptionEn: data.descriptionEn,
+        paymentInstructionsFr: data.paymentInstructionsFr,
+        paymentInstructionsEn: data.paymentInstructionsEn,
+        ticketPriceCents: data.ticketPriceCents,
+        currency: data.currency,
+        totalTickets: data.totalTickets,
         updatedAt: new Date(),
       })
       .where(eq(events.id, event.id))
       .returning();
 
     await tx.delete(prizes).where(eq(prizes.eventId, event.id));
-    if (parsed.data.prizes.length) {
+    if (data.prizes.length) {
       await tx.insert(prizes).values(
-        parsed.data.prizes.map((prize) => ({
+        data.prizes.map((prize) => ({
           eventId: event.id,
           rank: prize.rank,
           nameFr: prize.nameFr,
@@ -287,6 +345,7 @@ adminRouter.get("/orders", requireAdmin, async (_req, res) => {
       buyerEmail: orders.buyerEmail,
       buyerPhone: orders.buyerPhone,
       quantity: orders.quantity,
+      paymentMethod: orders.paymentMethod,
       status: orders.status,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,
@@ -304,6 +363,10 @@ adminRouter.get("/orders", requireAdmin, async (_req, res) => {
 adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
   const event = await latestEvent();
   const orderId = String(req.params.id ?? "");
+  if (!z.string().uuid().safeParse(orderId).success) {
+    res.status(400).json({ error: "invalid_id" });
+    return;
+  }
   if (!event || event.status === "drawn") {
     res.status(409).json({ error: "event_locked" });
     return;
@@ -323,13 +386,18 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  res.json({ order });
+  const { accessToken: _accessToken, ...safeOrder } = order;
+  res.json({ order: safeOrder });
   void publishChange("order");
 });
 
 adminRouter.post("/orders/:id/cancel", requireAdmin, async (req, res) => {
   const event = await latestEvent();
   const orderId = String(req.params.id ?? "");
+  if (!z.string().uuid().safeParse(orderId).success) {
+    res.status(400).json({ error: "invalid_id" });
+    return;
+  }
   if (!event || event.status === "drawn") {
     res.status(409).json({ error: "event_locked" });
     return;
@@ -359,7 +427,8 @@ adminRouter.post("/orders/:id/cancel", requireAdmin, async (req, res) => {
     res.status(404).json({ error: "not_found" });
     return;
   }
-  res.json({ order: cancelled });
+  const { accessToken: _accessToken, ...safeOrder } = cancelled;
+  res.json({ order: safeOrder });
   void publishChange("order");
 });
 
@@ -420,9 +489,11 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
         prizes: eventPrizes.length,
       };
     });
-    res.json(result);
+    const event = await latestEvent();
+    const winners = event ? await winnersFor(event.id) : [];
+    res.json({ ...result, winners });
     void publishChange("draw");
-    void emailDrawWinners();
+    void emailDrawResults();
   } catch (error) {
     const err = error as Error & { status?: number };
     if (err.status) {
@@ -434,7 +505,7 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
   }
 });
 
-async function emailDrawWinners() {
+async function emailDrawResults() {
   const event = await latestEvent();
   if (!event || event.status !== "drawn") return;
 
@@ -468,7 +539,43 @@ async function emailDrawWinners() {
       ticketsUrl: siteUrl(`/fr/tickets/${winner.accessToken}`),
     })),
   );
+
+  const paidBuyers = await db
+    .select({
+      buyerName: orders.buyerName,
+      buyerEmail: orders.buyerEmail,
+      accessToken: orders.accessToken,
+    })
+    .from(orders)
+    .where(and(eq(orders.eventId, event.id), eq(orders.status, "paid")));
+
+  const winnerEmails = new Set(winners.map((winner) => winner.buyerEmail.trim().toLowerCase()));
+  const seen = new Set<string>();
+  const participants = [];
+  for (const buyer of paidBuyers) {
+    const email = buyer.buyerEmail.trim().toLowerCase();
+    if (!email || winnerEmails.has(email) || seen.has(email)) continue;
+    seen.add(email);
+    participants.push({
+      name: buyer.buyerName,
+      email: buyer.buyerEmail,
+      eventTitleFr: event.titleFr,
+      eventTitleEn: event.titleEn,
+      ticketsUrl: siteUrl(`/fr/tickets/${buyer.accessToken}`),
+    });
+  }
+
+  await notifyTombolaParticipants(participants);
 }
+
+adminRouter.get("/contestants", requireAdmin, async (_req, res) => {
+  const event = await latestEvent();
+  if (!event) {
+    res.json({ contestants: [] });
+    return;
+  }
+  res.json({ contestants: await contestantsFor(event.id) });
+});
 
 adminRouter.get("/winners", requireAdmin, async (_req, res) => {
   const event = await latestEvent();
@@ -476,20 +583,5 @@ adminRouter.get("/winners", requireAdmin, async (_req, res) => {
     res.json({ winners: [] });
     return;
   }
-  const winners = await db
-    .select({
-      rank: prizes.rank,
-      prizeNameFr: prizes.nameFr,
-      prizeNameEn: prizes.nameEn,
-      ticketNumber: tickets.number,
-      buyerName: orders.buyerName,
-      buyerEmail: orders.buyerEmail,
-    })
-    .from(drawResults)
-    .innerJoin(prizes, eq(drawResults.prizeId, prizes.id))
-    .innerJoin(tickets, eq(drawResults.ticketId, tickets.id))
-    .innerJoin(orders, eq(tickets.orderId, orders.id))
-    .where(eq(drawResults.eventId, event.id))
-    .orderBy(asc(prizes.rank));
-  res.json({ event, winners });
+  res.json({ event, winners: await winnersFor(event.id) });
 });

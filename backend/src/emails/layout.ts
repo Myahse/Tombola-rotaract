@@ -42,7 +42,7 @@ export function wrapEmail(options: {
           </tr>
           <tr>
             <td style="padding:28px 32px 8px;">
-              <p style="margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;font-weight:650;color:#a1a1a8;">Tombola du club</p>
+              <p style="margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;font-weight:650;color:#be034d;">Rotaract IUGB Club</p>
               <h1 style="margin:0;font-size:24px;line-height:1.25;letter-spacing:-0.02em;font-weight:650;">${escapeHtml(options.heading)}</h1>
             </td>
           </tr>
@@ -55,7 +55,7 @@ export function wrapEmail(options: {
           <tr>
             <td style="padding:20px 32px 28px;color:#a1a1a8;font-size:12px;line-height:1.5;border-top:1px solid ${LINE};">
               Rotaract IUGB Club · Côte d’Ivoire<br />
-              Cet e-mail est envoyé automatiquement. Merci de ne pas y répondre.
+              On se retrouve au club — et à la prochaine tombola.
             </td>
           </tr>
         </table>
@@ -64,6 +64,15 @@ export function wrapEmail(options: {
   </table>
 </body>
 </html>`;
+}
+
+export function firstName(full: string) {
+  const part = full.trim().split(/\s+/)[0] ?? "";
+  if (!part) return "ami(e) du club";
+  return part
+    .split("-")
+    .map((piece) => (piece ? piece.charAt(0).toUpperCase() + piece.slice(1).toLowerCase() : piece))
+    .join("-");
 }
 
 export function escapeHtml(value: string) {
@@ -75,6 +84,22 @@ export function escapeHtml(value: string) {
 }
 
 export function siteUrl(path = "") {
-  const base = (process.env.PUBLIC_SITE_URL ?? "http://localhost:5173").replace(/\/$/, "");
+  const fallback = process.env.NODE_ENV === "production" ? "https://tombola.rotaractiugb.com" : "http://localhost:5173";
+  let base = (process.env.PUBLIC_SITE_URL ?? fallback).trim().replace(/\/$/, "");
+  try {
+    const parsed = new URL(base);
+    const allowed =
+      parsed.hostname === "localhost" ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "rotaractiugb.com" ||
+      parsed.hostname.endsWith(".rotaractiugb.com");
+    if (!allowed || (process.env.NODE_ENV === "production" && parsed.protocol !== "https:")) {
+      base = fallback;
+    } else {
+      base = parsed.origin;
+    }
+  } catch {
+    base = fallback;
+  }
   return `${base}${path.startsWith("/") ? path : `/${path}`}`;
 }

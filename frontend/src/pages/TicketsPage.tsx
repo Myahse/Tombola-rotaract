@@ -5,6 +5,8 @@ import { api, formatMoney, localized } from "../api";
 import type { OrderView } from "../types";
 import { ScratchTicket, StatusPill } from "../components/ScratchTicket";
 import { useRealtime } from "../useRealtime";
+import { safeWavePayUrl } from "../safeWave";
+import { WaveLogo } from "../components/WaveLogo";
 
 export function TicketsPage() {
   const { token } = useParams();
@@ -90,10 +92,27 @@ export function TicketsPage() {
 
       <section className="section" style={{ borderBottom: 0 }}>
         <h2>{t("confirm.pay")}</h2>
-        <p className="whitespace-pre-wrap">{pay}</p>
         <p>
-          {t("buy.total")}: {formatMoney(order.ticketPriceCents * order.quantity, order.currency, i18n.language)}
+          {t("buy.total")}: <strong>{formatMoney(order.ticketPriceCents * order.quantity, order.currency, i18n.language)}</strong>
         </p>
+        {order.paymentMethod === "wave" ? (
+          <>
+            <p className="pay-label">
+              <WaveLogo />
+              <strong>{t("pay.wave")}</strong>
+            </p>
+            <p>{t("pay.waveLead")}</p>
+            <p>{t("pay.affiliate")}</p>
+            {!paid && safeWavePayUrl(order.wavePayUrl) ? (
+              <a className="btn-primary btn-block" href={safeWavePayUrl(order.wavePayUrl)} target="_blank" rel="noopener noreferrer">
+                {t("pay.waveCta")}
+              </a>
+            ) : null}
+          </>
+        ) : (
+          <p>{t("pay.cashLead")}</p>
+        )}
+        {pay ? <p className="whitespace-pre-wrap pay-note">{pay}</p> : null}
       </section>
     </>
   );

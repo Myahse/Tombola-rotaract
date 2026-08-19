@@ -79,7 +79,7 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="section" style={{ borderBottom: 0 }}>
+      <section className="section">
         <h2>{t("landing.currentTitle")}</h2>
         {event === undefined ? (
           <p className="lede">…</p>
@@ -129,7 +129,22 @@ export function HomePage() {
         )}
       </section>
 
-      <footer className="vitrine-foot">{t("landing.footer")}</footer>
+      <section className="section" style={{ borderBottom: 0 }}>
+        <h2>{t("landing.donateTitle")}</h2>
+        <p className="lede">{t("landing.donateText")}</p>
+        <p>{t("pay.affiliate")}</p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link to={`/${lang}/donate`} className="btn-primary">
+            {t("landing.donateCta")}
+          </Link>
+        </div>
+      </section>
+
+      <footer className="vitrine-foot">
+        {t("landing.footer")}
+        {" · "}
+        <Link to={`/${lang}/donate`}>{t("nav.donate")}</Link>
+      </footer>
     </>
   );
 }

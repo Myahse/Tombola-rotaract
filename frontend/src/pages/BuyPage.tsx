@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, formatMoney } from "../api";
 import { useAuth } from "../auth";
 import type { PublicEvent } from "../types";
+import { WaveLogo } from "../components/WaveLogo";
 
 export function BuyPage() {
   const { t, i18n } = useTranslation();
@@ -12,6 +13,7 @@ export function BuyPage() {
   const { member, loading } = useAuth();
   const [event, setEvent] = useState<PublicEvent | null | undefined>(undefined);
   const [quantity, setQuantity] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "wave">("wave");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -65,6 +67,7 @@ export function BuyPage() {
       const order = await api.buy({
         quantity,
         phone: String(form.get("phone") ?? ""),
+        paymentMethod,
       });
       navigate(`/${lang}/tickets/${order.token}`);
     } catch (err) {
@@ -104,6 +107,38 @@ export function BuyPage() {
             onChange={(e) => setQuantity(Number(e.target.value))}
           />
         </label>
+        <fieldset className="pay-options">
+          <legend>{t("buy.paymentMethod")}</legend>
+          <label className={`pay-option ${paymentMethod === "wave" ? "active" : ""}`}>
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="wave"
+              checked={paymentMethod === "wave"}
+              onChange={() => setPaymentMethod("wave")}
+            />
+            <span>
+              <strong className="pay-option-head">
+                <WaveLogo />
+                {t("pay.wave")}
+              </strong>
+              <em>{t("pay.waveHint")}</em>
+            </span>
+          </label>
+          <label className={`pay-option ${paymentMethod === "cash" ? "active" : ""}`}>
+            <input
+              type="radio"
+              name="paymentMethod"
+              value="cash"
+              checked={paymentMethod === "cash"}
+              onChange={() => setPaymentMethod("cash")}
+            />
+            <span>
+              <strong>{t("pay.cash")}</strong>
+              <em>{t("pay.cashHint")}</em>
+            </span>
+          </label>
+        </fieldset>
         <p>
           {t("buy.total")}: <strong>{total}</strong>
         </p>
