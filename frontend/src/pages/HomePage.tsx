@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api, formatMoney, localized } from "../api";
 import type { PublicEvent } from "../types";
 import { StatusPill } from "../components/ScratchTicket";
+import { BrandLogo } from "../components/BrandLogo";
 import { useRealtime } from "../useRealtime";
 
 export function HomePage() {
@@ -29,15 +30,7 @@ export function HomePage() {
   return (
     <>
       <section className="vitrine-hero">
-        <img
-          src="/logo.png"
-          alt="Rotaract IUGB Club"
-          className="brand-logo hero"
-          width={960}
-          height={614}
-          decoding="async"
-          fetchPriority="high"
-        />
+        <BrandLogo hero />
         <p className="eyebrow">{t("landing.kicker")}</p>
         <h1>{t("landing.heroTitle")}</h1>
         <p className="lede">{t("landing.heroLede")}</p>

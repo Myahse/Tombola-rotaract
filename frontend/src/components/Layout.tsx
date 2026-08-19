@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
+import { BrandLogo } from "./BrandLogo";
 import { useAuth } from "../auth";
 
 export function Layout() {
@@ -44,15 +45,7 @@ export function Layout() {
     <div className="app-shell">
       <header className="site-header no-print">
         <NavLink to={base} className="brand-row">
-          <img
-            src="/logo.png"
-            alt="Rotaract IUGB Club"
-            className="brand-logo"
-            width={960}
-            height={614}
-            decoding="async"
-            fetchPriority="high"
-          />
+          <BrandLogo />
         </NavLink>
         <nav className="site-nav hide-mobile" aria-label="Primary">
           {navLinks("top")}

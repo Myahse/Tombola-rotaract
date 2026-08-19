@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
+import { BrandLogo } from "./BrandLogo";
 import { LiveProvider } from "../live";
 import { LoginModal } from "./LoginModal";
 
@@ -68,15 +69,7 @@ function OrganizerShell() {
     <div className="app-shell">
       <header className="site-header no-print">
         <NavLink to={base} className="brand-row">
-          <img
-            src="/logo.png"
-            alt="Rotaract IUGB Club"
-            className="brand-logo"
-            width={960}
-            height={614}
-            decoding="async"
-            fetchPriority="high"
-          />
+          <BrandLogo />
         </NavLink>
         {loggedIn ? (
           <nav className="site-nav hide-mobile" aria-label="Organizers">

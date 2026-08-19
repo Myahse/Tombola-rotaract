@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { Avatar } from "../components/Avatar";
+import { BrandLogo } from "../components/BrandLogo";
 import type { Winner } from "../types";
 import { useRealtime } from "../useRealtime";
 
@@ -29,15 +30,7 @@ export function ResultsPage() {
   return (
     <>
       <section className="vitrine-hero">
-        <img
-          src="/logo.png"
-          alt="Rotaract IUGB Club"
-          className="brand-logo hero"
-          width={960}
-          height={614}
-          decoding="async"
-          fetchPriority="high"
-        />
+        <BrandLogo hero />
         <p className="eyebrow">{title || t("home.kicker")}</p>
         <h1>{t("results.title")}</h1>
       </section>
