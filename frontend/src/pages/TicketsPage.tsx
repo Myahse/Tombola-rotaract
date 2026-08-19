@@ -40,6 +40,7 @@ export function TicketsPage() {
         prizeRank: null,
         prizeNameFr: null,
         prizeNameEn: null,
+        scratchedAt: null,
       }));
   const pay = localized(order, i18n.language, "paymentInstructions");
   const title = localized(order, i18n.language, "title") || t("home.kicker");
@@ -85,6 +86,10 @@ export function TicketsPage() {
               lockedLabel={lockedLabel}
               prizeName={i18n.language === "en" ? ticket.prizeNameEn : ticket.prizeNameFr}
               prizeRank={ticket.prizeRank}
+              alreadyOpen={Boolean(ticket.scratchedAt)}
+              onReveal={() => {
+                void api.scratch(order.token, ticket.number);
+              }}
             />
           ))}
         </div>

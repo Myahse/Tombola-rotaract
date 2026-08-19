@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
@@ -130,12 +130,19 @@ async function statsFor(eventId: string, totalTickets: number) {
     }
   }
 
+  const [scratched] = await db
+    .select({ n: count() })
+    .from(tickets)
+    .innerJoin(orders, eq(tickets.orderId, orders.id))
+    .where(and(eq(tickets.eventId, eventId), eq(orders.status, "paid"), isNotNull(tickets.scratchedAt)));
+
   return {
     paidOrders,
     reservedOrders,
     paidTickets,
     reservedTickets,
     remainingTickets: Math.max(0, totalTickets - paidTickets - reservedTickets),
+    scratchedTickets: Number(scratched?.n ?? 0),
   };
 }
 
@@ -590,4 +597,37 @@ adminRouter.get("/winners", requireAdmin, async (_req, res) => {
     return;
   }
   res.json({ event, winners: await winnersFor(event.id) });
+});
+
+adminRouter.get("/scratches", requireAdmin, async (_req, res) => {
+  const event = await latestEvent();
+  if (!event) {
+    res.json({ scratches: [] });
+    return;
+  }
+  const rows = await db
+    .select({
+      ticketNumber: tickets.number,
+      buyerName: orders.buyerName,
+      scratchedAt: tickets.scratchedAt,
+      prizeRank: prizes.rank,
+      prizeNameFr: prizes.nameFr,
+      prizeNameEn: prizes.nameEn,
+    })
+    .from(tickets)
+    .innerJoin(orders, eq(tickets.orderId, orders.id))
+    .leftJoin(prizes, eq(prizes.id, tickets.prizeId))
+    .where(and(eq(tickets.eventId, event.id), isNotNull(tickets.scratchedAt)))
+    .orderBy(desc(tickets.scratchedAt));
+
+  res.json({
+    scratches: rows.map((row) => ({
+      ticketNumber: row.ticketNumber,
+      buyerName: row.buyerName,
+      scratchedAt: row.scratchedAt?.toISOString() ?? null,
+      prizeRank: row.prizeRank,
+      prizeNameFr: row.prizeNameFr,
+      prizeNameEn: row.prizeNameEn,
+    })),
+  });
 });

@@ -105,8 +105,8 @@
     "payFirst": "Payez d'abord pour participer",
     "lose": "Pas de lot",
     "win": "Lot {{rank}}",
-    "instruction": "Grattez la zone argentée après le tirage.",
-    "howto": "Chaque ticket est à gratter. La zone se dévoile après le tirage organisé par le club."
+    "instruction": "Grattez la zone argentée : le lot a déjà été attribué à ce ticket au tirage.",
+    "howto": "Le tirage attribue les lots aux tickets. Une fois le tirage fait, grattez pour découvrir si votre numéro a un lot."
   },
   "results": {
     "title": "Tirage au sort",

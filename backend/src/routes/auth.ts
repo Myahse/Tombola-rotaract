@@ -160,6 +160,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       prizeRank: prizes.rank,
       prizeNameFr: prizes.nameFr,
       prizeNameEn: prizes.nameEn,
+      scratchedAt: tickets.scratchedAt,
     })
     .from(orders)
     .innerJoin(events, eq(orders.eventId, events.id))
@@ -191,6 +192,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
             prizeRank: number | null;
             prizeNameFr: string | null;
             prizeNameEn: string | null;
+            scratchedAt: Date | null;
           }[];
         }
       >;
@@ -229,6 +231,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       prizeRank: row.prizeRank,
       prizeNameFr: row.prizeNameFr,
       prizeNameEn: row.prizeNameEn,
+      scratchedAt: row.scratchedAt,
     });
   }
 
@@ -243,6 +246,10 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       orders: [...event.orders.values()].map((order) => ({
         ...order,
         createdAt: order.createdAt.toISOString(),
+        tickets: order.tickets.map((ticket) => ({
+          ...ticket,
+          scratchedAt: ticket.scratchedAt?.toISOString() ?? null,
+        })),
       })),
     })),
   });
