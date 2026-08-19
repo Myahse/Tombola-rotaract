@@ -7,6 +7,10 @@ export function logoUrl() {
   return siteUrl("/logo.png");
 }
 
+export function campaignImageUrl(id: string) {
+  return apiPublicUrl(`/api/campaign-images/${encodeURIComponent(id)}`);
+}
+
 export function wrapEmail(options: {
   preheader: string;
   heading: string;
@@ -84,16 +88,45 @@ export function escapeHtml(value: string) {
 }
 
 export function siteUrl(path = "") {
-  const fallback = process.env.NODE_ENV === "production" ? "https://tombola.rotaractiugb.com" : "http://localhost:5173";
-  let base = (process.env.PUBLIC_SITE_URL ?? fallback).trim().replace(/\/$/, "");
+  return publicOrigin(path, {
+    env: process.env.PUBLIC_SITE_URL,
+    production: "https://tombola.rotaractiugb.com",
+    local: "http://localhost:5173",
+    allowed: (host) =>
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "rotaractiugb.com" ||
+      host.endsWith(".rotaractiugb.com"),
+  });
+}
+
+export function apiPublicUrl(path = "") {
+  return publicOrigin(path, {
+    env: process.env.PUBLIC_API_URL,
+    production: "https://api.rotaractiugb.com",
+    local: "http://localhost:3001",
+    allowed: (host) =>
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "api.rotaractiugb.com" ||
+      host === "tombola-rotaract.onrender.com",
+  });
+}
+
+function publicOrigin(
+  path: string,
+  options: {
+    env: string | undefined;
+    production: string;
+    local: string;
+    allowed: (host: string) => boolean;
+  },
+) {
+  const fallback = process.env.NODE_ENV === "production" ? options.production : options.local;
+  let base = (options.env ?? fallback).trim().replace(/\/$/, "");
   try {
     const parsed = new URL(base);
-    const allowed =
-      parsed.hostname === "localhost" ||
-      parsed.hostname === "127.0.0.1" ||
-      parsed.hostname === "rotaractiugb.com" ||
-      parsed.hostname.endsWith(".rotaractiugb.com");
-    if (!allowed || (process.env.NODE_ENV === "production" && parsed.protocol !== "https:")) {
+    if (!options.allowed(parsed.hostname) || (process.env.NODE_ENV === "production" && parsed.protocol !== "https:")) {
       base = fallback;
     } else {
       base = parsed.origin;

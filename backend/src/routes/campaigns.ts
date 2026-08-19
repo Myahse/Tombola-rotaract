@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { campaignAttachments, campaignRecipients, campaigns, members, orders } from "../db/schema.js";
 import { campaignEmail } from "../emails/campaign.js";
+import { campaignImageUrl } from "../emails/layout.js";
 import { requireAdmin } from "../lib/auth.js";
 import { isBrevoConfigured, sendBrevoEmail, type EmailAttachment } from "../lib/brevo.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
@@ -150,11 +151,18 @@ async function attachmentsFor(campaignId: string) {
 }
 
 function brevoAttachments(files: typeof campaignAttachments.$inferSelect[]): EmailAttachment[] {
-  return files.map((file) => ({
-    name: file.filename,
-    content: file.content,
-    ...(file.inline ? { contentId: file.id } : {}),
-  }));
+  return files
+    .filter((file) => !file.inline)
+    .map((file) => ({
+      name: file.filename,
+      content: file.content,
+    }));
+}
+
+function inlineImageRefs(files: typeof campaignAttachments.$inferSelect[]) {
+  return files
+    .filter((file) => file.inline)
+    .map((file) => ({ url: campaignImageUrl(file.id), filename: file.filename }));
 }
 
 campaignRouter.get("/meta", async (_req, res) => {
@@ -238,15 +246,12 @@ campaignRouter.post("/preview-html", async (req, res) => {
     body: data.body,
     ctaLabel: data.ctaLabel,
     ctaUrl: data.ctaUrl,
-    inlineImages: files.filter((file) => file.inline).map((file) => ({
-      contentId: file.id,
-      filename: file.filename,
-    })),
+    inlineImages: inlineImageRefs(files),
   });
   let html = message.html;
   for (const file of files.filter((item) => item.inline)) {
     html = html.replaceAll(
-      `cid:${file.id}`,
+      campaignImageUrl(file.id),
       `data:${file.mimeType};base64,${file.content}`,
     );
   }
@@ -527,7 +532,7 @@ campaignRouter.post("/:id/test", async (req, res) => {
     body: campaign.body,
     ctaLabel: campaign.ctaLabel,
     ctaUrl: campaign.ctaUrl,
-    inlineImages: files.filter((file) => file.inline).map((file) => ({ contentId: file.id, filename: file.filename })),
+    inlineImages: inlineImageRefs(files),
   });
   await sendBrevoEmail({
     to: { email, name: "Test" },
@@ -607,9 +612,7 @@ async function runSend(campaignId: string) {
     .from(campaignRecipients)
     .where(eq(campaignRecipients.campaignId, campaignId));
   const attachments = brevoAttachments(files);
-  const inlineImages = files
-    .filter((file) => file.inline)
-    .map((file) => ({ contentId: file.id, filename: file.filename }));
+  const inlineImages = inlineImageRefs(files);
 
   let sentCount = 0;
   let failedCount = 0;

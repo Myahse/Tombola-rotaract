@@ -56,7 +56,7 @@
     "tokenName": "Full name",
     "tokenEmail": "Email",
     "images": "Images",
-    "imagesHelp": "JPEG, PNG, WebP or GIF. They are resized, then shown in the email and attached.",
+    "imagesHelp": "JPEG, PNG, WebP or GIF. They are resized, then shown in the email itself. They are not sent as a download.",
     "addImage": "Add images",
     "remove": "Remove",
     "inline": "In the email",

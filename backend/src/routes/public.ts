@@ -2,7 +2,7 @@ import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
+import { campaignAttachments, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.js";
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
 import { broadcast } from "../lib/realtime.js";
@@ -26,6 +26,32 @@ publicRouter.get("/event/current", async (_req, res) => {
 
 publicRouter.get("/payments", (_req, res) => {
   res.json({ wavePayUrl: wavePayUrl() });
+});
+
+publicRouter.get("/campaign-images/:id", async (req, res) => {
+  const parsed = z.string().uuid().safeParse(req.params.id);
+  if (!parsed.success) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const [file] = await db
+    .select({
+      content: campaignAttachments.content,
+      mimeType: campaignAttachments.mimeType,
+      filename: campaignAttachments.filename,
+    })
+    .from(campaignAttachments)
+    .where(eq(campaignAttachments.id, parsed.data))
+    .limit(1);
+  if (!file) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  const buffer = Buffer.from(file.content, "base64");
+  res.setHeader("Content-Type", file.mimeType);
+  res.setHeader("Content-Disposition", `inline; filename="${file.filename.replace(/"/g, "")}"`);
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(buffer);
 });
 
 publicRouter.get("/event/current/results", async (_req, res) => {
