@@ -4,7 +4,6 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { members, refreshTokens } from "../db/schema.js";
 import { hashPassword, verifyPassword } from "./passwords.js";
-import { blacklistAccessJti, isAccessJtiBlacklisted } from "./redis.js";
 
 const ADMIN_ACCESS_COOKIE = "tombola_session";
 const ADMIN_REFRESH_COOKIE = "tombola_admin_refresh";
@@ -13,6 +12,22 @@ const MEMBER_REFRESH_COOKIE = "tombola_refresh";
 const LEGACY_MEMBER_COOKIE = "tombola_member";
 const ACCESS_MS = 15 * 60 * 1000;
 const REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
+const revokedAccess = new Map<string, number>();
+
+function blacklistAccessJti(jti: string, expMs: number) {
+  if (!jti) return;
+  revokedAccess.set(jti, Math.max(expMs, Date.now() + 1000));
+}
+
+function isAccessJtiBlacklisted(jti: string) {
+  const until = revokedAccess.get(jti);
+  if (!until) return false;
+  if (until <= Date.now()) {
+    revokedAccess.delete(jti);
+    return false;
+  }
+  return true;
+}
 
 type AccessPayload = {
   typ: "access";
@@ -240,7 +255,7 @@ async function rotateRefresh(raw: string, role: "member" | "admin") {
 
 async function accessStillValid(data: AccessPayload) {
   if (data.exp <= Date.now()) return false;
-  if (await isAccessJtiBlacklisted(data.jti)) return false;
+  if (isAccessJtiBlacklisted(data.jti)) return false;
   if (data.role === "admin") return data.stamp === adminStamp();
   if (data.role !== "member" || !data.sub || typeof data.tv !== "number") return false;
   const [member] = await db
@@ -266,7 +281,7 @@ export async function resolveMemberId(req: Request, res?: Response): Promise<str
     clearAuthCookies(res, "member");
     return null;
   }
-  if (access?.jti) await blacklistAccessJti(access.jti, access.exp);
+  if (access?.jti) blacklistAccessJti(access.jti, access.exp);
   const [member] = await db
     .select({ id: members.id, tokenVersion: members.tokenVersion })
     .from(members)
@@ -304,7 +319,7 @@ async function resolveAdmin(req: Request, res?: Response): Promise<boolean> {
     clearAuthCookies(res, "admin");
     return false;
   }
-  if (access?.jti) await blacklistAccessJti(access.jti, access.exp);
+  if (access?.jti) blacklistAccessJti(access.jti, access.exp);
   const jti = randomUUID();
   const exp = Date.now() + ACCESS_MS;
   setAccessCookie(
@@ -335,7 +350,7 @@ export async function hasAdminSessionFromCookieHeader(cookieHeader: string | und
 
 export async function revokeMemberAuth(req: Request, res: Response) {
   const access = readAccess(req.cookies?.[MEMBER_ACCESS_COOKIE] as string | undefined);
-  if (access?.jti) await blacklistAccessJti(access.jti, access.exp);
+  if (access?.jti) blacklistAccessJti(access.jti, access.exp);
   const refreshRaw = req.cookies?.[MEMBER_REFRESH_COOKIE] as string | undefined;
   if (refreshRaw) {
     await db
@@ -348,7 +363,7 @@ export async function revokeMemberAuth(req: Request, res: Response) {
 
 export async function revokeAdminAuth(req: Request, res: Response) {
   const access = readAccess(req.cookies?.[ADMIN_ACCESS_COOKIE] as string | undefined);
-  if (access?.jti) await blacklistAccessJti(access.jti, access.exp);
+  if (access?.jti) blacklistAccessJti(access.jti, access.exp);
   const refreshRaw = req.cookies?.[ADMIN_REFRESH_COOKIE] as string | undefined;
   if (refreshRaw) {
     await db
