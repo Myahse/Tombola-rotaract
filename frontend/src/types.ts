@@ -80,6 +80,7 @@ export type Member = {
   avatarUrl?: string | null;
   clubName?: string | null;
   clubRole?: string | null;
+  emailVerified?: boolean;
 };
 
 export type MemberOrder = {

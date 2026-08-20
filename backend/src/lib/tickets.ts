@@ -1,9 +1,17 @@
 import { randomInt } from "node:crypto";
-import { and, asc, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { prizes, tickets } from "../db/schema.js";
+import { orders, prizes, tickets } from "../db/schema.js";
 
 type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export async function heldSeatCount(tx: DbTx | typeof db, eventId: string) {
+  const [row] = await tx
+    .select({ n: sql<number>`coalesce(sum(${orders.quantity}), 0)` })
+    .from(orders)
+    .where(and(eq(orders.eventId, eventId), ne(orders.status, "cancelled")));
+  return Number(row?.n ?? 0);
+}
 
 export function shuffle<T>(items: T[]): T[] {
   const arr = [...items];

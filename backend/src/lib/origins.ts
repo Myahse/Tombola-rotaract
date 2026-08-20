@@ -5,7 +5,7 @@ const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localh
   .map((value) => value.trim())
   .filter(Boolean);
 
-const vercelPreviewHosts = new Set([
+const extraHosts = new Set([
   "rotaract-tombola.vercel.app",
   "rotaract-organisateurs.vercel.app",
   "rotaract-campagnes.vercel.app",
@@ -17,8 +17,7 @@ export function isAllowedOrigin(origin: string | undefined) {
   try {
     const url = new URL(origin);
     if (url.protocol !== "https:" && url.protocol !== "http:") return false;
-    if (url.hostname === "rotaractiugb.com" || url.hostname.endsWith(".rotaractiugb.com")) return true;
-    if (vercelPreviewHosts.has(url.hostname)) return true;
+    if (extraHosts.has(url.hostname)) return true;
     if (!isProd && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) return true;
   } catch {
     return false;

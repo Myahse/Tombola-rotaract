@@ -115,6 +115,33 @@ export async function ensureSchema() {
     )
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS donations_created_idx ON donations (created_at DESC)`);
+  await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS email_verified_at timestamptz`);
+  await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 0`);
+  await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 0`);
+  await client.unsafe(`UPDATE members SET email_verified_at = created_at WHERE email_verified_at IS NULL`);
+  await client.unsafe(`UPDATE members SET token_version = session_version WHERE token_version = 0 AND session_version > 0`);
+  await client.unsafe(`ALTER TABLE password_resets ADD COLUMN IF NOT EXISTS purpose text NOT NULL DEFAULT 'reset'`);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      key text PRIMARY KEY,
+      count integer NOT NULL,
+      reset_at timestamptz NOT NULL
+    )
+  `);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS refresh_tokens (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      member_id uuid REFERENCES members(id) ON DELETE CASCADE,
+      role text NOT NULL DEFAULT 'member',
+      token_hash text NOT NULL UNIQUE,
+      family_id uuid NOT NULL,
+      expires_at timestamptz NOT NULL,
+      revoked_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS refresh_tokens_member_idx ON refresh_tokens (member_id)`);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS refresh_tokens_family_idx ON refresh_tokens (family_id)`);
 }
 
 export function isUniqueViolation(error: unknown) {

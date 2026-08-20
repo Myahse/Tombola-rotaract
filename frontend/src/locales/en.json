@@ -247,6 +247,8 @@
     "resetTitle": "New password",
     "resetLead": "Choose a password of at least 8 characters.",
     "resetSubmit": "Save the password",
+    "verifyTitle": "Confirm your email",
+    "verifyWait": "Confirming…",
     "termsTitle": "General terms of use, participation and sale of tombolas",
     "termsLegend": "Acceptance",
     "termsLink": "Read the full document",
@@ -273,7 +275,11 @@
     "currentPassword": "Current password (to change it)",
     "newPassword": "New password",
     "emailLocked": "Email is how you log in. It cannot be changed here.",
-    "removePhoto": "Remove photo"
+    "removePhoto": "Remove photo",
+    "verifyTitle": "Confirm your email",
+    "verifyLead": "A link was sent. Confirm the address so gifted tickets can attach to this account.",
+    "verifyResend": "Resend the link",
+    "verifySent": "Link sent again. Check your inbox."
   },
   "pwa": {
     "installTitle": "Install the app",

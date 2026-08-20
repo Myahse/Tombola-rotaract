@@ -17,7 +17,7 @@ export function attachRealtime(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
   wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
-    if (!isAllowedOrigin(req.headers.origin)) {
+    if (!req.headers.origin || !isAllowedOrigin(req.headers.origin)) {
       socket.close(1008, "origin_not_allowed");
       return;
     }
@@ -25,21 +25,23 @@ export function attachRealtime(server: Server) {
     clients.add(client);
 
     socket.on("message", (raw) => {
-      try {
-        const data = JSON.parse(String(raw)) as RealtimeMessage;
-        if (data.type !== "hello") return;
-        if (data.role === "organizer") {
-          if (hasAdminSessionFromCookieHeader(req.headers.cookie)) {
-            client.role = "organizer";
+      void (async () => {
+        try {
+          const data = JSON.parse(String(raw)) as RealtimeMessage;
+          if (data.type !== "hello") return;
+          if (data.role === "organizer") {
+            if (await hasAdminSessionFromCookieHeader(req.headers.cookie)) {
+              client.role = "organizer";
+            }
+            return;
           }
-          return;
+          if (data.role === "public") {
+            client.role = "public";
+          }
+        } catch {
+          // ignore malformed frames
         }
-        if (data.role === "public") {
-          client.role = "public";
-        }
-      } catch {
-        // ignore malformed frames
-      }
+      })();
     });
 
     socket.on("close", () => {

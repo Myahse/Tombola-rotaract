@@ -2,6 +2,7 @@ import { drawResultsEmail, type DrawResultsEmail } from "../emails/results.js";
 import { purchaseEmail, type PurchaseEmail } from "../emails/purchase.js";
 import { giftTicketsEmail, type GiftTicketsEmail } from "../emails/gift.js";
 import { resetPasswordEmail, type ResetPasswordEmail } from "../emails/reset.js";
+import { verifyEmailMessage, type VerifyEmail } from "../emails/verify.js";
 import { welcomeEmail } from "../emails/welcome.js";
 import { siteUrl } from "../emails/layout.js";
 import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
@@ -65,6 +66,14 @@ export async function notifyPasswordReset(data: ResetPasswordEmail) {
     await send({ email: data.email, name: data.name }, resetPasswordEmail(data));
   } catch (error) {
     console.error(`Password reset email failed for ${data.email}`, error);
+  }
+}
+
+export async function notifyEmailVerify(data: VerifyEmail) {
+  try {
+    await send({ email: data.email, name: data.name }, verifyEmailMessage(data));
+  } catch (error) {
+    console.error(`Verify email failed for ${data.email}`, error);
   }
 }
 

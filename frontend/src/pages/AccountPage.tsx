@@ -38,6 +38,8 @@ export function AccountPage() {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState("");
   const [pushTested, setPushTested] = useState(false);
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifySent, setVerifySent] = useState(false);
 
   useEffect(() => {
     if (!member) return;
@@ -174,6 +176,30 @@ export function AccountPage() {
           {t("account.hello", { name: member.name })} {t("account.lede")}
         </p>
       </div>
+      {!member.emailVerified ? (
+        <article className="account-card">
+          <h2>{t("account.verifyTitle")}</h2>
+          <p className="field-hint" style={{ margin: 0 }}>
+            {t("account.verifyLead")}
+          </p>
+          {verifySent ? <p className="field-ok">{t("account.verifySent")}</p> : null}
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={verifyBusy}
+            onClick={() => {
+              setVerifyBusy(true);
+              api
+                .resendVerifyEmail()
+                .then(() => setVerifySent(true))
+                .catch(() => setProfileError(t("errors.generic")))
+                .finally(() => setVerifyBusy(false));
+            }}
+          >
+            {verifyBusy ? t("auth.submitting") : t("account.verifyResend")}
+          </button>
+        </article>
+      ) : null}
 
       {pushSupported() && pushConfigured ? (
         <article className="account-card account-profile">

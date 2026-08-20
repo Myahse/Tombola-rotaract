@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { safeNextPath } from "../safeNext";
 
 export function LoginPage() {
   const { t } = useTranslation();
@@ -13,11 +14,11 @@ export function LoginPage() {
   const { member, loading, refresh } = useAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const next = params.get("next") || `/${lang}/account`;
+  const next = safeNextPath(params.get("next"), lang);
 
   if (loading) return <PageSkeleton kind="auth" />;
   if (member) {
-    return <Navigate to={next.startsWith("/") ? next : `/${lang}/account`} replace />;
+    return <Navigate to={next} replace />;
   }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -31,7 +32,7 @@ export function LoginPage() {
         password: String(form.get("password") ?? ""),
       });
       await refresh();
-      navigate(next.startsWith("/") ? next : `/${lang}/account`, { replace: true });
+      navigate(next, { replace: true });
     } catch (err) {
       setError(err instanceof Error && err.message === "invalid_credentials" ? t("errors.invalidCredentials") : t("errors.generic"));
     } finally {

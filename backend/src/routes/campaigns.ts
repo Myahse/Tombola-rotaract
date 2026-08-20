@@ -82,9 +82,20 @@ async function resolveAudience(input: {
       .select({ email: orders.buyerEmail, name: orders.buyerName })
       .from(orders)
       .where(eq(orders.status, "paid"));
+    const opted = input.optedInOnly
+      ? new Set(
+          (
+            await db
+              .select({ email: members.email })
+              .from(members)
+              .where(isNotNull(members.emailsAcceptedAt))
+          ).map((row) => row.email.trim().toLowerCase()),
+        )
+      : null;
     for (const row of rows) {
       const email = row.email.trim().toLowerCase();
       if (!EMAIL_RE.test(email) || map.has(email)) continue;
+      if (opted && !opted.has(email)) continue;
       map.set(email, { email, name: row.name, source: "buyer" });
     }
   }
@@ -502,7 +513,7 @@ campaignRouter.delete("/:id/attachments/:attachmentId", async (req, res) => {
 });
 
 campaignRouter.post("/:id/test", async (req, res) => {
-  if (!allowRequest(`campaign-test:${clientKey(req)}`, 20, 60 * 60 * 1000)) {
+  if (!(await allowRequest(`campaign-test:${clientKey(req)}`, 20, 60 * 60 * 1000))) {
     res.status(429).json({ error: "rate_limited" });
     return;
   }
@@ -545,7 +556,7 @@ campaignRouter.post("/:id/test", async (req, res) => {
 });
 
 campaignRouter.post("/:id/send", async (req, res) => {
-  if (!allowRequest(`campaign-send:${clientKey(req)}`, 8, 60 * 60 * 1000)) {
+  if (!(await allowRequest(`campaign-send:${clientKey(req)}`, 8, 60 * 60 * 1000))) {
     res.status(429).json({ error: "rate_limited" });
     return;
   }

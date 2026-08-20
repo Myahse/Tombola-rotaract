@@ -82,6 +82,9 @@ export const api = {
     request<{ ok: boolean }>("/api/auth/forgot", { method: "POST", body: JSON.stringify({ email }) }),
   resetPassword: (body: { token: string; password: string }) =>
     request<{ member: Member }>("/api/auth/reset", { method: "POST", body: JSON.stringify(body) }),
+  verifyEmail: (token: string) =>
+    request<{ member: Member }>("/api/auth/verify", { method: "POST", body: JSON.stringify({ token }) }),
+  resendVerifyEmail: () => request<{ ok: boolean; already?: boolean }>("/api/auth/verify/resend", { method: "POST" }),
   updateProfile: (body: {
     name: string;
     phone: string;

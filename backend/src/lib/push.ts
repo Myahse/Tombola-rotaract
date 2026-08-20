@@ -61,6 +61,28 @@ export function pushConfigured() {
   return Boolean(loadVapid());
 }
 
+export function isAllowedPushEndpoint(raw: string) {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    const allowed = [
+      "fcm.googleapis.com",
+      "android.googleapis.com",
+      "updates.push.services.mozilla.com",
+      "updates-autopush.stage.mozaws.net",
+      "web.push.apple.com",
+      "push.apple.com",
+    ];
+    if (allowed.some((item) => host === item || host.endsWith(`.${item}`))) return true;
+    if (host.endsWith(".notify.windows.com") || host === "notify.windows.com") return true;
+    if (host.endsWith(".push.services.mozilla.com")) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function goneStatus(error: unknown) {
   const status = (error as { statusCode?: number }).statusCode;
   return status === 404 || status === 410;
@@ -70,6 +92,10 @@ async function sendToRow(
   row: typeof pushSubscriptions.$inferSelect,
   payload: PushPayload,
 ) {
+  if (!isAllowedPushEndpoint(row.endpoint)) {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, row.id));
+    return;
+  }
   try {
     await webpush.sendNotification(
       {

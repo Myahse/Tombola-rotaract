@@ -26,6 +26,7 @@
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
     "postgres": "^3.4.9",
+    "redis": "^6.2.1",
     "tsx": "^4.23.12",
     "typescript": "~5.8.3",
     "web-push": "^3.6.7",

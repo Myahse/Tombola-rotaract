@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { pushSubscriptions } from "../db/schema.js";
 import { requireMember, type MemberRequest } from "../lib/auth.js";
-import { getVapidPublicKey, pushConfigured, sendPushToMember } from "../lib/push.js";
+import { getVapidPublicKey, isAllowedPushEndpoint, pushConfigured, sendPushToMember } from "../lib/push.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
 export const pushRouter = Router();
@@ -41,7 +41,7 @@ pushRouter.get("/push/status", requireMember, async (req, res) => {
 });
 
 pushRouter.post("/push/subscribe", requireMember, async (req, res) => {
-  if (!allowRequest(`push-sub:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`push-sub:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -50,7 +50,7 @@ pushRouter.post("/push/subscribe", requireMember, async (req, res) => {
     return;
   }
   const parsed = subscriptionSchema.safeParse(req.body);
-  if (!parsed.success) {
+  if (!parsed.success || !isAllowedPushEndpoint(parsed.data.endpoint)) {
     res.status(400).json({ error: "invalid_form" });
     return;
   }
@@ -58,16 +58,36 @@ pushRouter.post("/push/subscribe", requireMember, async (req, res) => {
   const agent = String(req.headers["user-agent"] ?? "").slice(0, 240);
   const now = new Date();
 
-  await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, parsed.data.endpoint));
-  await db.insert(pushSubscriptions).values({
-    memberId,
-    endpoint: parsed.data.endpoint,
-    p256dh: parsed.data.keys.p256dh,
-    auth: parsed.data.keys.auth,
-    userAgent: agent || null,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const [existing] = await db
+    .select({ id: pushSubscriptions.id, memberId: pushSubscriptions.memberId })
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.endpoint, parsed.data.endpoint))
+    .limit(1);
+  if (existing && existing.memberId !== memberId) {
+    res.status(409).json({ error: "endpoint_taken" });
+    return;
+  }
+  if (existing) {
+    await db
+      .update(pushSubscriptions)
+      .set({
+        p256dh: parsed.data.keys.p256dh,
+        auth: parsed.data.keys.auth,
+        userAgent: agent || null,
+        updatedAt: now,
+      })
+      .where(eq(pushSubscriptions.id, existing.id));
+  } else {
+    await db.insert(pushSubscriptions).values({
+      memberId,
+      endpoint: parsed.data.endpoint,
+      p256dh: parsed.data.keys.p256dh,
+      auth: parsed.data.keys.auth,
+      userAgent: agent || null,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
   res.json({ ok: true });
 });
 
@@ -91,7 +111,7 @@ pushRouter.delete("/push/subscribe", requireMember, async (req, res) => {
 });
 
 pushRouter.post("/push/test", requireMember, async (req, res) => {
-  if (!allowRequest(`push-test:${clientKey(req)}`, 8, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`push-test:${clientKey(req)}`, 8, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }

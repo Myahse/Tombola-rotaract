@@ -1,19 +1,22 @@
-import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db, isUniqueViolation } from "../db/index.js";
 import { events, members, orders, passwordResets, prizes, tickets } from "../db/schema.js";
 import {
+  bumpMemberTokenVersion,
   clearMemberSession,
   hashToken,
+  issueMemberAuth,
   newAccessToken,
-  optionalMemberId,
   requireMember,
-  setMemberSession,
+  resolveMemberId,
+  revokeAllRefresh,
+  revokeMemberAuth,
   type MemberRequest,
 } from "../lib/auth.js";
 import { hashPassword, verifyPassword } from "../lib/passwords.js";
-import { notifyMemberRegistered, notifyPasswordReset } from "../lib/mail.js";
+import { notifyEmailVerify, notifyMemberRegistered, notifyPasswordReset } from "../lib/mail.js";
 import { parseAvatar } from "../lib/avatar.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
@@ -77,18 +80,44 @@ function publicMember(row: typeof members.$inferSelect) {
     avatarUrl: row.avatarUrl,
     clubName: row.clubName,
     clubRole: row.clubRole,
+    emailVerified: Boolean(row.emailVerifiedAt),
   };
 }
 
-async function claimGuestOrders(member: { id: string; name: string; email: string; phone: string | null }) {
+async function claimGuestOrders(member: {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  emailVerifiedAt: Date | null;
+}) {
+  if (!member.emailVerifiedAt) return;
   await db
     .update(orders)
     .set({ memberId: member.id, buyerName: member.name, buyerPhone: member.phone })
     .where(and(eq(orders.buyerEmail, member.email), isNull(orders.memberId)));
 }
 
+async function sendVerifyLink(member: { id: string; name: string; email: string }) {
+  const token = newAccessToken();
+  await db
+    .delete(passwordResets)
+    .where(and(eq(passwordResets.memberId, member.id), eq(passwordResets.purpose, "verify")));
+  await db.insert(passwordResets).values({
+    memberId: member.id,
+    tokenHash: hashToken(token),
+    purpose: "verify",
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  });
+  void notifyEmailVerify({
+    name: member.name,
+    email: member.email,
+    verifyUrl: siteUrl(`/fr/verify?token=${encodeURIComponent(token)}`),
+  });
+}
+
 authRouter.post("/auth/register", async (req, res) => {
-  if (!allowRequest(`register:${clientKey(req)}`, 8, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`register:${clientKey(req)}`, 8, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -139,14 +168,14 @@ authRouter.post("/auth/register", async (req, res) => {
     return;
   }
 
-  await claimGuestOrders(member);
-  setMemberSession(res, member.id);
+  await sendVerifyLink(member);
+  await issueMemberAuth(res, member.id, member.tokenVersion);
   res.status(201).json({ member: publicMember(member) });
   void notifyMemberRegistered({ name: member.name, email: member.email });
 });
 
 authRouter.post("/auth/login", async (req, res) => {
-  if (!allowRequest(`login:${clientKey(req)}`, 15, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`login:${clientKey(req)}`, 15, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -164,14 +193,14 @@ authRouter.post("/auth/login", async (req, res) => {
   }
 
   await claimGuestOrders(member);
-  setMemberSession(res, member.id);
+  await issueMemberAuth(res, member.id, member.tokenVersion);
   res.json({ member: publicMember(member) });
 });
 
 authRouter.post("/auth/forgot", async (req, res) => {
   if (
-    !allowRequest(`forgot:${clientKey(req)}`, 8, 15 * 60 * 1000) ||
-    !allowRequest(`forgot-email:${String(req.body?.email ?? "").toLowerCase()}`, 3, 60 * 60 * 1000)
+    !(await allowRequest(`forgot:${clientKey(req)}`, 8, 15 * 60 * 1000)) ||
+    !(await allowRequest(`forgot-email:${String(req.body?.email ?? "").toLowerCase()}`, 3, 60 * 60 * 1000))
   ) {
     res.status(429).json({ error: "too_many_requests" });
     return;
@@ -186,10 +215,13 @@ authRouter.post("/auth/forgot", async (req, res) => {
   const [member] = await db.select().from(members).where(eq(members.email, email)).limit(1);
   if (member) {
     const token = newAccessToken();
-    await db.delete(passwordResets).where(eq(passwordResets.memberId, member.id));
+    await db
+      .delete(passwordResets)
+      .where(and(eq(passwordResets.memberId, member.id), eq(passwordResets.purpose, "reset")));
     await db.insert(passwordResets).values({
       memberId: member.id,
       tokenHash: hashToken(token),
+      purpose: "reset",
       expiresAt: new Date(Date.now() + 60 * 60 * 1000),
     });
     void notifyPasswordReset({
@@ -202,7 +234,7 @@ authRouter.post("/auth/forgot", async (req, res) => {
 });
 
 authRouter.post("/auth/reset", async (req, res) => {
-  if (!allowRequest(`reset:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`reset:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -215,7 +247,7 @@ authRouter.post("/auth/reset", async (req, res) => {
   const [reset] = await db
     .select()
     .from(passwordResets)
-    .where(eq(passwordResets.tokenHash, hashToken(parsed.data.token)))
+    .where(and(eq(passwordResets.tokenHash, hashToken(parsed.data.token)), eq(passwordResets.purpose, "reset")))
     .limit(1);
   if (!reset || reset.expiresAt.getTime() <= Date.now()) {
     if (reset) await db.delete(passwordResets).where(eq(passwordResets.id, reset.id));
@@ -225,7 +257,11 @@ authRouter.post("/auth/reset", async (req, res) => {
 
   const [member] = await db
     .update(members)
-    .set({ passwordHash: await hashPassword(parsed.data.password) })
+    .set({
+      passwordHash: await hashPassword(parsed.data.password),
+      emailVerifiedAt: new Date(),
+      tokenVersion: sql`${members.tokenVersion} + 1`,
+    })
     .where(eq(members.id, reset.memberId))
     .returning();
   await db.delete(passwordResets).where(eq(passwordResets.memberId, reset.memberId));
@@ -234,12 +270,14 @@ authRouter.post("/auth/reset", async (req, res) => {
     return;
   }
 
-  setMemberSession(res, member.id);
+  await claimGuestOrders(member);
+  await revokeAllRefresh({ memberId: member.id });
+  await issueMemberAuth(res, member.id, member.tokenVersion);
   res.json({ member: publicMember(member) });
 });
 
 authRouter.patch("/auth/me", requireMember, async (req, res) => {
-  if (!allowRequest(`profile:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`profile:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -282,16 +320,32 @@ authRouter.patch("/auth/me", requireMember, async (req, res) => {
     res.status(500).json({ error: "server_error" });
     return;
   }
+  if (parsed.data.password) {
+    const tokenVersion = await bumpMemberTokenVersion(updated.id);
+    await issueMemberAuth(res, updated.id, tokenVersion);
+    const [fresh] = await db.select().from(members).where(eq(members.id, updated.id)).limit(1);
+    res.json({ member: publicMember(fresh ?? updated) });
+    return;
+  }
   res.json({ member: publicMember(updated) });
 });
 
-authRouter.post("/auth/logout", (_req, res) => {
-  clearMemberSession(res);
+authRouter.post("/auth/logout", async (req, res) => {
+  await revokeMemberAuth(req, res);
+  res.json({ ok: true });
+});
+
+authRouter.post("/auth/refresh", async (req, res) => {
+  const memberId = await resolveMemberId(req, res);
+  if (!memberId) {
+    res.status(401).json({ error: "login_required" });
+    return;
+  }
   res.json({ ok: true });
 });
 
 authRouter.get("/auth/me", async (req, res) => {
-  const memberId = optionalMemberId(req);
+  const memberId = await resolveMemberId(req, res);
   if (!memberId) {
     res.status(401).json({ error: "login_required" });
     return;
@@ -303,6 +357,64 @@ authRouter.get("/auth/me", async (req, res) => {
     return;
   }
   res.json({ member: publicMember(member) });
+});
+
+const verifySchema = z.object({
+  token: z.string().trim().regex(/^[A-Za-z0-9_-]{16,64}$/),
+});
+
+authRouter.post("/auth/verify", async (req, res) => {
+  if (!(await allowRequest(`verify:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const parsed = verifySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_token" });
+    return;
+  }
+  const [row] = await db
+    .select()
+    .from(passwordResets)
+    .where(and(eq(passwordResets.tokenHash, hashToken(parsed.data.token)), eq(passwordResets.purpose, "verify")))
+    .limit(1);
+  if (!row || row.expiresAt.getTime() <= Date.now()) {
+    if (row) await db.delete(passwordResets).where(eq(passwordResets.id, row.id));
+    res.status(400).json({ error: "invalid_token" });
+    return;
+  }
+  const [member] = await db
+    .update(members)
+    .set({ emailVerifiedAt: new Date() })
+    .where(eq(members.id, row.memberId))
+    .returning();
+  await db.delete(passwordResets).where(eq(passwordResets.id, row.id));
+  if (!member) {
+    res.status(400).json({ error: "invalid_token" });
+    return;
+  }
+  await claimGuestOrders(member);
+  await issueMemberAuth(res, member.id, member.tokenVersion);
+  res.json({ member: publicMember(member) });
+});
+
+authRouter.post("/auth/verify/resend", requireMember, async (req, res) => {
+  if (!(await allowRequest(`verify-resend:${clientKey(req)}`, 5, 15 * 60 * 1000))) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const memberId = (req as MemberRequest).memberId;
+  const [member] = await db.select().from(members).where(eq(members.id, memberId)).limit(1);
+  if (!member) {
+    res.status(401).json({ error: "login_required" });
+    return;
+  }
+  if (member.emailVerifiedAt) {
+    res.json({ ok: true, already: true });
+    return;
+  }
+  await sendVerifyLink(member);
+  res.json({ ok: true });
 });
 
 authRouter.get("/me/tombolas", requireMember, async (req, res) => {

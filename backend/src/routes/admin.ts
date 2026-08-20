@@ -4,7 +4,7 @@ import type { Request } from "express";
 import { z } from "zod";
 import { db, isUniqueViolation } from "../db/index.js";
 import { donations, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
-import { adminEmailMatches, clearSession, newAccessToken, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
+import { adminEmailMatches, issueAdminAuth, newAccessToken, passwordMatches, requireAdmin, revokeAdminAuth } from "../lib/auth.js";
 import {
   shuffle,
   randomTicketNumbers,
@@ -14,6 +14,7 @@ import {
   attachPrizesToTickets,
   prizeAssignmentsOf,
   prizesAreSealed,
+  heldSeatCount,
 } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
 import { notifyDrawResults, notifyPurchase } from "../lib/mail.js";
@@ -188,15 +189,15 @@ async function statsFor(eventId: string, totalTickets: number) {
     reservedOrders,
     paidTickets,
     reservedTickets,
-    remainingTickets: Math.max(0, totalTickets - paidTickets),
+    remainingTickets: Math.max(0, totalTickets - paidTickets - reservedTickets),
     scratchedTickets: Number(scratched?.n ?? 0),
     prizeCount,
     prizesSealed: prizeCount > 0 && sealedCount === prizeCount,
   };
 }
 
-adminRouter.post("/login", (req, res) => {
-  if (!allowRequest(`admin-login:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+adminRouter.post("/login", async (req, res) => {
+  if (!(await allowRequest(`admin-login:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -206,16 +207,20 @@ adminRouter.post("/login", (req, res) => {
       password: z.string().min(1).max(200),
     })
     .safeParse(req.body);
-  if (!parsed.success || !adminEmailMatches(parsed.data.email) || !passwordMatches(parsed.data.password)) {
+  if (!parsed.success || !adminEmailMatches(parsed.data.email) || !(await passwordMatches(parsed.data.password))) {
     res.status(401).json({ error: "invalid_credentials" });
     return;
   }
-  setSession(res);
+  await issueAdminAuth(res);
   res.json({ ok: true });
 });
 
-adminRouter.post("/logout", (_req, res) => {
-  clearSession(res);
+adminRouter.post("/logout", async (req, res) => {
+  await revokeAdminAuth(req, res);
+  res.json({ ok: true });
+});
+
+adminRouter.post("/refresh", requireAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
@@ -518,6 +523,10 @@ adminRouter.post("/orders/physical", requireAdmin, async (req, res) => {
   try {
     const created = await db.transaction(async (tx) => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${event.id}::text))`);
+      const held = await heldSeatCount(tx, event.id);
+      if (parsed.data.quantity > event.totalTickets - held) {
+        throw Object.assign(new Error("not_enough_tickets"), { status: 409 });
+      }
       const usedRows = await tx
         .select({ number: tickets.number })
         .from(tickets)

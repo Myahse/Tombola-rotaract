@@ -1,6 +1,6 @@
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { events, orders, prizes, tickets } from "../db/schema.js";
+import { events, orders, prizes } from "../db/schema.js";
 import { broadcast } from "./realtime.js";
 import { drawModeOf } from "./tickets.js";
 
@@ -18,13 +18,22 @@ export async function getCurrentPublicEvent() {
 }
 
 async function ticketStats(eventId: string) {
-  const [paidRow] = await db
-    .select({ tickets: count(tickets.id) })
-    .from(tickets)
-    .innerJoin(orders, eq(tickets.orderId, orders.id))
-    .where(and(eq(tickets.eventId, eventId), eq(orders.status, "paid")));
-  const paid = Number(paidRow?.tickets ?? 0);
-  return { paid, reserved: 0, held: paid };
+  const rows = await db
+    .select({
+      status: orders.status,
+      n: sql<number>`coalesce(sum(${orders.quantity}), 0)`,
+    })
+    .from(orders)
+    .where(and(eq(orders.eventId, eventId), ne(orders.status, "cancelled")))
+    .groupBy(orders.status);
+  let paid = 0;
+  let reserved = 0;
+  for (const row of rows) {
+    const n = Number(row.n ?? 0);
+    if (row.status === "paid") paid = n;
+    if (row.status === "reserved") reserved = n;
+  }
+  return { paid, reserved, held: paid + reserved };
 }
 
 export async function publicSnapshot() {

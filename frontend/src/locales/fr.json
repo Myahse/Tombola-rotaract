@@ -247,6 +247,8 @@
     "resetTitle": "Nouveau mot de passe",
     "resetLead": "Choisissez un mot de passe d’au moins 8 caractères.",
     "resetSubmit": "Enregistrer le mot de passe",
+    "verifyTitle": "Confirmez votre e-mail",
+    "verifyWait": "Confirmation en cours…",
     "termsTitle": "Conditions générales d’utilisation, de participation et de vente des tombolas",
     "termsLegend": "Acceptation",
     "termsLink": "Lire le document complet",
@@ -273,7 +275,11 @@
     "currentPassword": "Mot de passe actuel (pour en changer)",
     "newPassword": "Nouveau mot de passe",
     "emailLocked": "L’e-mail sert à vous connecter. Il ne peut pas être modifié ici.",
-    "removePhoto": "Retirer la photo"
+    "removePhoto": "Retirer la photo",
+    "verifyTitle": "Confirmez votre e-mail",
+    "verifyLead": "Un lien a été envoyé. Confirmez l’adresse pour rattacher les tickets offerts à ce compte.",
+    "verifyResend": "Renvoyer le lien",
+    "verifySent": "Lien renvoyé. Vérifiez votre boîte mail."
   },
   "pwa": {
     "installTitle": "Installer l’app",

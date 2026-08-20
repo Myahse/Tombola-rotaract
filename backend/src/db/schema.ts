@@ -19,6 +19,8 @@ export const members = pgTable("members", {
   emailsAcceptedAt: timestamp("emails_accepted_at", { withTimezone: true }),
   clubName: text("club_name"),
   clubRole: text("club_role"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  tokenVersion: integer("token_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -28,8 +30,26 @@ export const passwordResets = pgTable("password_resets", {
     .notNull()
     .references(() => members.id, { onDelete: "cascade" }),
   tokenHash: text("token_hash").notNull().unique(),
+  purpose: text("purpose").notNull().default("reset"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  memberId: uuid("member_id").references(() => members.id, { onDelete: "cascade" }),
+  role: text("role").notNull().default("member"),
+  tokenHash: text("token_hash").notNull().unique(),
+  familyId: uuid("family_id").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });
 
 export const events = pgTable("events", {

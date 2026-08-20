@@ -5,6 +5,7 @@ import { api } from "../api";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
+import { safeNextPath } from "../safeNext";
 
 const ROLE_SUGGESTIONS = [
   "Membre",
@@ -37,11 +38,11 @@ export function RegisterPage() {
   const [clubRole, setClubRole] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [acceptEmails, setAcceptEmails] = useState(false);
-  const next = params.get("next") || `/${lang}/account`;
+  const next = safeNextPath(params.get("next"), lang);
 
   if (loading) return <PageSkeleton kind="register" />;
   if (member) {
-    return <Navigate to={next.startsWith("/") ? next : `/${lang}/account`} replace />;
+    return <Navigate to={next} replace />;
   }
 
   async function onPhoto(file: File | undefined) {
@@ -84,7 +85,7 @@ export function RegisterPage() {
         acceptEmails: true,
       });
       await refresh();
-      navigate(next.startsWith("/") ? next : `/${lang}/account`, { replace: true });
+      navigate(next, { replace: true });
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
       setError(

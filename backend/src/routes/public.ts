@@ -1,18 +1,37 @@
-import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { campaignAttachments, donations, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
-import { newAccessToken, optionalMemberId, requireMember, type MemberRequest } from "../lib/auth.js";
+import { newAccessToken, requireMember, resolveMemberId, type MemberRequest } from "../lib/auth.js";
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
 import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
-import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
+import { drawModeOf, heldSeatCount, maskScratchPrizes } from "../lib/tickets.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 import { notifyGiftTickets } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
 
 export const publicRouter = Router();
+
+type QueryDb = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function ownedOrder(token: string, memberId: string, exec: QueryDb = db) {
+  const [order] = await exec.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
+  if (!order || order.status === "cancelled") return { error: "not_found" as const };
+  if (order.memberId === memberId) return { order };
+  if (order.memberId) return { error: "forbidden" as const };
+  const [member] = await exec.select().from(members).where(eq(members.id, memberId)).limit(1);
+  if (!member || member.email !== order.buyerEmail.trim().toLowerCase()) {
+    return { error: "forbidden" as const };
+  }
+  const [updated] = await exec
+    .update(orders)
+    .set({ memberId: member.id, buyerName: member.name, buyerPhone: member.phone })
+    .where(and(eq(orders.id, order.id), isNull(orders.memberId)))
+    .returning();
+  return { order: updated ?? { ...order, memberId: member.id } };
+}
 
 const buySchema = z.object({
   quantity: z.number().int().min(1).max(20),
@@ -90,7 +109,7 @@ publicRouter.get("/event/current/results", async (_req, res) => {
 });
 
 publicRouter.post("/orders", requireMember, async (req, res) => {
-  if (!allowRequest(`buy:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`buy:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -127,15 +146,10 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
 
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${event.id}::text))`);
 
-      const usedRows = await tx
-        .select({ number: tickets.number })
-        .from(tickets)
-        .innerJoin(orders, eq(tickets.orderId, orders.id))
-        .where(and(eq(tickets.eventId, event.id), ne(orders.status, "cancelled")));
-
-      const remaining = event.totalTickets - usedRows.length;
+      const held = await heldSeatCount(tx, event.id);
+      const remaining = event.totalTickets - held;
       if (parsed.data.quantity > remaining) {
-        throw Object.assign(new Error("not_enough_tickets"), { status: 409, remaining });
+        throw Object.assign(new Error("not_enough_tickets"), { status: 409, remaining: Math.max(0, remaining) });
       }
 
       const token = newAccessToken();
@@ -201,15 +215,12 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
     return;
   }
 
-  const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
-  if (!order || order.status === "cancelled") {
-    res.status(404).json({ error: "not_found" });
+  const loaded = await ownedOrder(token, (req as MemberRequest).memberId);
+  if ("error" in loaded) {
+    res.status(loaded.error === "not_found" ? 404 : 403).json({ error: loaded.error });
     return;
   }
-  if (order.memberId !== (req as MemberRequest).memberId) {
-    res.status(403).json({ error: "forbidden" });
-    return;
-  }
+  const order = loaded.order;
 
   const [event] = await db.select().from(events).where(eq(events.id, order.eventId)).limit(1);
   const orderTickets = await db
@@ -257,7 +268,7 @@ const paymentRefSchema = z.object({
 });
 
 publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) => {
-  if (!allowRequest(`payref:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`payref:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -272,15 +283,12 @@ publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) 
     return;
   }
 
-  const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
-  if (!order || order.status === "cancelled") {
-    res.status(404).json({ error: "not_found" });
+  const loaded = await ownedOrder(token, (req as MemberRequest).memberId);
+  if ("error" in loaded) {
+    res.status(loaded.error === "not_found" ? 404 : 403).json({ error: loaded.error });
     return;
   }
-  if (order.memberId !== (req as MemberRequest).memberId) {
-    res.status(403).json({ error: "forbidden" });
-    return;
-  }
+  const order = loaded.order;
   if (order.paymentMethod !== "wave") {
     res.status(409).json({ error: "not_wave" });
     return;
@@ -306,7 +314,7 @@ publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) 
 });
 
 publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
-  if (!allowRequest(`cancel:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`cancel:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -318,13 +326,11 @@ publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
 
   try {
     const cancelled = await db.transaction(async (tx) => {
-      const [order] = await tx.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
-      if (!order || order.status === "cancelled") {
-        throw Object.assign(new Error("not_found"), { status: 404 });
+      const loaded = await ownedOrder(token, (req as MemberRequest).memberId, tx);
+      if ("error" in loaded) {
+        throw Object.assign(new Error(loaded.error), { status: loaded.error === "not_found" ? 404 : 403 });
       }
-      if (order.memberId !== (req as MemberRequest).memberId) {
-        throw Object.assign(new Error("forbidden"), { status: 403 });
-      }
+      const order = loaded.order;
       if (order.status !== "reserved") {
         throw Object.assign(new Error("already_paid"), { status: 409 });
       }
@@ -363,7 +369,7 @@ const shareSchema = z.object({
 });
 
 publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
-  if (!allowRequest(`share:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`share:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -383,13 +389,11 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
 
   try {
     const gifted = await db.transaction(async (tx) => {
-      const [order] = await tx.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
-      if (!order || order.status === "cancelled") {
-        throw Object.assign(new Error("not_found"), { status: 404 });
+      const loaded = await ownedOrder(token, memberId, tx);
+      if ("error" in loaded) {
+        throw Object.assign(new Error(loaded.error), { status: loaded.error === "not_found" ? 404 : 403 });
       }
-      if (order.memberId !== memberId) {
-        throw Object.assign(new Error("forbidden"), { status: 403 });
-      }
+      const order = loaded.order;
       if (order.status !== "paid") {
         throw Object.assign(new Error("not_paid"), { status: 409 });
       }
@@ -426,6 +430,7 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
       }
 
       const [recipient] = await tx.select().from(members).where(eq(members.email, email)).limit(1);
+      const recipientId = recipient?.emailVerifiedAt ? recipient.id : null;
       const moving = orderTickets.filter((row) => wanted.includes(row.number));
       const all = moving.length === orderTickets.length;
       const giftToken = newAccessToken();
@@ -435,10 +440,10 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
         const [updated] = await tx
           .update(orders)
           .set({
-            memberId: recipient?.id ?? null,
+            memberId: recipientId,
             buyerName: recipient?.name ?? email,
             buyerEmail: email,
-            buyerPhone: recipient?.phone ?? null,
+            buyerPhone: recipientId ? recipient?.phone ?? null : null,
             accessToken: giftToken,
           })
           .where(eq(orders.id, order.id))
@@ -450,10 +455,10 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
           .insert(orders)
           .values({
             eventId: order.eventId,
-            memberId: recipient?.id ?? null,
+            memberId: recipientId,
             buyerName: recipient?.name ?? email,
             buyerEmail: email,
-            buyerPhone: recipient?.phone ?? null,
+            buyerPhone: recipientId ? recipient?.phone ?? null : null,
             quantity: moving.length,
             paymentMethod: order.paymentMethod,
             status: "paid",
@@ -523,7 +528,7 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
 });
 
 publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async (req, res) => {
-  if (!allowRequest(`scratch:${clientKey(req)}`, 40, 60_000)) {
+  if (!(await allowRequest(`scratch:${clientKey(req)}`, 40, 60_000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -534,15 +539,12 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async
     return;
   }
 
-  const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
-  if (!order || order.status === "cancelled") {
-    res.status(404).json({ error: "not_found" });
+  const loaded = await ownedOrder(token, (req as MemberRequest).memberId);
+  if ("error" in loaded) {
+    res.status(loaded.error === "not_found" ? 404 : 403).json({ error: loaded.error });
     return;
   }
-  if (order.memberId !== (req as MemberRequest).memberId) {
-    res.status(403).json({ error: "forbidden" });
-    return;
-  }
+  const order = loaded.order;
   if (order.status !== "paid") {
     res.status(409).json({ error: "not_paid" });
     return;
@@ -615,7 +617,7 @@ const donateSchema = z.object({
 });
 
 publicRouter.post("/donations", async (req, res) => {
-  if (!allowRequest(`donate:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+  if (!(await allowRequest(`donate:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -625,7 +627,7 @@ publicRouter.post("/donations", async (req, res) => {
     return;
   }
 
-  const memberId = optionalMemberId(req);
+  const memberId = await resolveMemberId(req, res);
   let name = parsed.data.name;
   let email = parsed.data.email?.trim() ?? "";
   let phone = parsed.data.phone?.trim() || null;
