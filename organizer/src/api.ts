@@ -54,6 +54,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ status }),
     }),
+  deleteEvent: () => request<{ ok: boolean }>(withEventId("/api/admin/event"), { method: "DELETE" }),
   orders: () => request<{ orders: AdminOrder[] }>(withEventId("/api/admin/orders")),
   addPhysical: (body: { name: string; quantity: number; phone?: string }) =>
     request<{ order: AdminOrder }>(withEventId("/api/admin/orders/physical"), {

@@ -143,7 +143,7 @@
     "noAccount": "Sans compte",
     "currentTombola": "Tombola en cours",
     "physicalTitle": "Tickets physiques",
-    "physicalHelp": "Pour une personne qui n’a pas de compte. Le ticket est vendu tout de suite, avec un nom, et il entre dans le tirage. Il n’apparaît pas dans la billetterie en ligne.",
+    "physicalHelp": "Pour une personne sans compte ou sans connexion. Donnez son nom : le ticket est vendu tout de suite et entre dans le tirage. Possible dès la création, même en brouillon. Ces tickets n’apparaissent pas dans la billetterie en ligne.",
     "physicalCta": "Enregistrer comme vendu",
     "physicalSaving": "Enregistrement…",
     "physicalSaved": "Tickets physiques enregistrés. Ils sont vendus et seront dans le tirage.",
@@ -174,7 +174,13 @@
     "locked": "Cette tombola est terminée.",
     "needPrizes": "Ajoutez au moins un lot avant d’ouvrir les ventes.",
     "noBuyers": "Aucun acheteur pour le moment.",
-    "unpaidCount": "{{count}} en attente"
+    "unpaidCount": "{{count}} en attente",
+    "deleteTombola": "Supprimer cette tombola",
+    "deleteTitle": "Supprimer la tombola",
+    "deleteHelp": "Vous pouvez supprimer une tombola dont les ventes sont closes, ou dont le tirage est fait. Lots, tickets et acheteurs disparaissent avec elle.",
+    "deleteBody": "Supprimer définitivement cette tombola, avec ses lots, tickets et acheteurs ? Cette action est définitive.",
+    "deletedTitle": "Tombola supprimée",
+    "deletedBody": "La tombola a été supprimée."
   },
   "errors": {
     "generic": "Une erreur s’est produite.",
@@ -186,6 +192,7 @@
     "invalidForm": "Vérifiez le titre (2 caractères minimum) et les lots.",
     "apiDown": "L’API n’est pas joignable. Relancez le serveur backend, puis réessayez.",
     "anotherOnSale": "Une autre tombola a encore la billetterie ouverte. Fermez-la avant d’ouvrir celle-ci.",
+    "eventNotFinished": "Vous ne pouvez supprimer qu’une tombola dont les ventes sont closes ou dont le tirage est fait.",
     "activeEvent": "Une tombola est déjà en cours. Modifiez-la, ou terminez-la avant d’en créer une autre."
   },
   "prizeRank": "{{rank, ordinal}} lot"
