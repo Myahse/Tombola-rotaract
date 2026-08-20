@@ -47,6 +47,11 @@ export const api = {
     }),
   cancelMyOrder: (token: string) =>
     request<{ ok: boolean }>(`/api/orders/${encodeURIComponent(token)}/cancel`, { method: "POST" }),
+  donate: (body: { name: string; email?: string; phone?: string; amount: number; paymentRef: string }) =>
+    request<{ id: string; paymentRef: string; status: string }>("/api/donations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   scratch: (token: string, number: number) =>
     request<{
       ok: boolean;

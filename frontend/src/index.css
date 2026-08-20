@@ -605,6 +605,9 @@ a:hover { color: var(--primary); }
   gap: 0.5rem;
   margin-top: 1.25rem;
 }
+.modal-actions.single {
+  grid-template-columns: 1fr;
+}
 
 .pay-options {
   margin: 0;

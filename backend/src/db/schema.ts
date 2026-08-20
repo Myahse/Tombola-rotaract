@@ -181,7 +181,21 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const donations = pgTable("donations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
+  donorName: text("donor_name").notNull(),
+  donorEmail: text("donor_email").notNull().default(""),
+  donorPhone: text("donor_phone"),
+  amountCents: integer("amount_cents").notNull(),
+  paymentMethod: text("payment_method").notNull().default("wave"),
+  paymentRef: text("payment_ref").notNull(),
+  status: text("status").notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  receivedAt: timestamp("received_at", { withTimezone: true }),
+});
 export type MemberRow = typeof members.$inferSelect;
+export type DonationRow = typeof donations.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type PrizeRow = typeof prizes.$inferSelect;
 export type OrderRow = typeof orders.$inferSelect;

@@ -99,6 +99,22 @@ export async function ensureSchema() {
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS push_subscriptions_member_idx ON push_subscriptions (member_id)`);
   await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS events_one_on_sale_idx ON events (status) WHERE status = 'on_sale'`);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS donations (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      member_id uuid REFERENCES members(id) ON DELETE SET NULL,
+      donor_name text NOT NULL,
+      donor_email text NOT NULL DEFAULT '',
+      donor_phone text,
+      amount_cents integer NOT NULL,
+      payment_method text NOT NULL DEFAULT 'wave',
+      payment_ref text NOT NULL,
+      status text NOT NULL DEFAULT 'pending',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      received_at timestamptz
+    )
+  `);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS donations_created_idx ON donations (created_at DESC)`);
 }
 
 export function isUniqueViolation(error: unknown) {

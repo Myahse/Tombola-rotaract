@@ -3,7 +3,7 @@ import { Router } from "express";
 import type { Request } from "express";
 import { z } from "zod";
 import { db, isUniqueViolation } from "../db/index.js";
-import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
+import { donations, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { adminEmailMatches, clearSession, newAccessToken, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
 import {
   shuffle,
@@ -1096,4 +1096,54 @@ adminRouter.get("/scratches", requireAdmin, async (req, res) => {
       prizeNameEn: row.prizeNameEn,
     })),
   });
+});
+
+adminRouter.get("/donations", requireAdmin, async (_req, res) => {
+  const rows = await db.select().from(donations).orderBy(desc(donations.createdAt));
+  res.json({
+    donations: rows.map((row) => ({
+      id: row.id,
+      donorName: row.donorName,
+      donorEmail: row.donorEmail,
+      donorPhone: row.donorPhone,
+      amountCents: row.amountCents,
+      paymentMethod: row.paymentMethod,
+      paymentRef: row.paymentRef,
+      status: row.status,
+      createdAt: row.createdAt.toISOString(),
+      receivedAt: row.receivedAt?.toISOString() ?? null,
+    })),
+  });
+});
+
+adminRouter.post("/donations/:id/received", requireAdmin, async (req, res) => {
+  const id = String(req.params.id ?? "");
+  if (!z.string().uuid().safeParse(id).success) {
+    res.status(400).json({ error: "invalid_id" });
+    return;
+  }
+  const [updated] = await db
+    .update(donations)
+    .set({ status: "received", receivedAt: new Date() })
+    .where(and(eq(donations.id, id), eq(donations.status, "pending")))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  res.json({
+    donation: {
+      id: updated.id,
+      donorName: updated.donorName,
+      donorEmail: updated.donorEmail,
+      donorPhone: updated.donorPhone,
+      amountCents: updated.amountCents,
+      paymentMethod: updated.paymentMethod,
+      paymentRef: updated.paymentRef,
+      status: updated.status,
+      createdAt: updated.createdAt.toISOString(),
+      receivedAt: updated.receivedAt?.toISOString() ?? null,
+    },
+  });
+  void publishChange("order");
 });

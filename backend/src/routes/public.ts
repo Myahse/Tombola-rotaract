@@ -2,8 +2,8 @@ import { and, asc, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { campaignAttachments, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
-import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.js";
+import { campaignAttachments, donations, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
+import { newAccessToken, optionalMemberId, requireMember, type MemberRequest } from "../lib/auth.js";
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
 import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
@@ -593,4 +593,70 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async
     prizeNameFr: prize?.nameFr ?? null,
     prizeNameEn: prize?.nameEn ?? null,
   });
+});
+
+const donateSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  email: z.string().trim().email().max(120).optional().or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .regex(/^[0-9+().\s-]*$/)
+    .optional()
+    .or(z.literal("")),
+  amount: z.number().int().min(100).max(10_000_000),
+  paymentRef: z
+    .string()
+    .trim()
+    .min(4)
+    .max(80)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9 .#/_-]*$/),
+});
+
+publicRouter.post("/donations", async (req, res) => {
+  if (!allowRequest(`donate:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const parsed = donateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+
+  const memberId = optionalMemberId(req);
+  let name = parsed.data.name;
+  let email = parsed.data.email?.trim() ?? "";
+  let phone = parsed.data.phone?.trim() || null;
+  if (memberId) {
+    const [member] = await db.select().from(members).where(eq(members.id, memberId)).limit(1);
+    if (member) {
+      if (!email) email = member.email;
+      if (!phone) phone = member.phone;
+    }
+  }
+
+  const [created] = await db
+    .insert(donations)
+    .values({
+      memberId: memberId || null,
+      donorName: name,
+      donorEmail: email,
+      donorPhone: phone,
+      amountCents: parsed.data.amount,
+      paymentMethod: "wave",
+      paymentRef: parsed.data.paymentRef.trim(),
+      status: "pending",
+    })
+    .returning();
+
+  res.status(201).json({
+    id: created?.id,
+    donorName: created?.donorName,
+    amountCents: created?.amountCents,
+    paymentRef: created?.paymentRef,
+    status: created?.status,
+  });
+  void publishChange("order");
 });

@@ -128,7 +128,15 @@
     "howTitle": "Comment donner",
     "waveCta": "Donner via Wave",
     "waveText": "Ouvrez Wave et payez Doaty Délice, affilié au Rotaract IUGB Club. Choisissez le montant que vous souhaitez offrir.",
-    "cashText": "Vous pouvez aussi remettre un don en espèces à un organisateur du club."
+    "cashText": "Vous pouvez aussi remettre un don en espèces à un organisateur du club.",
+    "refTitle": "Envoyer la référence Wave",
+    "refHelp": "Après le paiement, copiez l’identifiant de transaction dans Wave, indiquez le montant, et envoyez-le au club. L’organisateur le voit dans Dons.",
+    "amount": "Montant donné (F CFA)",
+    "send": "Envoyer la référence",
+    "sending": "Envoi…",
+    "sent": "Référence envoyée. L’organisateur la voit dans Dons.",
+    "invalid": "Vérifiez le nom, le montant et l’identifiant Wave.",
+    "ok": "OK"
   },
   "scratch": {
     "ticket": "Ticket à gratter",

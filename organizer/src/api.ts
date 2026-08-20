@@ -1,5 +1,6 @@
 import { apiUrl } from "./config";
 import type {
+  AdminDonation,
   AdminEvent,
   AdminEventSummary,
   AdminOrder,
@@ -80,6 +81,9 @@ export const api = {
       method: "POST",
     }),
   scratches: () => request<{ scratches: ScratchedTicket[] }>(withEventId("/api/admin/scratches")),
+  donations: () => request<{ donations: AdminDonation[] }>("/api/admin/donations"),
+  markDonationReceived: (id: string) =>
+    request<{ donation: AdminDonation }>(`/api/admin/donations/${encodeURIComponent(id)}/received`, { method: "POST" }),
 };
 
 export function formatMoney(amount: number, currency: string, lang: string) {

@@ -132,3 +132,16 @@ export type AdminOrder = {
   paidAt: string | null;
   numbers: number[];
 };
+
+export type AdminDonation = {
+  id: string;
+  donorName: string;
+  donorEmail: string;
+  donorPhone: string | null;
+  amountCents: number;
+  paymentMethod: string;
+  paymentRef: string;
+  status: "pending" | "received";
+  createdAt: string;
+  receivedAt: string | null;
+};

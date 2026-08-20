@@ -128,7 +128,15 @@
     "howTitle": "How to give",
     "waveCta": "Donate with Wave",
     "waveText": "Open Wave and pay Doaty Délice, affiliated with Rotaract IUGB Club. Choose any amount you wish to give.",
-    "cashText": "You can also give cash to a club organizer."
+    "cashText": "You can also give cash to a club organizer.",
+    "refTitle": "Send the Wave reference",
+    "refHelp": "After paying, copy the transaction ID from Wave, enter the amount, and send it to the club. The organizer sees it under Donations.",
+    "amount": "Amount given (XOF)",
+    "send": "Send the reference",
+    "sending": "Sending…",
+    "sent": "Reference sent. The organizer can see it under Donations.",
+    "invalid": "Check the name, amount, and Wave ID.",
+    "ok": "OK"
   },
   "scratch": {
     "ticket": "Scratch ticket",

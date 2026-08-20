@@ -60,6 +60,7 @@ function OrganizerShell() {
     { to: base, end: true, label: t("admin.dashboardShort") },
     { to: `${base}/tombola`, end: false, label: t("admin.tombola") },
     { to: `${base}/buyers`, end: false, label: t("admin.buyers"), short: t("admin.buyersShort") },
+    { to: `${base}/donations`, end: false, label: t("admin.donations"), short: t("admin.donationsShort") },
     { to: `${base}/qr`, end: false, label: t("admin.qr"), short: t("admin.qrShort") },
     { to: `${base}/draw`, end: false, label: t("admin.draw") },
   ];
@@ -126,7 +127,7 @@ function OrganizerShell() {
         </div>
       </main>
       {loggedIn ? (
-        <nav className="bottom-nav nav-5 show-mobile no-print" aria-label="Mobile">
+        <nav className="bottom-nav nav-6 show-mobile no-print" aria-label="Mobile">
           {navLinks("bottom", true)}
         </nav>
       ) : null}

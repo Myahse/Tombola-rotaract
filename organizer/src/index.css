@@ -759,6 +759,7 @@ a:hover { color: var(--primary); }
 }
 .bottom-nav.nav-4 { grid-template-columns: repeat(4, 1fr); }
 .bottom-nav.nav-5 { grid-template-columns: repeat(5, 1fr); }
+.bottom-nav.nav-6 { grid-template-columns: repeat(6, 1fr); }
 
 .qr-display {
   display: grid;
