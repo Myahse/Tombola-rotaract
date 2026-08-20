@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, formatMoney } from "../../api";
@@ -7,7 +7,7 @@ import type { AdminEvent, AdminOrder } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
 import { PageSkeleton } from "../../components/PageSkeleton";
 import { ConfirmModal } from "../../components/ConfirmModal";
-import { NoticeModal } from "../../components/NoticeModal";
+import { PhysicalTicketsForm } from "../../components/PhysicalTicketsForm";
 import { useOrganizerEvent } from "../../eventContext";
 
 type PendingAction = { type: "paid" | "unpaid" | "cancel"; order: AdminOrder } | null;
@@ -21,11 +21,6 @@ export function BuyersPage() {
   const [ready, setReady] = useState(false);
   const [pending, setPending] = useState<PendingAction>(null);
   const [error, setError] = useState("");
-  const [physicalName, setPhysicalName] = useState("");
-  const [physicalPhone, setPhysicalPhone] = useState("");
-  const [physicalQty, setPhysicalQty] = useState(1);
-  const [physicalBusy, setPhysicalBusy] = useState(false);
-  const [physicalNotice, setPhysicalNotice] = useState("");
   const tick = useLiveTick();
   const { eventId } = useOrganizerEvent();
 
@@ -72,35 +67,6 @@ export function BuyersPage() {
       setPending(null);
     } finally {
       setBusyId(null);
-    }
-  }
-
-  async function addPhysical(e: FormEvent) {
-    e.preventDefault();
-    setPhysicalBusy(true);
-    setError("");
-    try {
-      await api.addPhysical({
-        name: physicalName,
-        quantity: physicalQty,
-        phone: physicalPhone,
-      });
-      setPhysicalName("");
-      setPhysicalPhone("");
-      setPhysicalQty(1);
-      setPhysicalNotice(t("admin.physicalSaved"));
-      await load();
-    } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      setError(
-        code === "not_enough_tickets"
-          ? t("errors.notEnough")
-          : code === "not_on_sale" || code === "event_locked"
-            ? t("errors.notOnSale")
-            : t("errors.generic"),
-      );
-    } finally {
-      setPhysicalBusy(false);
     }
   }
 
@@ -182,35 +148,7 @@ export function BuyersPage() {
       <p className="lede mt-3">{t("admin.waveHelp")}</p>
       {error ? <p className="text-sm text-ticket mt-3">{error}</p> : null}
 
-      {!locked && event && event.status !== "draft" ? (
-        <form className="grid gap-3 mt-5" onSubmit={(e: FormEvent) => void addPhysical(e)}>
-          <h2>{t("admin.physicalTitle")}</h2>
-          <p className="lede">{t("admin.physicalHelp")}</p>
-          <div className="grid gap-3 md:grid-cols-3">
-            <label>
-              {t("buy.name")}
-              <input value={physicalName} onChange={(e) => setPhysicalName(e.target.value)} required minLength={2} />
-            </label>
-            <label>
-              {t("buy.phone")}
-              <input value={physicalPhone} onChange={(e) => setPhysicalPhone(e.target.value)} type="tel" />
-            </label>
-            <label>
-              {t("buy.quantity")}
-              <input
-                type="number"
-                min={1}
-                max={50}
-                value={physicalQty}
-                onChange={(e) => setPhysicalQty(Number(e.target.value) || 1)}
-              />
-            </label>
-          </div>
-          <button className="btn-primary" disabled={physicalBusy}>
-            {physicalBusy ? t("admin.physicalSaving") : t("admin.physicalCta")}
-          </button>
-        </form>
-      ) : null}
+      {!locked && event ? <PhysicalTicketsForm className="mt-5" onSaved={load} /> : null}
 
       {!sorted.length ? (
         <p className="lede mt-6">{t("admin.noBuyers")}</p>
@@ -313,14 +251,6 @@ export function BuyersPage() {
           onCancel={() => {
             if (!busyId) setPending(null);
           }}
-        />
-      ) : null}
-      {physicalNotice ? (
-        <NoticeModal
-          title={t("admin.physicalTitle")}
-          body={physicalNotice}
-          okLabel={t("admin.ok")}
-          onClose={() => setPhysicalNotice("")}
         />
       ) : null}
     </section>

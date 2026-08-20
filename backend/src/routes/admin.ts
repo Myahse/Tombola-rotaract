@@ -447,6 +447,21 @@ adminRouter.post("/event/status", requireAdmin, async (req, res) => {
   }
 });
 
+adminRouter.delete("/event", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
+  if (!event) {
+    res.status(404).json({ error: "no_event" });
+    return;
+  }
+  if (event.status !== "closed" && event.status !== "drawn") {
+    res.status(409).json({ error: "event_not_finished" });
+    return;
+  }
+  await db.delete(events).where(eq(events.id, event.id));
+  res.json({ ok: true });
+  void publishChange("event");
+});
+
 adminRouter.get("/orders", requireAdmin, async (req, res) => {
   const event = await latestEvent(req);
   if (!event) {
@@ -496,10 +511,6 @@ adminRouter.post("/orders/physical", requireAdmin, async (req, res) => {
   const event = await latestEvent(req);
   if (!event || event.status === "drawn") {
     res.status(409).json({ error: "event_locked" });
-    return;
-  }
-  if (event.status === "draft") {
-    res.status(409).json({ error: "not_on_sale" });
     return;
   }
 

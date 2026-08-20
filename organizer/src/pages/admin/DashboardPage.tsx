@@ -6,6 +6,7 @@ import { useLiveTick } from "../../live";
 import type { AdminEvent, AdminStats } from "../../types";
 import { ScratchFeed } from "../../components/ScratchFeed";
 import { PageSkeleton } from "../../components/PageSkeleton";
+import { useOrganizerEvent } from "../../eventContext";
 
 export function DashboardPage() {
   const { t, i18n } = useTranslation();
@@ -16,6 +17,7 @@ export function DashboardPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const tick = useLiveTick();
+  const { eventId } = useOrganizerEvent();
 
   async function load() {
     const data = await api.adminEvent();
@@ -29,7 +31,7 @@ export function DashboardPage() {
       setReady(true);
       setMessage(t("errors.generic"));
     });
-  }, [t, tick]);
+  }, [t, tick, eventId]);
 
   async function setStatus(status: "on_sale" | "closed") {
     setBusy(true);

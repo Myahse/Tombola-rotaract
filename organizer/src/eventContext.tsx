@@ -30,7 +30,7 @@ export function OrganizerEventProvider({ children }: { children: ReactNode }) {
       data.events.find((item) => item.status === "on_sale") ??
       data.events.find((item) => item.status === "closed" || item.status === "draft") ??
       data.events[0];
-    if (preferred) setEventId(preferred.id);
+    setEventId(preferred?.id ?? null);
   }, [setEventId]);
 
   useEffect(() => {
