@@ -3,8 +3,18 @@ import { Router } from "express";
 import type { Request } from "express";
 import { z } from "zod";
 import { db, isUniqueViolation } from "../db/index.js";
-import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
-import { adminEmailMatches, clearSession, newAccessToken, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
+import { clubs, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
+import { clearSession, newAccessToken, requireAdmin, setSession } from "../lib/auth.js";
+import {
+  clubSettings,
+  getClubBySlug,
+  organizerEmailAllowed,
+  organizerPasswordOk,
+  publicClub,
+  refreshClubHosts,
+  setOrganizerPassword,
+} from "../lib/club.js";
+import { safeWavePayUrl } from "../lib/payments.js";
 import {
   shuffle,
   randomTicketNumbers,
@@ -83,32 +93,39 @@ async function requestedEventId(req: Request) {
   return null;
 }
 
-async function preferredEvent() {
+async function preferredEvent(clubId: string) {
   const [onSale] = await db
     .select()
     .from(events)
-    .where(eq(events.status, "on_sale"))
+    .where(and(eq(events.clubId, clubId), eq(events.status, "on_sale")))
     .orderBy(desc(events.createdAt))
     .limit(1);
   if (onSale) return onSale;
   const [open] = await db
     .select()
     .from(events)
-    .where(inArray(events.status, ["draft", "closed"]))
+    .where(and(eq(events.clubId, clubId), inArray(events.status, ["draft", "closed"])))
     .orderBy(desc(events.createdAt))
     .limit(1);
   if (open) return open;
-  const [any] = await db.select().from(events).orderBy(desc(events.createdAt)).limit(1);
+  const [any] = await db
+    .select()
+    .from(events)
+    .where(eq(events.clubId, clubId))
+    .orderBy(desc(events.createdAt))
+    .limit(1);
   return any ?? null;
 }
 
 async function latestEvent(req?: Request) {
+  const clubId = req?.club?.id;
   const id = req ? await requestedEventId(req) : null;
   if (id) {
     const [event] = await db.select().from(events).where(eq(events.id, id)).limit(1);
-    if (event) return event;
+    if (event && (!clubId || event.clubId === clubId)) return event;
   }
-  return preferredEvent();
+  if (!clubId) return null;
+  return preferredEvent(clubId);
 }
 
 async function contestantsFor(eventId: string) {
@@ -195,7 +212,7 @@ async function statsFor(eventId: string, totalTickets: number) {
   };
 }
 
-adminRouter.post("/login", (req, res) => {
+adminRouter.post("/login", async (req, res) => {
   if (!allowRequest(`admin-login:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
     res.status(429).json({ error: "too_many_requests" });
     return;
@@ -204,14 +221,26 @@ adminRouter.post("/login", (req, res) => {
     .object({
       email: z.string().trim().email().max(120),
       password: z.string().min(1).max(200),
+      clubSlug: z.string().trim().max(48).optional().or(z.literal("")),
     })
     .safeParse(req.body);
-  if (!parsed.success || !adminEmailMatches(parsed.data.email) || !passwordMatches(parsed.data.password)) {
+  if (!parsed.success) {
     res.status(401).json({ error: "invalid_credentials" });
     return;
   }
-  setSession(res);
-  res.json({ ok: true });
+  const club =
+    (parsed.data.clubSlug ? await getClubBySlug(parsed.data.clubSlug) : null) ?? req.club ?? null;
+  if (
+    !club ||
+    club.status === "suspended" ||
+    !organizerEmailAllowed(club, parsed.data.email) ||
+    !(await organizerPasswordOk(club, parsed.data.password))
+  ) {
+    res.status(401).json({ error: "invalid_credentials" });
+    return;
+  }
+  setSession(res, club.id);
+  res.json({ ok: true, club: publicClub(club) });
 });
 
 adminRouter.post("/logout", (_req, res) => {
@@ -219,11 +248,88 @@ adminRouter.post("/logout", (_req, res) => {
   res.json({ ok: true });
 });
 
-adminRouter.get("/me", requireAdmin, (_req, res) => {
-  res.json({ ok: true });
+adminRouter.get("/me", requireAdmin, (req, res) => {
+  res.json({ ok: true, club: req.club ? publicClub(req.club) : null });
 });
 
-adminRouter.get("/events", requireAdmin, async (_req, res) => {
+adminRouter.get("/club", requireAdmin, (req, res) => {
+  if (!req.club) {
+    res.status(404).json({ error: "club_not_found" });
+    return;
+  }
+  res.json({ club: clubSettings(req.club) });
+});
+
+adminRouter.put("/club", requireAdmin, async (req, res) => {
+  if (!req.club) {
+    res.status(404).json({ error: "club_not_found" });
+    return;
+  }
+  const parsed = z
+    .object({
+      name: z.string().trim().min(2).max(120).optional(),
+      logoUrl: z.string().trim().max(400_000).optional().nullable(),
+      logoDarkUrl: z.string().trim().max(400_000).optional().nullable(),
+      primaryColor: z
+        .string()
+        .trim()
+        .regex(/^#?[0-9a-fA-F]{6}$/)
+        .optional(),
+      wavePayUrl: z.string().trim().max(300).optional().or(z.literal("")),
+      senderName: z.string().trim().max(120).optional().or(z.literal("")),
+      organizerEmails: z.string().trim().max(2000).optional().or(z.literal("")),
+      publicUrl: z.string().trim().max(300).optional().or(z.literal("")),
+      organizerUrl: z.string().trim().max(300).optional().or(z.literal("")),
+      campaignUrl: z.string().trim().max(300).optional().or(z.literal("")),
+      customDomain: z.string().trim().max(180).optional().or(z.literal("")),
+      password: z.string().min(8).max(200).optional().or(z.literal("")),
+    })
+    .safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  const data = parsed.data;
+  const color = data.primaryColor
+    ? data.primaryColor.startsWith("#")
+      ? data.primaryColor
+      : `#${data.primaryColor}`
+    : undefined;
+  const wave = data.wavePayUrl != null ? safeWavePayUrl(data.wavePayUrl) || data.wavePayUrl || "" : undefined;
+  if (data.wavePayUrl && data.wavePayUrl.trim() && !safeWavePayUrl(data.wavePayUrl)) {
+    res.status(400).json({ error: "invalid_wave_url" });
+    return;
+  }
+  const [updated] = await db
+    .update(clubs)
+    .set({
+      ...(data.name ? { name: data.name } : {}),
+      ...(data.logoUrl !== undefined ? { logoUrl: data.logoUrl || null } : {}),
+      ...(data.logoDarkUrl !== undefined ? { logoDarkUrl: data.logoDarkUrl || null } : {}),
+      ...(color ? { primaryColor: color } : {}),
+      ...(wave !== undefined ? { wavePayUrl: wave } : {}),
+      ...(data.senderName !== undefined ? { senderName: data.senderName } : {}),
+      ...(data.organizerEmails !== undefined ? { organizerEmails: data.organizerEmails } : {}),
+      ...(data.publicUrl !== undefined ? { publicUrl: data.publicUrl } : {}),
+      ...(data.organizerUrl !== undefined ? { organizerUrl: data.organizerUrl } : {}),
+      ...(data.campaignUrl !== undefined ? { campaignUrl: data.campaignUrl } : {}),
+      ...(data.customDomain !== undefined ? { customDomain: data.customDomain || null } : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(clubs.id, req.club.id))
+    .returning();
+  if (data.password) {
+    await setOrganizerPassword(req.club.id, data.password);
+  }
+  await refreshClubHosts();
+  res.json({ club: clubSettings(updated) });
+});
+
+adminRouter.get("/events", requireAdmin, async (req, res) => {
+  if (!req.club) {
+    res.json({ events: [] });
+    return;
+  }
   const rows = await db
     .select({
       id: events.id,
@@ -234,6 +340,7 @@ adminRouter.get("/events", requireAdmin, async (_req, res) => {
       createdAt: events.createdAt,
     })
     .from(events)
+    .where(eq(events.clubId, req.club.id))
     .orderBy(desc(events.createdAt));
   res.json({
     events: rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
@@ -262,16 +369,21 @@ adminRouter.post("/event", requireAdmin, async (req, res) => {
     return;
   }
   const data = withFallbackLang(parsed.data);
+  if (!req.club) {
+    res.status(404).json({ error: "club_not_found" });
+    return;
+  }
   const [onSale] = await db
     .select({ id: events.id })
     .from(events)
-    .where(eq(events.status, "on_sale"))
+    .where(and(eq(events.clubId, req.club.id), eq(events.status, "on_sale")))
     .limit(1);
 
   const created = await db.transaction(async (tx) => {
     const [event] = await tx
       .insert(events)
       .values({
+        clubId: req.club!.id,
         slug: slugify(data.titleFr),
         titleFr: data.titleFr,
         titleEn: data.titleEn,
@@ -423,7 +535,7 @@ adminRouter.post("/event/status", requireAdmin, async (req, res) => {
     const [other] = await db
       .select({ id: events.id })
       .from(events)
-      .where(and(eq(events.status, "on_sale"), ne(events.id, event.id)))
+      .where(and(eq(events.clubId, event.clubId), eq(events.status, "on_sale"), ne(events.id, event.id)))
       .limit(1);
     if (other) {
       res.status(409).json({ error: "another_on_sale" });

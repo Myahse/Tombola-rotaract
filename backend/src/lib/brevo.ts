@@ -1,3 +1,5 @@
+import { currentClub } from "./club.js";
+
 export type EmailAttachment = {
   name: string;
   content: string;
@@ -25,7 +27,7 @@ function configured() {
   return {
     apiKey,
     senderEmail,
-    senderName: process.env.BREVO_SENDER_NAME?.trim() || "Rotaract IUGB Club",
+    senderName: currentClub()?.senderName?.trim() || process.env.BREVO_SENDER_NAME?.trim() || currentClub()?.name || "Tombola du club",
   };
 }
 

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db, isUniqueViolation } from "../db/index.js";
@@ -80,11 +80,14 @@ function publicMember(row: typeof members.$inferSelect) {
   };
 }
 
-async function claimGuestOrders(member: { id: string; name: string; email: string; phone: string | null }) {
+async function claimGuestOrders(member: { id: string; name: string; email: string; phone: string | null; clubId: string }) {
+  const eventRows = await db.select({ id: events.id }).from(events).where(eq(events.clubId, member.clubId));
+  const eventIds = eventRows.map((row) => row.id);
+  if (!eventIds.length) return;
   await db
     .update(orders)
     .set({ memberId: member.id, buyerName: member.name, buyerPhone: member.phone })
-    .where(and(eq(orders.buyerEmail, member.email), isNull(orders.memberId)));
+    .where(and(eq(orders.buyerEmail, member.email), isNull(orders.memberId), inArray(orders.eventId, eventIds)));
 }
 
 authRouter.post("/auth/register", async (req, res) => {
@@ -102,7 +105,15 @@ authRouter.post("/auth/register", async (req, res) => {
   }
 
   const email = parsed.data.email.trim().toLowerCase();
-  const [existing] = await db.select({ id: members.id }).from(members).where(eq(members.email, email)).limit(1);
+  if (!req.club) {
+    res.status(404).json({ error: "club_not_found" });
+    return;
+  }
+  const [existing] = await db
+    .select({ id: members.id })
+    .from(members)
+    .where(and(eq(members.clubId, req.club.id), eq(members.email, email)))
+    .limit(1);
   if (existing) {
     res.status(409).json({ error: "email_taken" });
     return;
@@ -115,6 +126,7 @@ authRouter.post("/auth/register", async (req, res) => {
       .values({
         name: parsed.data.name,
         email,
+        clubId: req.club.id,
         phone: parsed.data.phone,
         avatarUrl: parseAvatar(parsed.data.avatarUrl),
         clubName: parsed.data.clubName,
@@ -140,7 +152,7 @@ authRouter.post("/auth/register", async (req, res) => {
   }
 
   await claimGuestOrders(member);
-  setMemberSession(res, member.id);
+  setMemberSession(res, member.id, member.clubId);
   res.status(201).json({ member: publicMember(member) });
   void notifyMemberRegistered({ name: member.name, email: member.email });
 });
@@ -157,14 +169,22 @@ authRouter.post("/auth/login", async (req, res) => {
   }
 
   const email = parsed.data.email.toLowerCase();
-  const [member] = await db.select().from(members).where(eq(members.email, email)).limit(1);
+  if (!req.club) {
+    res.status(404).json({ error: "club_not_found" });
+    return;
+  }
+  const [member] = await db
+    .select()
+    .from(members)
+    .where(and(eq(members.clubId, req.club.id), eq(members.email, email)))
+    .limit(1);
   if (!member || !(await verifyPassword(parsed.data.password, member.passwordHash))) {
     res.status(401).json({ error: "invalid_credentials" });
     return;
   }
 
   await claimGuestOrders(member);
-  setMemberSession(res, member.id);
+  setMemberSession(res, member.id, member.clubId);
   res.json({ member: publicMember(member) });
 });
 
@@ -183,7 +203,15 @@ authRouter.post("/auth/forgot", async (req, res) => {
   }
 
   const email = parsed.data.email.toLowerCase();
-  const [member] = await db.select().from(members).where(eq(members.email, email)).limit(1);
+  const [member] = await db
+    .select()
+    .from(members)
+    .where(
+      req.club
+        ? and(eq(members.clubId, req.club.id), eq(members.email, email))
+        : eq(members.email, email),
+    )
+    .limit(1);
   if (member) {
     const token = newAccessToken();
     await db.delete(passwordResets).where(eq(passwordResets.memberId, member.id));
@@ -234,7 +262,7 @@ authRouter.post("/auth/reset", async (req, res) => {
     return;
   }
 
-  setMemberSession(res, member.id);
+  setMemberSession(res, member.id, member.clubId);
   res.json({ member: publicMember(member) });
 });
 
@@ -297,7 +325,7 @@ authRouter.get("/auth/me", async (req, res) => {
     return;
   }
   const [member] = await db.select().from(members).where(eq(members.id, memberId)).limit(1);
-  if (!member) {
+  if (!member || (req.club && member.clubId !== req.club.id)) {
     clearMemberSession(res);
     res.status(401).json({ error: "login_required" });
     return;

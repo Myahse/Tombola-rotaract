@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import webpush from "web-push";
 import { db } from "../db/index.js";
 import { members, pushSubscriptions } from "../db/schema.js";
+import { currentClub } from "./club.js";
 
 export type PushPayload = {
   title: string;
@@ -97,13 +98,14 @@ export async function sendPushToMember(memberId: string, payload: PushPayload) {
   await Promise.all(rows.map((row) => sendToRow(row, payload)));
 }
 
-export async function sendPushToEmail(email: string, payload: PushPayload) {
+export async function sendPushToEmail(email: string, payload: PushPayload, clubId?: string) {
   const normalized = email.trim().toLowerCase();
   if (!normalized || !loadVapid()) return;
+  const id = clubId || currentClub()?.id;
   const [member] = await db
     .select({ id: members.id })
     .from(members)
-    .where(eq(members.email, normalized))
+    .where(id ? and(eq(members.email, normalized), eq(members.clubId, id)) : eq(members.email, normalized))
     .limit(1);
   if (!member) return;
   await sendPushToMember(member.id, payload);

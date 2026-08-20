@@ -1,4 +1,5 @@
 import { apiUrl } from "./config";
+import { inferredClubSlug } from "./clubSlug";
 import type {
   AdminEvent,
   AdminOrder,
@@ -16,6 +17,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      "X-Club-Slug": inferredClubSlug(),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -29,6 +31,19 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   currentEvent: () => request<{ event: PublicEvent | null }>("/api/event/current"),
+  club: () =>
+    request<{
+      club: {
+        id: string;
+        slug: string;
+        name: string;
+        logoUrl: string | null;
+        logoDarkUrl: string | null;
+        primaryColor: string;
+        status: string;
+        publicUrl: string;
+      };
+    }>("/api/club"),
   payments: () => request<{ wavePayUrl: string }>("/api/payments"),
   results: () =>
     request<{

@@ -1,0 +1,49 @@
+{
+	email {$CADDY_EMAIL}
+}
+
+{$PLATFORM_DOMAIN} {
+	redir https://org.{$PLATFORM_DOMAIN}{uri}
+}
+
+org.{$PLATFORM_DOMAIN} {
+	handle /api* {
+		reverse_proxy api:3001
+	}
+	handle /ws {
+		reverse_proxy api:3001
+	}
+	handle {
+		reverse_proxy org:80
+	}
+}
+
+mail.{$PLATFORM_DOMAIN} {
+	handle /api* {
+		reverse_proxy api:3001
+	}
+	handle {
+		reverse_proxy mail:80
+	}
+}
+
+admin.{$PLATFORM_DOMAIN} {
+	handle /api* {
+		reverse_proxy api:3001
+	}
+	handle {
+		reverse_proxy admin:80
+	}
+}
+
+*.{$PLATFORM_DOMAIN} {
+	handle /api* {
+		reverse_proxy api:3001
+	}
+	handle /ws {
+		reverse_proxy api:3001
+	}
+	handle {
+		reverse_proxy web:80
+	}
+}

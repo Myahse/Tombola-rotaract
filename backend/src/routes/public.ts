@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { campaignAttachments, drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
 import { newAccessToken, requireMember, type MemberRequest } from "../lib/auth.js";
+import { clubWaveUrl, publicClub } from "../lib/club.js";
 import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/publicSnapshot.js";
 import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
@@ -14,18 +15,26 @@ import { siteUrl } from "../emails/layout.js";
 
 export const publicRouter = Router();
 
+publicRouter.get("/club", (req, res) => {
+  if (!req.club) {
+    res.status(404).json({ error: "club_not_found" });
+    return;
+  }
+  res.json({ club: publicClub(req.club) });
+});
+
 const buySchema = z.object({
   quantity: z.number().int().min(1).max(20),
   phone: z.string().trim().max(40).optional().or(z.literal("")),
   paymentMethod: z.enum(["cash", "wave"]).default("cash"),
 });
 
-publicRouter.get("/event/current", async (_req, res) => {
-  res.json({ event: await publicSnapshot() });
+publicRouter.get("/event/current", async (req, res) => {
+  res.json({ event: await publicSnapshot(req.club?.id) });
 });
 
-publicRouter.get("/payments", (_req, res) => {
-  res.json({ wavePayUrl: wavePayUrl() });
+publicRouter.get("/payments", (req, res) => {
+  res.json({ wavePayUrl: clubWaveUrl(req.club ?? undefined) || wavePayUrl() });
 });
 
 publicRouter.get("/campaign-images/:id", async (req, res) => {
@@ -54,8 +63,8 @@ publicRouter.get("/campaign-images/:id", async (req, res) => {
   res.send(buffer);
 });
 
-publicRouter.get("/event/current/results", async (_req, res) => {
-  const event = await getCurrentPublicEvent();
+publicRouter.get("/event/current/results", async (req, res) => {
+  const event = await getCurrentPublicEvent(req.club?.id);
   if (!event) {
     res.json({ event: null, winners: [] });
     return;
@@ -106,6 +115,10 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
     res.status(401).json({ error: "login_required" });
     return;
   }
+  if (req.club && member.clubId !== req.club.id) {
+    res.status(401).json({ error: "login_required" });
+    return;
+  }
 
   const phone = parsed.data.phone || member.phone;
   if (parsed.data.phone) {
@@ -117,7 +130,11 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       const [event] = await tx
         .select()
         .from(events)
-        .where(eq(events.status, "on_sale"))
+        .where(
+          member.clubId
+            ? and(eq(events.clubId, member.clubId), eq(events.status, "on_sale"))
+            : eq(events.status, "on_sale"),
+        )
         .orderBy(desc(events.createdAt))
         .limit(1);
 
@@ -471,6 +488,7 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async
         },
       },
       "organizer",
+      req.club?.id,
     );
   }
 

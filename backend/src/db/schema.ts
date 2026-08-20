@@ -8,19 +8,47 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const members = pgTable("members", {
+export const clubs = pgTable("clubs", {
   id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  phone: text("phone"),
-  avatarUrl: text("avatar_url"),
-  passwordHash: text("password_hash").notNull(),
-  termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
-  emailsAcceptedAt: timestamp("emails_accepted_at", { withTimezone: true }),
-  clubName: text("club_name"),
-  clubRole: text("club_role"),
+  logoUrl: text("logo_url"),
+  logoDarkUrl: text("logo_dark_url"),
+  primaryColor: text("primary_color").notNull().default("#be034d"),
+  wavePayUrl: text("wave_pay_url").notNull().default(""),
+  senderName: text("sender_name").notNull().default(""),
+  senderEmail: text("sender_email"),
+  publicUrl: text("public_url").notNull().default(""),
+  organizerUrl: text("organizer_url").notNull().default(""),
+  campaignUrl: text("campaign_url").notNull().default(""),
+  customDomain: text("custom_domain"),
+  status: text("status").notNull().default("active"),
+  organizerPasswordHash: text("organizer_password_hash").notNull().default(""),
+  organizerEmails: text("organizer_emails").notNull().default(""),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const members = pgTable(
+  "members",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clubId: uuid("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    avatarUrl: text("avatar_url"),
+    passwordHash: text("password_hash").notNull(),
+    termsAcceptedAt: timestamp("terms_accepted_at", { withTimezone: true }),
+    emailsAcceptedAt: timestamp("emails_accepted_at", { withTimezone: true }),
+    clubName: text("club_name"),
+    clubRole: text("club_role"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.clubId, table.email)],
+);
 
 export const passwordResets = pgTable("password_resets", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -32,23 +60,30 @@ export const passwordResets = pgTable("password_resets", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-export const events = pgTable("events", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  slug: text("slug").notNull().unique(),
-  titleFr: text("title_fr").notNull(),
-  titleEn: text("title_en").notNull(),
-  descriptionFr: text("description_fr").notNull().default(""),
-  descriptionEn: text("description_en").notNull().default(""),
-  ticketPriceCents: integer("ticket_price_cents").notNull(),
-  currency: text("currency").notNull().default("XOF"),
-  totalTickets: integer("total_tickets").notNull(),
-  status: text("status").notNull().default("draft"),
-  drawMode: text("draw_mode").notNull().default("scratch"),
-  paymentInstructionsFr: text("payment_instructions_fr").notNull().default(""),
-  paymentInstructionsEn: text("payment_instructions_en").notNull().default(""),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const events = pgTable(
+  "events",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clubId: uuid("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    slug: text("slug").notNull(),
+    titleFr: text("title_fr").notNull(),
+    titleEn: text("title_en").notNull(),
+    descriptionFr: text("description_fr").notNull().default(""),
+    descriptionEn: text("description_en").notNull().default(""),
+    ticketPriceCents: integer("ticket_price_cents").notNull(),
+    currency: text("currency").notNull().default("XOF"),
+    totalTickets: integer("total_tickets").notNull(),
+    status: text("status").notNull().default("draft"),
+    drawMode: text("draw_mode").notNull().default("scratch"),
+    paymentInstructionsFr: text("payment_instructions_fr").notNull().default(""),
+    paymentInstructionsEn: text("payment_instructions_en").notNull().default(""),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.clubId, table.slug)],
+);
 
 export const prizes = pgTable(
   "prizes",
@@ -121,6 +156,9 @@ export const drawResults = pgTable(
 
 export const campaigns = pgTable("campaigns", {
   id: uuid("id").primaryKey().defaultRandom(),
+  clubId: uuid("club_id")
+    .notNull()
+    .references(() => clubs.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   subject: text("subject").notNull(),
   preheader: text("preheader").notNull().default(""),
@@ -167,19 +205,27 @@ export const campaignRecipients = pgTable("campaign_recipients", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
 });
 
-export const pushSubscriptions = pgTable("push_subscriptions", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  memberId: uuid("member_id")
-    .notNull()
-    .references(() => members.id, { onDelete: "cascade" }),
-  endpoint: text("endpoint").notNull().unique(),
-  p256dh: text("p256dh").notNull(),
-  auth: text("auth").notNull(),
-  userAgent: text("user_agent"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    clubId: uuid("club_id")
+      .notNull()
+      .references(() => clubs.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.clubId, table.endpoint)],
+);
 
+export type ClubRow = typeof clubs.$inferSelect;
 export type MemberRow = typeof members.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
 export type PrizeRow = typeof prizes.$inferSelect;

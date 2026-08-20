@@ -1,0 +1,44 @@
+{
+  "lang": { "fr": "FR", "en": "EN" },
+  "nav": {
+    "clubs": "Clubs",
+    "logout": "Déconnexion"
+  },
+  "login": {
+    "kicker": "Super-admin",
+    "title": "Plateforme tombola",
+    "lead": "Créez et suspendez les clubs. Les organisateurs ont leur propre espace.",
+    "password": "Mot de passe plateforme",
+    "submit": "Connexion",
+    "busy": "Connexion…"
+  },
+  "clubs": {
+    "title": "Clubs",
+    "lead": "Chaque club a son site, ses acheteurs et ses organisateurs.",
+    "create": "Nouveau club",
+    "slug": "Slug (sous-domaine)",
+    "slugHint": "Lettres minuscules et tirets. Exemple : rotaract-abidjan",
+    "name": "Nom du club",
+    "organizerEmail": "E-mail organisateur",
+    "organizerPassword": "Mot de passe organisateur",
+    "submit": "Créer le club",
+    "busy": "Création…",
+    "empty": "Aucun club pour le moment.",
+    "statusActive": "Actif",
+    "statusTrial": "Essai",
+    "statusSuspended": "Suspendu",
+    "suspend": "Suspendre",
+    "activate": "Réactiver",
+    "openSite": "Site public",
+    "created": "Club créé. Les organisateurs se connectent avec ce slug.",
+    "ok": "OK"
+  },
+  "errors": {
+    "invalidCredentials": "Mot de passe incorrect.",
+    "apiDown": "L’API n’est pas joignable.",
+    "slugTaken": "Ce slug est déjà pris.",
+    "invalidSlug": "Slug invalide.",
+    "invalidForm": "Vérifiez les champs.",
+    "generic": "Une erreur s’est produite."
+  }
+}

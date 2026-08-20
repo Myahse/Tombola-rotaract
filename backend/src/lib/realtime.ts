@@ -1,7 +1,7 @@
 import type { IncomingMessage, Server } from "node:http";
 import { WebSocket, WebSocketServer } from "ws";
 import type { RealtimeMessage, RealtimeRole } from "../protocol.js";
-import { hasAdminSessionFromCookieHeader } from "./auth.js";
+import { adminClubIdFromCookieHeader } from "./auth.js";
 import { isAllowedOrigin } from "./origins.js";
 
 export type { RealtimeMessage, RealtimeRole };
@@ -9,6 +9,7 @@ export type { RealtimeMessage, RealtimeRole };
 type Client = {
   socket: WebSocket;
   role: RealtimeRole;
+  clubId?: string;
 };
 
 const clients = new Set<Client>();
@@ -21,16 +22,25 @@ export function attachRealtime(server: Server) {
       socket.close(1008, "origin_not_allowed");
       return;
     }
-    const client: Client = { socket, role: "public" };
+    const client: Client = {
+      socket,
+      role: "public",
+      clubId: adminClubIdFromCookieHeader(req.headers.cookie) ?? undefined,
+    };
     clients.add(client);
 
     socket.on("message", (raw) => {
       try {
         const data = JSON.parse(String(raw)) as RealtimeMessage;
         if (data.type !== "hello") return;
+        if (typeof data.clubId === "string" && data.clubId) {
+          client.clubId = data.clubId;
+        }
         if (data.role === "organizer") {
-          if (hasAdminSessionFromCookieHeader(req.headers.cookie)) {
+          const fromCookie = adminClubIdFromCookieHeader(req.headers.cookie);
+          if (fromCookie) {
             client.role = "organizer";
+            client.clubId = fromCookie;
           }
           return;
         }
@@ -48,10 +58,11 @@ export function attachRealtime(server: Server) {
   });
 }
 
-export function broadcast(message: RealtimeMessage, role?: RealtimeRole) {
+export function broadcast(message: RealtimeMessage, role?: RealtimeRole, clubId?: string) {
   const payload = JSON.stringify(message);
   for (const client of clients) {
     if (role && client.role !== role) continue;
+    if (clubId && client.clubId && client.clubId !== clubId) continue;
     if (client.socket.readyState === WebSocket.OPEN) {
       client.socket.send(payload);
     }

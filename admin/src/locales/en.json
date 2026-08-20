@@ -1,0 +1,44 @@
+{
+  "lang": { "fr": "FR", "en": "EN" },
+  "nav": {
+    "clubs": "Clubs",
+    "logout": "Log out"
+  },
+  "login": {
+    "kicker": "Super-admin",
+    "title": "Tombola platform",
+    "lead": "Create and suspend clubs. Organizers have their own app.",
+    "password": "Platform password",
+    "submit": "Log in",
+    "busy": "Logging in…"
+  },
+  "clubs": {
+    "title": "Clubs",
+    "lead": "Each club has its own site, buyers, and organizers.",
+    "create": "New club",
+    "slug": "Slug (subdomain)",
+    "slugHint": "Lowercase letters and hyphens. Example: rotaract-abidjan",
+    "name": "Club name",
+    "organizerEmail": "Organizer email",
+    "organizerPassword": "Organizer password",
+    "submit": "Create club",
+    "busy": "Creating…",
+    "empty": "No clubs yet.",
+    "statusActive": "Active",
+    "statusTrial": "Trial",
+    "statusSuspended": "Suspended",
+    "suspend": "Suspend",
+    "activate": "Reactivate",
+    "openSite": "Public site",
+    "created": "Club created. Organizers log in with this slug.",
+    "ok": "OK"
+  },
+  "errors": {
+    "invalidCredentials": "Incorrect password.",
+    "apiDown": "The API is unreachable.",
+    "slugTaken": "That slug is already taken.",
+    "invalidSlug": "Invalid slug.",
+    "invalidForm": "Check the form.",
+    "generic": "Something went wrong."
+  }
+}

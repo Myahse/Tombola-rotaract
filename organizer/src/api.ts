@@ -1,4 +1,5 @@
 import { apiUrl } from "./config";
+import { inferredClubSlug } from "./clubSlug";
 import type {
   AdminEvent,
   AdminEventSummary,
@@ -7,7 +8,6 @@ import type {
   Contestant,
   OrderView,
   Prize,
-  PublicEvent,
   ScratchedTicket,
   Winner,
 } from "./types";
@@ -18,6 +18,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
+      "X-Club-Slug": inferredClubSlug(),
       ...(init?.headers ?? {}),
     },
     ...init,
@@ -30,7 +31,18 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  currentEvent: () => request<{ event: PublicEvent | null }>("/api/event/current"),
+  publicClub: () =>
+    request<{
+      club: {
+        id: string;
+        slug: string;
+        name: string;
+        logoUrl: string | null;
+        logoDarkUrl: string | null;
+        primaryColor: string;
+        publicUrl: string;
+      };
+    }>("/api/club"),
   results: () =>
     request<{ event: { titleFr: string; titleEn: string; status: string } | null; winners: Winner[] }>(
       "/api/event/current/results",
@@ -38,10 +50,33 @@ export const api = {
   buy: (body: { name: string; email: string; phone?: string; quantity: number }) =>
     request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
   order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
-  login: (body: { email: string; password: string }) =>
-    request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify(body) }),
+  login: (body: { email: string; password: string; clubSlug?: string }) =>
+    request<{ ok: boolean; club?: { id: string; slug: string; name: string } }>("/api/admin/login", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),
-  me: () => request<{ ok: boolean }>("/api/admin/me"),
+  me: () => request<{ ok: boolean; club?: { id: string; slug: string; name: string } }>("/api/admin/me"),
+  clubSettings: () =>
+    request<{
+      club: {
+        id: string;
+        slug: string;
+        name: string;
+        logoUrl: string | null;
+        logoDarkUrl: string | null;
+        primaryColor: string;
+        wavePayUrl: string;
+        senderName: string;
+        organizerEmails: string;
+        publicUrl: string;
+        organizerUrl: string;
+        campaignUrl: string;
+        customDomain: string | null;
+      };
+    }>("/api/admin/club"),
+  saveClub: (body: Record<string, unknown>) =>
+    request<{ club: { id: string; name: string } }>("/api/admin/club", { method: "PUT", body: JSON.stringify(body) }),
   adminEvents: () => request<{ events: AdminEventSummary[] }>("/api/admin/events"),
   adminEvent: () =>
     request<{ event: AdminEvent | null; prizes: Prize[]; stats: AdminStats | null }>(withEventId("/api/admin/event")),

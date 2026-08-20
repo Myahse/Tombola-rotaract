@@ -10,7 +10,7 @@ export type ScratchedTicket = {
 };
 
 export type RealtimeMessage =
-  | { type: "hello"; role: RealtimeRole }
+  | { type: "hello"; role: RealtimeRole; clubId?: string }
   | { type: "public.snapshot"; event: unknown }
   | { type: "organizer.changed"; reason: "order" | "event" | "draw" | "scratch" }
   | { type: "ticket.scratched"; ticket: ScratchedTicket }

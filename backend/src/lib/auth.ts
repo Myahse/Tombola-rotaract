@@ -1,8 +1,10 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
+import { defaultClubSlug, getClubById, getClubBySlug, runWithClub } from "./club.js";
 
 const ADMIN_COOKIE = "tombola_session";
 const MEMBER_COOKIE = "tombola_member";
+const PLATFORM_COOKIE = "tombola_platform";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function secret() {
@@ -17,30 +19,40 @@ function sign(payload: string) {
   return createHmac("sha256", secret()).update(payload).digest("base64url");
 }
 
-export function createSessionCookie() {
-  const payload = Buffer.from(
-    JSON.stringify({ role: "admin", exp: Date.now() + WEEK_MS }),
-  ).toString("base64url");
-  return `${payload}.${sign(payload)}`;
-}
-
-export function readSessionCookie(token: string | undefined) {
-  if (!token) return false;
+function readSigned<T extends Record<string, unknown>>(token: string | undefined): (T & { exp?: number }) | null {
+  if (!token) return null;
   const [payload, signature] = token.split(".");
-  if (!payload || !signature) return false;
+  if (!payload || !signature) return null;
   const expected = sign(payload);
   const a = Buffer.from(signature);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return false;
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
   try {
-    const data = JSON.parse(Buffer.from(payload, "base64url").toString()) as {
-      role?: string;
-      exp?: number;
-    };
-    return data.role === "admin" && typeof data.exp === "number" && data.exp > Date.now();
+    const data = JSON.parse(Buffer.from(payload, "base64url").toString()) as T & { exp?: number };
+    if (typeof data.exp !== "number" || data.exp <= Date.now()) return null;
+    return data;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function writeSigned(data: object) {
+  const payload = Buffer.from(JSON.stringify({ ...data, exp: Date.now() + WEEK_MS })).toString("base64url");
+  return `${payload}.${sign(payload)}`;
+}
+
+export function createSessionCookie(clubId: string) {
+  return writeSigned({ role: "admin", clubId });
+}
+
+export function readAdminSession(token: string | undefined) {
+  const data = readSigned<{ role?: string; clubId?: string }>(token);
+  if (!data || data.role !== "admin") return null;
+  return { clubId: data.clubId ?? "" };
+}
+
+export function readSessionCookie(token: string | undefined) {
+  return Boolean(readAdminSession(token));
 }
 
 export function passwordMatches(input: string) {
@@ -79,19 +91,24 @@ function cookieClearOptions() {
   return options;
 }
 
-export function hasAdminSessionFromCookieHeader(cookieHeader: string | undefined) {
-  if (!cookieHeader) return false;
+export function adminClubIdFromCookieHeader(cookieHeader: string | undefined) {
+  if (!cookieHeader) return null;
   for (const part of cookieHeader.split(";")) {
     const [key, ...rest] = part.trim().split("=");
     if (key === ADMIN_COOKIE) {
-      return readSessionCookie(decodeURIComponent(rest.join("=")));
+      const session = readAdminSession(decodeURIComponent(rest.join("=")));
+      return session?.clubId || null;
     }
   }
-  return false;
+  return null;
 }
 
-export function setSession(res: Response) {
-  res.cookie(ADMIN_COOKIE, createSessionCookie(), cookieOptions());
+export function hasAdminSessionFromCookieHeader(cookieHeader: string | undefined) {
+  return Boolean(adminClubIdFromCookieHeader(cookieHeader));
+}
+
+export function setSession(res: Response, clubId: string) {
+  res.cookie(ADMIN_COOKIE, createSessionCookie(clubId), cookieOptions());
 }
 
 export function clearSession(res: Response) {
@@ -100,44 +117,77 @@ export function clearSession(res: Response) {
 
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const token = req.cookies?.[ADMIN_COOKIE] as string | undefined;
-  if (!readSessionCookie(token)) {
+  const session = readAdminSession(token);
+  if (!session) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+  void (async () => {
+    let club = session.clubId ? await getClubById(session.clubId) : null;
+    if (!club) club = await getClubBySlug(defaultClubSlug());
+    if (!club || club.status === "suspended") {
+      res.status(401).json({ error: "unauthorized" });
+      return;
+    }
+    req.club = club;
+    runWithClub(club, () => next());
+  })().catch(next);
+}
+
+export function createPlatformCookie() {
+  return writeSigned({ role: "platform" });
+}
+
+export function readPlatformSession(token: string | undefined) {
+  const data = readSigned<{ role?: string }>(token);
+  return Boolean(data && data.role === "platform");
+}
+
+export function setPlatformSession(res: Response) {
+  res.cookie(PLATFORM_COOKIE, createPlatformCookie(), cookieOptions());
+}
+
+export function clearPlatformSession(res: Response) {
+  res.clearCookie(PLATFORM_COOKIE, cookieClearOptions());
+}
+
+export function requirePlatform(req: Request, res: Response, next: NextFunction) {
+  const token = req.cookies?.[PLATFORM_COOKIE] as string | undefined;
+  if (!readPlatformSession(token)) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }
   next();
 }
 
-export function createMemberCookie(memberId: string) {
-  const payload = Buffer.from(
-    JSON.stringify({ role: "member", memberId, exp: Date.now() + WEEK_MS }),
-  ).toString("base64url");
-  return `${payload}.${sign(payload)}`;
+export function platformPasswordMatches(input: string) {
+  const expected = process.env.PLATFORM_ADMIN_PASSWORD ?? "";
+  if (!expected || !input) return false;
+  const a = Buffer.from(input);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) {
+    timingSafeEqual(a, a);
+    return false;
+  }
+  return timingSafeEqual(a, b);
+}
+
+export function createMemberCookie(memberId: string, clubId?: string) {
+  return writeSigned({ role: "member", memberId, clubId });
 }
 
 export function readMemberId(token: string | undefined): string | null {
-  if (!token) return null;
-  const [payload, signature] = token.split(".");
-  if (!payload || !signature) return null;
-  const expected = sign(payload);
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
-  try {
-    const data = JSON.parse(Buffer.from(payload, "base64url").toString()) as {
-      role?: string;
-      memberId?: string;
-      exp?: number;
-    };
-    if (data.role !== "member" || typeof data.memberId !== "string") return null;
-    if (typeof data.exp !== "number" || data.exp <= Date.now()) return null;
-    return data.memberId;
-  } catch {
-    return null;
-  }
+  return readMemberSession(token)?.memberId ?? null;
 }
 
-export function setMemberSession(res: Response, memberId: string) {
-  res.cookie(MEMBER_COOKIE, createMemberCookie(memberId), cookieOptions());
+export function readMemberSession(token: string | undefined) {
+  const data = readSigned<{ role?: string; memberId?: string; clubId?: string }>(token);
+  if (!data || data.role !== "member" || typeof data.memberId !== "string") return null;
+  return { memberId: data.memberId, clubId: data.clubId ?? "" };
+}
+
+export function setMemberSession(res: Response, memberId: string, clubId?: string) {
+  res.cookie(MEMBER_COOKIE, createMemberCookie(memberId, clubId), cookieOptions());
 }
 
 export function clearMemberSession(res: Response) {
@@ -147,17 +197,24 @@ export function clearMemberSession(res: Response) {
 export type MemberRequest = Request & { memberId: string };
 
 export function requireMember(req: Request, res: Response, next: NextFunction) {
-  const memberId = readMemberId(req.cookies?.[MEMBER_COOKIE] as string | undefined);
-  if (!memberId) {
+  const session = readMemberSession(req.cookies?.[MEMBER_COOKIE] as string | undefined);
+  if (!session) {
     res.status(401).json({ error: "login_required" });
     return;
   }
-  (req as MemberRequest).memberId = memberId;
+  if (req.club && session.clubId && session.clubId !== req.club.id) {
+    res.status(401).json({ error: "login_required" });
+    return;
+  }
+  (req as MemberRequest).memberId = session.memberId;
   next();
 }
 
 export function optionalMemberId(req: Request) {
-  return readMemberId(req.cookies?.[MEMBER_COOKIE] as string | undefined);
+  const session = readMemberSession(req.cookies?.[MEMBER_COOKIE] as string | undefined);
+  if (!session) return null;
+  if (req.club && session.clubId && session.clubId !== req.club.id) return null;
+  return session.memberId;
 }
 
 export function newAccessToken() {

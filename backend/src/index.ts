@@ -6,11 +6,13 @@ import type { NextFunction, Request, Response } from "express";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isAllowedOrigin } from "./lib/origins.js";
+import { attachClub } from "./lib/club.js";
+import { isAllowedOrigin, refreshAllowedHosts } from "./lib/origins.js";
 import { attachRealtime } from "./lib/realtime.js";
 import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
 import { campaignRouter } from "./routes/campaigns.js";
+import { platformRouter } from "./routes/platform.js";
 import { publicRouter } from "./routes/public.js";
 import { pushRouter } from "./routes/push.js";
 import { ensureSchema } from "./db/index.js";
@@ -28,8 +30,8 @@ function assertRuntimeSecrets() {
   if (isProd && secret.length < 16) {
     throw new Error("SESSION_SECRET must be at least 16 characters");
   }
-  if (isProd && !process.env.ADMIN_PASSWORD?.trim()) {
-    throw new Error("ADMIN_PASSWORD must be set in production");
+  if (isProd && !process.env.ADMIN_PASSWORD?.trim() && !process.env.PLATFORM_ADMIN_PASSWORD?.trim()) {
+    throw new Error("ADMIN_PASSWORD or PLATFORM_ADMIN_PASSWORD must be set in production");
   }
   if (isProd && !(process.env.ADMIN_EMAIL ?? "").split(",").map((value) => value.trim()).filter(Boolean).length) {
     console.warn("ADMIN_EMAIL is empty: organizer login is disabled in production until it is set");
@@ -68,6 +70,7 @@ app.use((req, res, next) => {
   express.json({ limit: large ? "6mb" : "400kb" })(req, res, next);
 });
 app.use(cookieParser());
+app.use(attachClub);
 
 app.get("/", (_req, res) => {
   res.json({ ok: true, service: "tombola-api" });
@@ -80,6 +83,7 @@ app.get("/api/health", (_req, res) => {
 app.use("/api", authRouter);
 app.use("/api", pushRouter);
 app.use("/api", publicRouter);
+app.use("/api/platform", platformRouter);
 app.use("/api/admin/campaigns", campaignRouter);
 app.use("/api/admin", adminRouter);
 
@@ -109,6 +113,7 @@ attachRealtime(server);
 
 if (!isVercel) {
   void ensureSchema()
+    .then(() => refreshAllowedHosts())
     .then(() => {
       server.listen(port, "0.0.0.0", () => {
         console.log(`Tombola API + WebSocket on port ${port}`);

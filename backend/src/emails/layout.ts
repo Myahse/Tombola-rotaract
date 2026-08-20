@@ -1,3 +1,5 @@
+import { clubSiteOrigin, currentClub } from "../lib/club.js";
+
 const INK = "#141416";
 const MUTED = "#73737a";
 const LINE = "#ececee";
@@ -31,11 +33,23 @@ const EMAIL_CSS = `
 `;
 
 export function logoUrl() {
+  const club = currentClub();
+  if (club?.logoUrl) return club.logoUrl.startsWith("http") || club.logoUrl.startsWith("data:")
+    ? club.logoUrl
+    : siteUrl(club.logoUrl);
   return siteUrl("/logo.png");
 }
 
 export function logoDarkUrl() {
+  const club = currentClub();
+  if (club?.logoDarkUrl) return club.logoDarkUrl.startsWith("http") || club.logoDarkUrl.startsWith("data:")
+    ? club.logoDarkUrl
+    : siteUrl(club.logoDarkUrl);
   return siteUrl("/logo-white.png");
+}
+
+export function clubDisplayName() {
+  return currentClub()?.name || "Tombola du club";
 }
 
 export function campaignImageUrl(id: string) {
@@ -75,13 +89,13 @@ export function wrapEmail(options: {
         <table class="email-card" role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:${CARD};border:1px solid ${LINE};border-radius:16px;overflow:hidden;">
           <tr>
             <td class="email-hairline" align="center" style="padding:28px 32px 18px;border-bottom:1px solid ${LINE};">
-              <img class="email-logo-light" src="${escapeHtml(logoUrl())}" alt="Rotaract IUGB Club" width="220" style="display:block;margin:0 auto;width:220px;max-width:86%;height:auto;" />
-              <img class="email-logo-dark" src="${escapeHtml(logoDarkUrl())}" alt="Rotaract IUGB Club" width="220" style="display:none;margin:0 auto;width:220px;max-width:86%;height:auto;" />
+              <img class="email-logo-light" src="${escapeHtml(logoUrl())}" alt="${escapeHtml(clubDisplayName())}" width="220" style="display:block;margin:0 auto;width:220px;max-width:86%;height:auto;" />
+              <img class="email-logo-dark" src="${escapeHtml(logoDarkUrl())}" alt="${escapeHtml(clubDisplayName())}" width="220" style="display:none;margin:0 auto;width:220px;max-width:86%;height:auto;" />
             </td>
           </tr>
           <tr>
             <td style="padding:28px 32px 8px;">
-              <p class="email-kicker" style="margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;font-weight:650;color:#be034d;">Rotaract IUGB Club</p>
+              <p class="email-kicker" style="margin:0 0 8px;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;font-weight:650;color:#be034d;">${escapeHtml(clubDisplayName())}</p>
               <h1 class="email-heading" style="margin:0;font-size:24px;line-height:1.25;letter-spacing:-0.02em;font-weight:650;">${escapeHtml(options.heading)}</h1>
             </td>
           </tr>
@@ -93,7 +107,7 @@ export function wrapEmail(options: {
           ${cta}
           <tr>
             <td class="email-foot" style="padding:20px 32px 28px;color:#a1a1a8;font-size:12px;line-height:1.5;border-top:1px solid ${LINE};">
-              Rotaract IUGB Club · Côte d’Ivoire<br />
+              ${escapeHtml(clubDisplayName())}<br />
               On se retrouve au club, et à la prochaine tombola.
             </td>
           </tr>
@@ -123,6 +137,12 @@ export function escapeHtml(value: string) {
 }
 
 export function siteUrl(path = "") {
+  const suffix = path.startsWith("/") ? path : path ? `/${path}` : "";
+  const fromClub = clubSiteOrigin(currentClub());
+  if (fromClub) return `${fromClub}${suffix}`;
+  const platform = (process.env.PLATFORM_DOMAIN ?? "").trim().replace(/^www\./, "");
+  const slug = currentClub()?.slug;
+  if (platform && slug) return `https://${slug}.${platform}${suffix}`;
   return publicOrigin(path, {
     env: process.env.PUBLIC_SITE_URL,
     production: "https://tombola.rotaractiugb.com",

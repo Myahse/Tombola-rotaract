@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { pushSubscriptions } from "../db/schema.js";
+import { members, pushSubscriptions } from "../db/schema.js";
 import { requireMember, type MemberRequest } from "../lib/auth.js";
 import { getVapidPublicKey, pushConfigured, sendPushToMember } from "../lib/push.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
@@ -55,11 +55,17 @@ pushRouter.post("/push/subscribe", requireMember, async (req, res) => {
     return;
   }
   const memberId = (req as MemberRequest).memberId;
+  const [member] = await db.select({ clubId: members.clubId }).from(members).where(eq(members.id, memberId)).limit(1);
+  if (!member) {
+    res.status(401).json({ error: "login_required" });
+    return;
+  }
   const agent = String(req.headers["user-agent"] ?? "").slice(0, 240);
   const now = new Date();
 
   await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, parsed.data.endpoint));
   await db.insert(pushSubscriptions).values({
+    clubId: member.clubId,
     memberId,
     endpoint: parsed.data.endpoint,
     p256dh: parsed.data.keys.p256dh,

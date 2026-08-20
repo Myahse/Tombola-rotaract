@@ -1,0 +1,77 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    env_file: backend/.env
+    environment:
+      PORT: "3001"
+      NODE_ENV: production
+    expose:
+      - "3001"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: frontend
+        VITE_API_URL: ""
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+    restart: unless-stopped
+
+  org:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: organizer
+        VITE_API_URL: ""
+        VITE_PUBLIC_SITE: https://${PLATFORM_DOMAIN}
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+    restart: unless-stopped
+
+  mail:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: campaign
+        VITE_API_URL: ""
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+    restart: unless-stopped
+
+  admin:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args:
+        APP: admin
+        VITE_API_URL: ""
+        VITE_PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN}
+      CADDY_EMAIL: ${CADDY_EMAIL:-admin@${PLATFORM_DOMAIN}}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - web
+      - org
+      - mail
+      - admin
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

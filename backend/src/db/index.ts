@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import { hashPassword } from "../lib/passwords.js";
 import * as schema from "./schema.js";
 
 const url = process.env.DATABASE_URL;
@@ -98,6 +99,119 @@ export async function ensureSchema() {
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS push_subscriptions_member_idx ON push_subscriptions (member_id)`);
   await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS events_one_on_sale_idx ON events (status) WHERE status = 'on_sale'`);
+  await ensureClubs();
+}
+
+async function ensureClubs() {
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS clubs (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug text NOT NULL UNIQUE,
+      name text NOT NULL,
+      logo_url text,
+      logo_dark_url text,
+      primary_color text NOT NULL DEFAULT '#be034d',
+      wave_pay_url text NOT NULL DEFAULT '',
+      sender_name text NOT NULL DEFAULT '',
+      sender_email text,
+      public_url text NOT NULL DEFAULT '',
+      organizer_url text NOT NULL DEFAULT '',
+      campaign_url text NOT NULL DEFAULT '',
+      custom_domain text,
+      status text NOT NULL DEFAULT 'active',
+      organizer_password_hash text NOT NULL DEFAULT '',
+      organizer_emails text NOT NULL DEFAULT '',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+
+  await client.unsafe(`
+    INSERT INTO clubs (
+      slug, name, wave_pay_url, sender_name,
+      public_url, organizer_url, campaign_url, custom_domain
+    )
+    SELECT
+      'rotaract-iugb',
+      'Rotaract IUGB Club',
+      '',
+      'Rotaract IUGB Club',
+      'https://tombola.rotaractiugb.com',
+      'https://organisateurs.rotaractiugb.com',
+      'https://campagnes.rotaractiugb.com',
+      'rotaractiugb.com'
+    WHERE NOT EXISTS (SELECT 1 FROM clubs WHERE slug = 'rotaract-iugb')
+  `);
+
+  const [iugb] = await client<{ id: string }[]>`SELECT id FROM clubs WHERE slug = 'rotaract-iugb' LIMIT 1`;
+  if (!iugb?.id) {
+    throw new Error("Could not bootstrap default club");
+  }
+  const clubId = iugb.id;
+
+  await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS club_id uuid REFERENCES clubs(id) ON DELETE CASCADE`);
+  await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS club_id uuid REFERENCES clubs(id) ON DELETE CASCADE`);
+  await client.unsafe(`ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS club_id uuid REFERENCES clubs(id) ON DELETE CASCADE`);
+  await client.unsafe(`ALTER TABLE push_subscriptions ADD COLUMN IF NOT EXISTS club_id uuid REFERENCES clubs(id) ON DELETE CASCADE`);
+
+  await client`UPDATE members SET club_id = ${clubId} WHERE club_id IS NULL`;
+  await client`UPDATE events SET club_id = ${clubId} WHERE club_id IS NULL`;
+  await client`UPDATE campaigns SET club_id = ${clubId} WHERE club_id IS NULL`;
+  await client.unsafe(`
+    UPDATE push_subscriptions AS p
+    SET club_id = m.club_id
+    FROM members AS m
+    WHERE p.member_id = m.id AND p.club_id IS NULL
+  `);
+  await client`UPDATE push_subscriptions SET club_id = ${clubId} WHERE club_id IS NULL`;
+
+  await client.unsafe(`ALTER TABLE members ALTER COLUMN club_id SET NOT NULL`);
+  await client.unsafe(`ALTER TABLE events ALTER COLUMN club_id SET NOT NULL`);
+  await client.unsafe(`ALTER TABLE campaigns ALTER COLUMN club_id SET NOT NULL`);
+  await client.unsafe(`ALTER TABLE push_subscriptions ALTER COLUMN club_id SET NOT NULL`);
+
+  await client.unsafe(`ALTER TABLE members DROP CONSTRAINT IF EXISTS members_email_key`);
+  await client.unsafe(`ALTER TABLE members DROP CONSTRAINT IF EXISTS members_email_unique`);
+  await client.unsafe(`DROP INDEX IF EXISTS members_email_unique`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS members_club_email_idx ON members (club_id, email)`);
+
+  await client.unsafe(`ALTER TABLE events DROP CONSTRAINT IF EXISTS events_slug_key`);
+  await client.unsafe(`ALTER TABLE events DROP CONSTRAINT IF EXISTS events_slug_unique`);
+  await client.unsafe(`DROP INDEX IF EXISTS events_slug_unique`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS events_club_slug_idx ON events (club_id, slug)`);
+
+  await client.unsafe(`ALTER TABLE push_subscriptions DROP CONSTRAINT IF EXISTS push_subscriptions_endpoint_key`);
+  await client.unsafe(`ALTER TABLE push_subscriptions DROP CONSTRAINT IF EXISTS push_subscriptions_endpoint_unique`);
+  await client.unsafe(`DROP INDEX IF EXISTS push_subscriptions_endpoint_key`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS push_subscriptions_club_endpoint_idx ON push_subscriptions (club_id, endpoint)`);
+
+  await client.unsafe(`DROP INDEX IF EXISTS events_one_on_sale_idx`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS events_one_on_sale_idx ON events (club_id) WHERE status = 'on_sale'`);
+
+  const password = process.env.ADMIN_PASSWORD?.trim() ?? "";
+  const emails = (process.env.ADMIN_EMAIL ?? "").trim();
+  const wave = (process.env.WAVE_PAY_URL ?? "").trim();
+  const sender = (process.env.BREVO_SENDER_NAME ?? "").trim();
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL ?? "").trim();
+  const [club] = await client<{ organizer_password_hash: string; organizer_emails: string }[]>`
+    SELECT organizer_password_hash, organizer_emails FROM clubs WHERE id = ${clubId}
+  `;
+  if (club && !club.organizer_password_hash && password) {
+    const hash = await hashPassword(password);
+    await client`UPDATE clubs SET organizer_password_hash = ${hash}, updated_at = now() WHERE id = ${clubId}`;
+  }
+  if (club && !club.organizer_emails && emails) {
+    await client`UPDATE clubs SET organizer_emails = ${emails}, updated_at = now() WHERE id = ${clubId}`;
+  }
+  if (wave) {
+    await client`UPDATE clubs SET wave_pay_url = ${wave}, updated_at = now() WHERE id = ${clubId} AND (wave_pay_url = '' OR wave_pay_url IS NULL)`;
+  }
+  if (sender) {
+    await client`UPDATE clubs SET sender_name = ${sender}, updated_at = now() WHERE id = ${clubId} AND sender_name IN ('', 'Rotaract IUGB Club')`;
+  }
+  if (senderEmail) {
+    await client`UPDATE clubs SET sender_email = ${senderEmail}, updated_at = now() WHERE id = ${clubId} AND (sender_email IS NULL OR sender_email = '')`;
+  }
 }
 
 export function isUniqueViolation(error: unknown) {

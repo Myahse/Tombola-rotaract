@@ -2,7 +2,7 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { campaignAttachments, campaignRecipients, campaigns, members, orders } from "../db/schema.js";
+import { campaignAttachments, campaignRecipients, campaigns, events, members, orders } from "../db/schema.js";
 import { campaignEmail } from "../emails/campaign.js";
 import { campaignImageUrl } from "../emails/layout.js";
 import { requireAdmin } from "../lib/auth.js";
@@ -55,12 +55,15 @@ function parseExtraEmails(raw: string) {
 
 type Recipient = { email: string; name: string; source: "member" | "buyer" | "custom" };
 
-async function resolveAudience(input: {
-  includeMembers: boolean;
-  includeBuyers: boolean;
-  optedInOnly: boolean;
-  extraEmails: string;
-}) {
+async function resolveAudience(
+  input: {
+    includeMembers: boolean;
+    includeBuyers: boolean;
+    optedInOnly: boolean;
+    extraEmails: string;
+  },
+  clubId: string,
+) {
   const map = new Map<string, Recipient>();
 
   if (input.includeMembers) {
@@ -68,8 +71,8 @@ async function resolveAudience(input: {
       ? await db
           .select({ email: members.email, name: members.name })
           .from(members)
-          .where(isNotNull(members.emailsAcceptedAt))
-      : await db.select({ email: members.email, name: members.name }).from(members);
+          .where(and(eq(members.clubId, clubId), isNotNull(members.emailsAcceptedAt)))
+      : await db.select({ email: members.email, name: members.name }).from(members).where(eq(members.clubId, clubId));
     for (const row of rows) {
       const email = row.email.trim().toLowerCase();
       if (!EMAIL_RE.test(email) || map.has(email)) continue;
@@ -81,7 +84,8 @@ async function resolveAudience(input: {
     const rows = await db
       .select({ email: orders.buyerEmail, name: orders.buyerName })
       .from(orders)
-      .where(eq(orders.status, "paid"));
+      .innerJoin(events, eq(orders.eventId, events.id))
+      .where(and(eq(orders.status, "paid"), eq(events.clubId, clubId)));
     for (const row of rows) {
       const email = row.email.trim().toLowerCase();
       if (!EMAIL_RE.test(email) || map.has(email)) continue;
@@ -137,8 +141,12 @@ function publicAttachment(row: typeof campaignAttachments.$inferSelect) {
   };
 }
 
-async function loadCampaign(id: string) {
-  const [row] = await db.select().from(campaigns).where(eq(campaigns.id, id)).limit(1);
+async function loadCampaign(id: string, clubId?: string) {
+  const [row] = await db
+    .select()
+    .from(campaigns)
+    .where(clubId ? and(eq(campaigns.id, id), eq(campaigns.clubId, clubId)) : eq(campaigns.id, id))
+    .limit(1);
   return row ?? null;
 }
 
@@ -165,9 +173,17 @@ function inlineImageRefs(files: typeof campaignAttachments.$inferSelect[]) {
     .map((file) => ({ url: campaignImageUrl(file.id), filename: file.filename }));
 }
 
-campaignRouter.get("/meta", async (_req, res) => {
-  const memberRows = await db.select({ email: members.email, accepted: members.emailsAcceptedAt }).from(members);
-  const buyerRows = await db.select({ email: orders.buyerEmail }).from(orders).where(eq(orders.status, "paid"));
+campaignRouter.get("/meta", async (req, res) => {
+  const clubId = req.club!.id;
+  const memberRows = await db
+    .select({ email: members.email, accepted: members.emailsAcceptedAt })
+    .from(members)
+    .where(eq(members.clubId, clubId));
+  const buyerRows = await db
+    .select({ email: orders.buyerEmail })
+    .from(orders)
+    .innerJoin(events, eq(orders.eventId, events.id))
+    .where(and(eq(orders.status, "paid"), eq(events.clubId, clubId)));
   const buyers = new Set(buyerRows.map((row) => row.email.trim().toLowerCase()).filter((email) => EMAIL_RE.test(email)));
   res.json({
     brevo: isBrevoConfigured(),
@@ -179,14 +195,17 @@ campaignRouter.get("/meta", async (_req, res) => {
   });
 });
 
-campaignRouter.get("/people", async (_req, res) => {
+campaignRouter.get("/people", async (req, res) => {
+  const clubId = req.club!.id;
   const memberRows = await db
     .select({ email: members.email, name: members.name, accepted: members.emailsAcceptedAt })
-    .from(members);
+    .from(members)
+    .where(eq(members.clubId, clubId));
   const buyerRows = await db
     .select({ email: orders.buyerEmail, name: orders.buyerName })
     .from(orders)
-    .where(eq(orders.status, "paid"));
+    .innerJoin(events, eq(orders.eventId, events.id))
+    .where(and(eq(orders.status, "paid"), eq(events.clubId, clubId)));
 
   const map = new Map<
     string,
@@ -269,7 +288,7 @@ campaignRouter.post("/preview-audience", async (req, res) => {
     res.status(400).json({ error: "invalid_form" });
     return;
   }
-  const result = await resolveAudience(parsed.data);
+  const result = await resolveAudience(parsed.data, req.club!.id);
   res.json({
     total: result.recipients.length,
     invalid: result.invalid,
@@ -278,8 +297,13 @@ campaignRouter.post("/preview-audience", async (req, res) => {
   });
 });
 
-campaignRouter.get("/", async (_req, res) => {
-  const rows = await db.select().from(campaigns).orderBy(desc(campaigns.createdAt)).limit(80);
+campaignRouter.get("/", async (req, res) => {
+  const rows = await db
+    .select()
+    .from(campaigns)
+    .where(eq(campaigns.clubId, req.club!.id))
+    .orderBy(desc(campaigns.createdAt))
+    .limit(80);
   res.json({ campaigns: rows.map(publicCampaign) });
 });
 
@@ -293,6 +317,7 @@ campaignRouter.post("/", async (req, res) => {
   const [created] = await db
     .insert(campaigns)
     .values({
+      clubId: req.club!.id,
       name: data.name?.trim() || data.subject,
       subject: data.subject,
       preheader: data.preheader,
@@ -310,7 +335,7 @@ campaignRouter.post("/", async (req, res) => {
 });
 
 campaignRouter.get("/:id", async (req, res) => {
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -337,7 +362,7 @@ campaignRouter.get("/:id", async (req, res) => {
 });
 
 campaignRouter.put("/:id", async (req, res) => {
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -374,7 +399,7 @@ campaignRouter.put("/:id", async (req, res) => {
 });
 
 campaignRouter.delete("/:id", async (req, res) => {
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -388,7 +413,7 @@ campaignRouter.delete("/:id", async (req, res) => {
 });
 
 campaignRouter.post("/:id/duplicate", async (req, res) => {
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -396,6 +421,7 @@ campaignRouter.post("/:id/duplicate", async (req, res) => {
   const [copy] = await db
     .insert(campaigns)
     .values({
+      clubId: campaign.clubId,
       name: `${campaign.name} (copie)`,
       subject: campaign.subject,
       preheader: campaign.preheader,
@@ -425,7 +451,7 @@ campaignRouter.post("/:id/duplicate", async (req, res) => {
 });
 
 campaignRouter.post("/:id/attachments", async (req, res) => {
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -484,7 +510,7 @@ campaignRouter.get("/:id/attachments/:attachmentId", async (req, res) => {
 });
 
 campaignRouter.delete("/:id/attachments/:attachmentId", async (req, res) => {
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -506,7 +532,7 @@ campaignRouter.post("/:id/test", async (req, res) => {
     res.status(429).json({ error: "rate_limited" });
     return;
   }
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -549,7 +575,7 @@ campaignRouter.post("/:id/send", async (req, res) => {
     res.status(429).json({ error: "rate_limited" });
     return;
   }
-  const campaign = await loadCampaign(req.params.id);
+  const campaign = await loadCampaign(req.params.id, req.club!.id);
   if (!campaign) {
     res.status(404).json({ error: "not_found" });
     return;
@@ -562,7 +588,7 @@ campaignRouter.post("/:id/send", async (req, res) => {
     res.status(400).json({ error: "brevo_not_configured" });
     return;
   }
-  const audience = await resolveAudience(campaign);
+  const audience = await resolveAudience(campaign, req.club!.id);
   if (!audience.recipients.length) {
     res.status(400).json({ error: "no_recipients" });
     return;

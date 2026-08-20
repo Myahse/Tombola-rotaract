@@ -1,14 +1,19 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { events, orders, prizes, tickets } from "../db/schema.js";
+import { currentClub } from "./club.js";
 import { broadcast } from "./realtime.js";
 import { drawModeOf } from "./tickets.js";
 
-export async function getCurrentPublicEvent() {
+export async function getCurrentPublicEvent(clubId?: string) {
   const [event] = await db
     .select()
     .from(events)
-    .where(inArray(events.status, ["on_sale", "closed", "drawn"]))
+    .where(
+      clubId
+        ? and(eq(events.clubId, clubId), inArray(events.status, ["on_sale", "closed", "drawn"]))
+        : inArray(events.status, ["on_sale", "closed", "drawn"]),
+    )
     .orderBy(
       sql`case ${events.status} when 'on_sale' then 0 when 'closed' then 1 else 2 end`,
       desc(events.createdAt),
@@ -27,8 +32,8 @@ async function ticketStats(eventId: string) {
   return { paid, reserved: 0, held: paid };
 }
 
-export async function publicSnapshot() {
-  const event = await getCurrentPublicEvent();
+export async function publicSnapshot(clubId?: string) {
+  const event = await getCurrentPublicEvent(clubId ?? currentClub()?.id);
   if (!event) return null;
   const eventPrizes = await db
     .select()
@@ -64,11 +69,12 @@ export async function publicSnapshot() {
   };
 }
 
-export async function publishChange(reason: "order" | "event" | "draw" | "scratch") {
-  const event = await publicSnapshot();
-  broadcast({ type: "public.snapshot", event });
-  broadcast({ type: "organizer.changed", reason }, "organizer");
+export async function publishChange(reason: "order" | "event" | "draw" | "scratch", clubId?: string) {
+  const id = clubId ?? currentClub()?.id;
+  const event = await publicSnapshot(id);
+  broadcast({ type: "public.snapshot", event }, undefined, id);
+  broadcast({ type: "organizer.changed", reason }, "organizer", id);
   if (reason === "draw") {
-    broadcast({ type: "draw.done" });
+    broadcast({ type: "draw.done" }, undefined, id);
   }
 }

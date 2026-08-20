@@ -17,7 +17,13 @@ export function useRealtime(role: RealtimeRole, onMessage: (message: RealtimeMes
       socket = new WebSocket(websocketUrl());
       socket.onopen = () => {
         setConnected(true);
-        socket?.send(JSON.stringify({ type: "hello", role }));
+        socket?.send(
+          JSON.stringify({
+            type: "hello",
+            role,
+            clubId: sessionStorage.getItem("tombola_club_id") || undefined,
+          }),
+        );
       };
       socket.onmessage = (event) => {
         try {

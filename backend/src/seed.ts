@@ -1,8 +1,27 @@
 import "dotenv/config";
 import { db } from "./db/index.js";
-import { events, prizes } from "./db/schema.js";
+import { clubs, events, prizes } from "./db/schema.js";
+import { defaultClubSlug } from "./lib/club.js";
 
 async function seed() {
+  let [tenant] = await db.select().from(clubs).limit(1);
+  if (!tenant) {
+    const [created] = await db
+      .insert(clubs)
+      .values({
+        slug: defaultClubSlug(),
+        name: "Club demo",
+        publicUrl: "http://localhost:5173",
+        organizerUrl: "http://localhost:5174",
+        campaignUrl: "http://localhost:5175",
+        senderName: "Club demo",
+        status: "active",
+      })
+      .returning();
+    tenant = created;
+  }
+  if (!tenant) throw new Error("Could not create club");
+
   const existing = await db.select({ id: events.id }).from(events).limit(1);
   if (existing.length) {
     console.log("Database already has a tombola. Skipping seed.");
@@ -12,6 +31,7 @@ async function seed() {
   const [event] = await db
     .insert(events)
     .values({
+      clubId: tenant.id,
       slug: "tombola-club-2026",
       titleFr: "Tombola du club 2026",
       titleEn: "Club tombola 2026",
