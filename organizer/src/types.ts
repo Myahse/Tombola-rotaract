@@ -126,6 +126,7 @@ export type AdminOrder = {
   buyerPhone: string | null;
   quantity: number;
   paymentMethod?: PaymentMethod;
+  paymentRef?: string | null;
   status: OrderStatus;
   createdAt: string;
   paidAt: string | null;

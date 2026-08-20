@@ -852,6 +852,10 @@ a:hover { color: var(--primary); }
   font-weight: 600;
   font-size: 0.92rem;
 }
+.wave-ref {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  word-break: break-all;
+}
 .buyer-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;

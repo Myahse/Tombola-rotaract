@@ -18,6 +18,7 @@ export const db = drizzle(client, { schema });
 export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url text`);
   await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'cash'`);
+  await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_ref text`);
   await client.unsafe(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS scratched_at timestamptz`);
   await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS draw_mode text NOT NULL DEFAULT 'scratch'`);
   await client.unsafe(`ALTER TABLE prizes ADD COLUMN IF NOT EXISTS ticket_number integer`);

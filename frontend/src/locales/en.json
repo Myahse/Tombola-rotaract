@@ -84,7 +84,13 @@
     "statusPaid": "Paid. Your tickets are in the draw",
     "yourTickets": "Your scratch tickets",
     "yourPlainTickets": "Your tickets",
-    "winner": "Winner: {{prize}}"
+    "winner": "Winner: {{prize}}",
+    "cancelTitle": "Cancel the order",
+    "cancelBody": "Cancel this order? The tickets go back into the pool. If you already paid on Wave, contact the club with the transaction ID for a refund.",
+    "cancelCta": "Cancel the order",
+    "cancelKeep": "Keep it",
+    "cancelPaid": "The club has already confirmed payment. Contact an organizer.",
+    "cancelLocked": "The draw has already happened. This order can no longer be cancelled."
   },
   "share": {
     "title": "Give tickets",
@@ -102,8 +108,16 @@
     "cash": "Cash",
     "waveHint": "Pay Doaty Délice, affiliated with Rotaract IUGB Club, in Wave.",
     "cashHint": "Pay an organizer in person at the club.",
-    "waveLead": "Please pay Doaty Délice, affiliated with Rotaract IUGB Club, with Wave by tapping this link.",
+    "waveLead": "Pay Doaty Délice, affiliated with Rotaract IUGB Club, with Wave. Then copy the transaction ID and paste it below.",
     "waveCta": "Pay with Wave",
+    "waveId": "Wave transaction ID",
+    "waveIdHelp": "After paying, copy the ID from Wave and paste it here. It appears on the organizer’s buyers list so they can match your payment.",
+    "waveIdPlaceholder": "e.g. TCI123456789",
+    "waveIdCta": "Send the ID",
+    "waveIdSaving": "Sending…",
+    "waveIdSaved": "ID sent. The organizer can see it on your row.",
+    "waveIdInvalid": "Check the ID you copied from Wave.",
+    "waveIdLocked": "This order can no longer receive an ID.",
     "cashLead": "Pay your tickets in cash to a club organizer. Give your name so they can mark the order as paid.",
     "affiliate": "Doaty Délice is affiliated with Rotaract IUGB Club."
   },

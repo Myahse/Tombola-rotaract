@@ -84,7 +84,13 @@
     "statusPaid": "Payé. Vos tickets sont dans le tirage",
     "yourTickets": "Vos tickets à gratter",
     "yourPlainTickets": "Vos tickets",
-    "winner": "Gagnant : {{prize}}"
+    "winner": "Gagnant : {{prize}}",
+    "cancelTitle": "Annuler la commande",
+    "cancelBody": "Annuler cette commande ? Les tickets reviennent dans le stock. Si vous avez déjà payé sur Wave, contactez le club avec l’identifiant de transaction pour un remboursement.",
+    "cancelCta": "Annuler la commande",
+    "cancelKeep": "Garder",
+    "cancelPaid": "Le club a déjà confirmé le paiement. Contactez un organisateur.",
+    "cancelLocked": "Le tirage a déjà eu lieu. Cette commande ne peut plus être annulée."
   },
   "share": {
     "title": "Offrir des tickets",
@@ -102,8 +108,16 @@
     "cash": "Espèces",
     "waveHint": "Payez Doaty Délice, affilié au Rotaract IUGB Club, dans Wave.",
     "cashHint": "Payez au club, en main propre.",
-    "waveLead": "Veuillez payer Doaty Délice, affilié au Rotaract IUGB Club, avec Wave en cliquant sur ce lien.",
+    "waveLead": "Payez Doaty Délice, affilié au Rotaract IUGB Club, avec Wave. Ensuite copiez l’identifiant de transaction et collez-le ci-dessous.",
     "waveCta": "Payer avec Wave",
+    "waveId": "Identifiant de transaction Wave",
+    "waveIdHelp": "Après le paiement, copiez l’identifiant dans Wave et collez-le ici. Il apparaît chez l’organisateur pour vérifier votre paiement.",
+    "waveIdPlaceholder": "Ex. TCI123456789",
+    "waveIdCta": "Envoyer l’identifiant",
+    "waveIdSaving": "Envoi…",
+    "waveIdSaved": "Identifiant envoyé. L’organisateur le voit sur votre ligne.",
+    "waveIdInvalid": "Vérifiez l’identifiant copié dans Wave.",
+    "waveIdLocked": "Cette commande ne peut plus recevoir d’identifiant.",
     "cashLead": "Payez vos tickets en espèces à un organisateur du club. Donnez votre nom : il marquera la commande comme payée.",
     "affiliate": "Doaty Délice est affilié au Rotaract IUGB Club."
   },

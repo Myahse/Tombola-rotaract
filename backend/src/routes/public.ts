@@ -166,6 +166,7 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       buyerEmail: created.order.buyerEmail,
       quantity: created.order.quantity,
       paymentMethod: created.order.paymentMethod,
+      paymentRef: created.order.paymentRef,
       wavePayUrl: wavePayUrl(),
       status: created.order.status,
       ticketPriceCents: created.event.ticketPriceCents,
@@ -230,6 +231,7 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
     buyerName: order.buyerName,
     quantity: order.quantity,
     paymentMethod: order.paymentMethod,
+    paymentRef: order.paymentRef,
     wavePayUrl: wavePayUrl(),
     status: order.status,
     createdAt: order.createdAt,
@@ -243,6 +245,116 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
     drawMode: drawModeOf(event?.drawMode),
     tickets: maskScratchPrizes(orderTickets, drawModeOf(event?.drawMode)),
   });
+});
+
+const paymentRefSchema = z.object({
+  paymentRef: z
+    .string()
+    .trim()
+    .min(4)
+    .max(80)
+    .regex(/^[A-Za-z0-9][A-Za-z0-9 .#/_-]*$/),
+});
+
+publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) => {
+  if (!allowRequest(`payref:${clientKey(req)}`, 20, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const token = typeof req.params.token === "string" ? req.params.token : "";
+  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) {
+    res.status(400).json({ error: "missing_token" });
+    return;
+  }
+  const parsed = paymentRefSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+
+  const [order] = await db.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
+  if (!order || order.status === "cancelled") {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
+  if (order.memberId !== (req as MemberRequest).memberId) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  if (order.paymentMethod !== "wave") {
+    res.status(409).json({ error: "not_wave" });
+    return;
+  }
+  if (order.status !== "reserved") {
+    res.status(409).json({ error: "already_paid" });
+    return;
+  }
+
+  const [event] = await db.select({ status: events.status }).from(events).where(eq(events.id, order.eventId)).limit(1);
+  if (!event || event.status === "drawn") {
+    res.status(409).json({ error: "event_locked" });
+    return;
+  }
+
+  const [updated] = await db
+    .update(orders)
+    .set({ paymentRef: parsed.data.paymentRef.trim() })
+    .where(eq(orders.id, order.id))
+    .returning();
+  res.json({ paymentRef: updated?.paymentRef ?? parsed.data.paymentRef });
+  void publishChange("order");
+});
+
+publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
+  if (!allowRequest(`cancel:${clientKey(req)}`, 10, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const token = typeof req.params.token === "string" ? req.params.token : "";
+  if (!token || !/^[A-Za-z0-9_-]{16,64}$/.test(token)) {
+    res.status(400).json({ error: "missing_token" });
+    return;
+  }
+
+  try {
+    const cancelled = await db.transaction(async (tx) => {
+      const [order] = await tx.select().from(orders).where(eq(orders.accessToken, token)).limit(1);
+      if (!order || order.status === "cancelled") {
+        throw Object.assign(new Error("not_found"), { status: 404 });
+      }
+      if (order.memberId !== (req as MemberRequest).memberId) {
+        throw Object.assign(new Error("forbidden"), { status: 403 });
+      }
+      if (order.status !== "reserved") {
+        throw Object.assign(new Error("already_paid"), { status: 409 });
+      }
+      const [event] = await tx.select({ status: events.status }).from(events).where(eq(events.id, order.eventId)).limit(1);
+      if (!event || event.status === "drawn") {
+        throw Object.assign(new Error("event_locked"), { status: 409 });
+      }
+      await tx.delete(tickets).where(eq(tickets.orderId, order.id));
+      await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
+      return true;
+    });
+    res.json({ ok: cancelled });
+    void publishChange("order");
+  } catch (error) {
+    const err = error as Error & { status?: number };
+    if (err.message === "not_found") {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
+    if (err.message === "forbidden") {
+      res.status(403).json({ error: "forbidden" });
+      return;
+    }
+    if (err.message === "already_paid" || err.message === "event_locked") {
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
+  }
 });
 
 const shareSchema = z.object({

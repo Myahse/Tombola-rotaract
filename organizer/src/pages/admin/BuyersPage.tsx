@@ -38,9 +38,12 @@ export function BuyersPage() {
   const locked = event?.status === "drawn";
   const unpaid = orders.filter((order) => order.status === "reserved").length;
   const sorted = [...orders].sort((a, b) => {
-    if (a.status === b.status) return 0;
-    if (a.status === "reserved") return -1;
-    if (b.status === "reserved") return 1;
+    if (a.status === "reserved" && b.status !== "reserved") return -1;
+    if (b.status === "reserved" && a.status !== "reserved") return 1;
+    if (a.status === "reserved" && b.status === "reserved") {
+      if (a.paymentRef && !b.paymentRef) return -1;
+      if (b.paymentRef && !a.paymentRef) return 1;
+    }
     return 0;
   });
 
@@ -180,6 +183,12 @@ export function BuyersPage() {
                     <dt>{t("admin.payment")}</dt>
                     <dd>{payment(order)}</dd>
                   </div>
+                  {order.paymentMethod === "wave" ? (
+                    <div>
+                      <dt>{t("admin.waveId")}</dt>
+                      <dd className="wave-ref">{order.paymentRef || t("admin.waveIdWaiting")}</dd>
+                    </div>
+                  ) : null}
                 </dl>
                 {actions(order)}
               </article>
@@ -196,6 +205,7 @@ export function BuyersPage() {
                   <th>{t("confirm.yourTickets")}</th>
                   <th>{t("admin.amount")}</th>
                   <th>{t("admin.payment")}</th>
+                  <th>{t("admin.waveId")}</th>
                   <th>{t("admin.reserved")}</th>
                   <th />
                 </tr>
@@ -211,6 +221,9 @@ export function BuyersPage() {
                     <td>{numbers(order)}</td>
                     <td>{amount(order)}</td>
                     <td>{payment(order)}</td>
+                    <td className="wave-ref">
+                      {order.paymentMethod === "wave" ? order.paymentRef || t("admin.waveIdWaiting") : "—"}
+                    </td>
                     <td>{statusBadge(order.status)}</td>
                     <td>{actions(order)}</td>
                   </tr>
@@ -232,7 +245,13 @@ export function BuyersPage() {
           }
           body={
             pending.type === "paid"
-              ? t("admin.markPaidBody", { name: pending.order.buyerName, amount: amount(pending.order) })
+              ? pending.order.paymentRef
+                ? t("admin.markPaidBodyRef", {
+                    name: pending.order.buyerName,
+                    amount: amount(pending.order),
+                    ref: pending.order.paymentRef,
+                  })
+                : t("admin.markPaidBody", { name: pending.order.buyerName, amount: amount(pending.order) })
               : pending.type === "unpaid"
                 ? t("admin.unmarkPaidBody", { name: pending.order.buyerName })
                 : t("admin.cancelBody", { name: pending.order.buyerName })

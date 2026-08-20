@@ -40,6 +40,13 @@ export const api = {
   buy: (body: { quantity: number; phone?: string; paymentMethod: "cash" | "wave" }) =>
     request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
   order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
+  sendPaymentRef: (token: string, paymentRef: string) =>
+    request<{ paymentRef: string }>(`/api/orders/${encodeURIComponent(token)}/payment-ref`, {
+      method: "POST",
+      body: JSON.stringify({ paymentRef }),
+    }),
+  cancelMyOrder: (token: string) =>
+    request<{ ok: boolean }>(`/api/orders/${encodeURIComponent(token)}/cancel`, { method: "POST" }),
   scratch: (token: string, number: number) =>
     request<{
       ok: boolean;

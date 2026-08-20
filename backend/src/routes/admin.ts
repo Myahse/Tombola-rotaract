@@ -476,6 +476,7 @@ adminRouter.get("/orders", requireAdmin, async (req, res) => {
       buyerPhone: orders.buyerPhone,
       quantity: orders.quantity,
       paymentMethod: orders.paymentMethod,
+      paymentRef: orders.paymentRef,
       status: orders.status,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,

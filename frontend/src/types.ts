@@ -47,6 +47,7 @@ export type OrderView = {
   buyerEmail?: string;
   quantity: number;
   paymentMethod?: PaymentMethod;
+  paymentRef?: string | null;
   wavePayUrl?: string;
   status: OrderStatus;
   ticketPriceCents: number;

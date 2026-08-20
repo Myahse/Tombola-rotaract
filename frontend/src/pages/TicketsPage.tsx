@@ -7,6 +7,7 @@ import type { OrderTicket, OrderView } from "../types";
 import { NumberedTicket, ScratchTicket, StatusPill } from "../components/ScratchTicket";
 import { TicketDeck } from "../components/TicketDeck";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { ConfirmModal } from "../components/ConfirmModal";
 import { useRealtime } from "../useRealtime";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
@@ -23,6 +24,13 @@ export function TicketsPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState("");
   const [shareDone, setShareDone] = useState("");
+  const [waveRef, setWaveRef] = useState("");
+  const [waveBusy, setWaveBusy] = useState(false);
+  const [waveError, setWaveError] = useState("");
+  const [waveDone, setWaveDone] = useState("");
+  const [confirmCancel, setConfirmCancel] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   const [view, setView] = useState<"deck" | "list">(() =>
     localStorage.getItem("tombola-tickets-view") === "list" ? "list" : "deck",
   );
@@ -36,6 +44,7 @@ export function TicketsPage() {
       .then((data) => {
         setOrder(data);
         setShareNumbers((data.tickets ?? []).map((ticket) => ticket.number));
+        setWaveRef(data.paymentRef ?? "");
       })
       .catch((err) => {
         const code = err instanceof Error ? err.message : "";
@@ -46,7 +55,10 @@ export function TicketsPage() {
   useRealtime("public", (message) => {
     if (!token || !member) return;
     if (message.type === "public.snapshot" || message.type === "draw.done") {
-      api.order(token).then(setOrder).catch(() => undefined);
+      api.order(token).then((data) => {
+        setOrder(data);
+        if (data.paymentRef) setWaveRef(data.paymentRef);
+      }).catch(() => undefined);
     }
   });
 
@@ -146,6 +158,52 @@ export function TicketsPage() {
       );
     } finally {
       setShareBusy(false);
+    }
+  }
+
+  async function onWaveRef(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!token) return;
+    setWaveBusy(true);
+    setWaveError("");
+    setWaveDone("");
+    try {
+      const result = await api.sendPaymentRef(token, waveRef);
+      setWaveRef(result.paymentRef);
+      setOrder((current) => (current ? { ...current, paymentRef: result.paymentRef } : current));
+      setWaveDone(t("pay.waveIdSaved"));
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setWaveError(
+        code === "invalid_form"
+          ? t("pay.waveIdInvalid")
+          : code === "already_paid" || code === "event_locked"
+            ? t("pay.waveIdLocked")
+            : t("errors.generic"),
+      );
+    } finally {
+      setWaveBusy(false);
+    }
+  }
+
+  async function onCancelOrder() {
+    if (!token) return;
+    setCancelBusy(true);
+    try {
+      await api.cancelMyOrder(token);
+      navigate(`/${lang}/account`, { replace: true });
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setConfirmCancel(false);
+      setCancelError(
+        code === "already_paid"
+          ? t("confirm.cancelPaid")
+          : code === "event_locked"
+            ? t("confirm.cancelLocked")
+            : t("errors.generic"),
+      );
+    } finally {
+      setCancelBusy(false);
     }
   }
 
@@ -281,11 +339,47 @@ export function TicketsPage() {
                 {t("pay.waveCta")}
               </a>
             ) : null}
+            {!paid ? (
+              <form className="mt-6 grid gap-3" onSubmit={(e) => void onWaveRef(e)}>
+                <label>
+                  {t("pay.waveId")}
+                  <input
+                    value={waveRef}
+                    onChange={(e) => setWaveRef(e.target.value)}
+                    placeholder={t("pay.waveIdPlaceholder")}
+                    autoComplete="off"
+                    required
+                    minLength={4}
+                    maxLength={80}
+                  />
+                </label>
+                <p className="lede">{t("pay.waveIdHelp")}</p>
+                {waveError ? <p className="text-sm text-ticket">{waveError}</p> : null}
+                {waveDone ? <p className="field-ok">{waveDone}</p> : null}
+                <button className="btn-outline" disabled={waveBusy}>
+                  {waveBusy ? t("pay.waveIdSaving") : t("pay.waveIdCta")}
+                </button>
+              </form>
+            ) : order.paymentRef ? (
+              <p className="lede mt-3">
+                {t("pay.waveId")}: <strong className="wave-ref">{order.paymentRef}</strong>
+              </p>
+            ) : null}
           </>
         ) : (
           <p>{t("pay.cashLead")}</p>
         )}
         {pay ? <p className="whitespace-pre-wrap pay-note">{pay}</p> : null}
+        {!paid ? (
+          <div className="mt-6 grid gap-3">
+            {cancelError ? <p className="text-sm text-ticket">{cancelError}</p> : null}
+            <p>
+              <button type="button" className="btn-danger" onClick={() => setConfirmCancel(true)}>
+                {t("confirm.cancelCta")}
+              </button>
+            </p>
+          </div>
+        ) : null}
       </section>
 
       {paid && tickets.length && order.eventStatus !== "drawn" ? (
@@ -328,6 +422,20 @@ export function TicketsPage() {
             </button>
           </form>
         </section>
+      ) : null}
+      {confirmCancel ? (
+        <ConfirmModal
+          title={t("confirm.cancelTitle")}
+          body={t("confirm.cancelBody")}
+          confirmLabel={t("confirm.cancelCta")}
+          cancelLabel={t("confirm.cancelKeep")}
+          busy={cancelBusy}
+          danger
+          onConfirm={() => void onCancelOrder()}
+          onCancel={() => {
+            if (!cancelBusy) setConfirmCancel(false);
+          }}
+        />
       ) : null}
     </>
   );
