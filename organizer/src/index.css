@@ -43,7 +43,7 @@
   --scrim: rgba(20, 20, 22, 0.32);
   --card-shadow: 0 18px 48px rgba(20, 20, 22, 0.14);
   --font: "Manrope", "Segoe UI", system-ui, sans-serif;
-  --header-h: 76px;
+  --header-h: calc(4.75rem + env(safe-area-inset-top, 0px));
   --nav-h: 52px;
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
@@ -134,10 +134,16 @@ label {
 a { color: var(--ink); text-decoration: none; }
 a:hover { color: var(--primary); }
 
+.app-shell {
+  padding-top: var(--header-h);
+}
+
 .site-header {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 20;
+  left: 0;
+  right: 0;
+  z-index: 30;
   min-height: 0;
   height: auto;
   display: flex;
@@ -1061,5 +1067,6 @@ textarea.skeleton {
 
 @media print {
   .no-print, .site-header, .bottom-nav { display: none !important; }
+  .app-shell { padding-top: 0; }
   body { background: white; }
 }
