@@ -266,7 +266,11 @@
     "notifyCta": "Turn on",
     "disable": "Turn off",
     "blocked": "Notifications are blocked in your browser settings.",
-    "unavailable": "Notifications are not available on this device."
+    "unavailable": "Notifications are not available on this device.",
+    "subscribeFailed": "Could not enable notifications on this device. Try again from the installed app.",
+    "testCta": "Send a test",
+    "testSent": "A test was sent. It should appear right away.",
+    "close": "OK"
   },
   "errors": {
     "generic": "Something went wrong.",

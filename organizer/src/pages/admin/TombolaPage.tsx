@@ -1,9 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../../api";
 import type { AdminEvent, Prize } from "../../types";
 import { PageSkeleton } from "../../components/PageSkeleton";
+import { NoticeModal } from "../../components/NoticeModal";
+import { useOrganizerEvent } from "../../eventContext";
 
 const emptyPrize = (rank: number): Prize => ({
   rank,
@@ -30,11 +32,15 @@ export function TombolaPage() {
   const { t } = useTranslation();
   const { lang } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { eventId, setEventId, refreshEvents } = useOrganizerEvent();
+  const composing = Boolean((location.state as { compose?: boolean } | null)?.compose);
   const [event, setEvent] = useState<AdminEvent | null | undefined>(undefined);
   const [form, setForm] = useState(emptyForm);
   const [prizes, setPrizes] = useState<Prize[]>([emptyPrize(1)]);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ title: string; body: string; next?: string } | null>(null);
 
   async function loadEvent() {
     const data = await api.adminEvent();
@@ -57,11 +63,17 @@ export function TombolaPage() {
   }
 
   useEffect(() => {
+    if (composing) {
+      setEvent(null);
+      setForm(emptyForm);
+      setPrizes([emptyPrize(1)]);
+      return;
+    }
     loadEvent().catch(() => {
       setEvent(null);
       setMessage(t("errors.apiDown"));
     });
-  }, [t]);
+  }, [t, eventId, composing]);
 
   function update<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -92,27 +104,32 @@ export function TombolaPage() {
       prizes: namedPrizes,
     };
     try {
-      if (!event || event.status === "drawn") {
+      if (!event || event.status === "drawn" || composing) {
         const created = await api.createEvent(payload);
+        setEventId(created.event.id);
+        await refreshEvents();
         setEvent(created.event);
         setPrizes(namedPrizes.length ? namedPrizes : [emptyPrize(1)]);
-        setMessage(namedPrizes.length ? t("admin.createdVisible") : t("admin.createdDraft"));
-        navigate(payload.drawMode === "scratch" && namedPrizes.length ? `/${lang ?? "fr"}/draw` : `/${lang ?? "fr"}`);
+        setNotice({
+          title: t("admin.createdTitle"),
+          body: created.event.status === "on_sale" ? t("admin.createdVisible") : t("admin.createdDraft"),
+          next: payload.drawMode === "scratch" && namedPrizes.length ? `/${lang ?? "fr"}/draw` : undefined,
+        });
+        navigate(`/${lang ?? "fr"}/tombola`, { replace: true, state: {} });
         return;
       }
       const saved = await api.saveEvent(payload);
       setEvent(saved.event);
       setPrizes(namedPrizes.length ? namedPrizes : [emptyPrize(1)]);
-      if (payload.drawMode === "scratch" && namedPrizes.length) {
-        navigate(`/${lang ?? "fr"}/draw`);
-        return;
-      }
-      setMessage(t("admin.save"));
+      setNotice({
+        title: t("admin.savedTitle"),
+        body: t("admin.savedBody"),
+        next: payload.drawMode === "scratch" && namedPrizes.length ? `/${lang ?? "fr"}/draw` : undefined,
+      });
     } catch (error) {
       const code = error instanceof Error ? error.message : "";
-      if (code === "active_event_exists") {
-        setMessage(t("errors.activeEvent"));
-        loadEvent().catch(() => undefined);
+      if (code === "another_on_sale") {
+        setMessage(t("errors.anotherOnSale"));
       } else if (code === "invalid_form") {
         setMessage(t("errors.invalidForm"));
       } else if (code === "Failed to fetch" || code === "request_failed") {
@@ -125,12 +142,23 @@ export function TombolaPage() {
     }
   }
 
-  if (event === undefined) return <PageSkeleton kind="tombola" />;
-  const locked = event?.status === "drawn";
+  if (event === undefined && !composing) return <PageSkeleton kind="tombola" />;
+  const locked = Boolean(event?.status === "drawn" && !composing);
 
   return (
     <form className="grid gap-5" onSubmit={onSubmit}>
-      <h1>{event ? t("admin.tombola") : t("admin.newTombola")}</h1>
+      <h1>{event && !composing ? t("admin.tombola") : t("admin.newTombola")}</h1>
+      {event && !composing ? (
+        <p>
+          <button
+            type="button"
+            className="btn-outline"
+            onClick={() => navigate(`/${lang ?? "fr"}/tombola`, { state: { compose: true } })}
+          >
+            {t("admin.newTombola")}
+          </button>
+        </p>
+      ) : null}
       {event?.status === "draft" ? (
         <p className="lede">
           {t("admin.draftHelp")}{" "}
@@ -148,7 +176,9 @@ export function TombolaPage() {
                   setMessage(
                     error instanceof Error && error.message === "need_prizes"
                       ? t("admin.needPrizes")
-                      : t("errors.generic"),
+                      : error instanceof Error && error.message === "another_on_sale"
+                        ? t("errors.anotherOnSale")
+                        : t("errors.generic"),
                   ),
                 )
                 .finally(() => setBusy(false));
@@ -241,22 +271,30 @@ export function TombolaPage() {
       </div>
       {!locked ? (
         <button disabled={busy} className="btn-primary">
-          {event ? t("admin.save") : t("admin.create")}
+          {event && !composing ? t("admin.save") : t("admin.create")}
         </button>
       ) : (
         <button
           type="button"
           className="btn-primary"
-          onClick={() => {
-            setEvent(null);
-            setForm(emptyForm);
-            setPrizes([emptyPrize(1)]);
-          }}
+          onClick={() => navigate(`/${lang ?? "fr"}/tombola`, { state: { compose: true } })}
         >
           {t("admin.newTombola")}
         </button>
       )}
       {message ? <p className="text-sm">{message}</p> : null}
+      {notice ? (
+        <NoticeModal
+          title={notice.title}
+          body={notice.body}
+          okLabel={t("admin.ok")}
+          onClose={() => {
+            const next = notice.next;
+            setNotice(null);
+            if (next) navigate(next);
+          }}
+        />
+      ) : null}
     </form>
   );
 }

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { EmailPreview } from "../components/EmailPreview";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { NoticeModal } from "../components/NoticeModal";
 import { PeoplePicker } from "../components/PeoplePicker";
 import { selectedFromDraft } from "../audience";
 import { SAMPLE_PERSON, type PreviewPerson } from "../emailPreview";
@@ -51,6 +52,7 @@ export function CampaignEditorPage() {
   const { t } = useTranslation();
   const { lang, id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [draft, setDraft] = useState<CampaignDraft | null>(null);
   const [attachments, setAttachments] = useState<CampaignAttachment[]>([]);
@@ -65,6 +67,11 @@ export function CampaignEditorPage() {
   const [focusField, setFocusField] = useState<"subject" | "preheader" | "heading" | "body" | "ctaLabel">("body");
   const [askingDelete, setAskingDelete] = useState(false);
   const [askingSend, setAskingSend] = useState(false);
+  const [createdNotice, setCreatedNotice] = useState(
+    Boolean((location.state as { created?: boolean } | null)?.created),
+  );
+  const [sentNotice, setSentNotice] = useState(false);
+  const [sentCount, setSentCount] = useState(0);
   const fieldRefs = {
     subject: useRef<HTMLInputElement>(null),
     preheader: useRef<HTMLInputElement>(null),
@@ -207,6 +214,8 @@ export function CampaignEditorPage() {
       await api.save(id, draft);
       await api.send(id);
       setAskingSend(false);
+      setSentCount(audience?.total ?? 0);
+      setSentNotice(true);
       await load();
     } catch (error) {
       setMessage(errorText(t, error));
@@ -538,6 +547,22 @@ export function CampaignEditorPage() {
           onCancel={() => {
             if (busy !== "delete") setAskingDelete(false);
           }}
+        />
+      ) : null}
+      {createdNotice ? (
+        <NoticeModal
+          title={t("campaign.createdTitle")}
+          body={t("campaign.createdBody")}
+          okLabel={t("campaign.gotIt")}
+          onClose={() => setCreatedNotice(false)}
+        />
+      ) : null}
+      {sentNotice ? (
+        <NoticeModal
+          title={t("campaign.sentTitle")}
+          body={t("campaign.sentBody", { count: sentCount })}
+          okLabel={t("campaign.gotIt")}
+          onClose={() => setSentNotice(false)}
         />
       ) : null}
     </section>

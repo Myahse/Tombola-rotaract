@@ -8,13 +8,16 @@ import { BrandLogo } from "./BrandLogo";
 import { LiveProvider } from "../live";
 import { LoginModal } from "./LoginModal";
 import { PageSkeleton } from "./PageSkeleton";
+import { OrganizerEventProvider, useOrganizerEvent } from "../eventContext";
 
 const publicSite = import.meta.env.VITE_PUBLIC_SITE ?? "http://localhost:5173";
 
 export function OrganizerLayout() {
   return (
     <LiveProvider>
-      <OrganizerShell />
+      <OrganizerEventProvider>
+        <OrganizerShell />
+      </OrganizerEventProvider>
     </LiveProvider>
   );
 }
@@ -25,6 +28,7 @@ function OrganizerShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const [authed, setAuthed] = useState<"loading" | "yes" | "no">("loading");
+  const { eventId, events, setEventId } = useOrganizerEvent();
 
   useEffect(() => {
     if (!isLanguage(lang)) {
@@ -82,6 +86,21 @@ function OrganizerShell() {
           </nav>
         ) : null}
         <div className="header-end">
+          {loggedIn && events.length ? (
+            <label className="event-switch">
+              <select
+                aria-label={t("admin.currentTombola")}
+                value={eventId ?? ""}
+                onChange={(e) => setEventId(e.target.value || null)}
+              >
+                {events.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.titleFr}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : null}
           {loggedIn ? (
             <>
               <a
@@ -102,7 +121,7 @@ function OrganizerShell() {
         </div>
       </header>
       <main className="page">
-        <div key={authed === "loading" ? "auth" : location.pathname} className="page-appear">
+        <div key={`${authed}-${location.pathname}-${eventId ?? ""}`} className="page-appear">
           {authed === "loading" ? <PageSkeleton kind="page" /> : loggedIn ? <Outlet /> : null}
         </div>
       </main>

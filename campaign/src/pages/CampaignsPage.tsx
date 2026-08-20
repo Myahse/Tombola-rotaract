@@ -48,7 +48,7 @@ export function CampaignsPage() {
         optedInOnly: true,
         extraEmails: "",
       });
-      navigate(`/${lang}/${campaign.id}`);
+      navigate(`/${lang}/${campaign.id}`, { state: { created: true } });
     } catch {
       setMessage(t("errors.generic"));
     } finally {

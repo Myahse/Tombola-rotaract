@@ -38,7 +38,7 @@ export function DashboardPage() {
       await api.setStatus(status);
       await load();
     } catch (error) {
-      setMessage(error instanceof Error && error.message === "need_prizes" ? t("admin.needPrizes") : t("errors.generic"));
+      setMessage(error instanceof Error && error.message === "need_prizes" ? t("admin.needPrizes") : error instanceof Error && error.message === "another_on_sale" ? t("errors.anotherOnSale") : t("errors.generic"));
     } finally {
       setBusy(false);
     }

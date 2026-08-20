@@ -37,6 +37,7 @@ export function AccountPage() {
   const [pushOn, setPushOn] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState("");
+  const [pushTested, setPushTested] = useState(false);
 
   useEffect(() => {
     if (!member) return;
@@ -142,7 +143,22 @@ export function AccountPage() {
       await api.pushSubscribe(subscription);
       setPushOn(true);
     } catch {
-      setPushError(t("errors.generic"));
+      setPushError(t("pwa.subscribeFailed"));
+    } finally {
+      setPushBusy(false);
+    }
+  }
+
+  async function onTestPush() {
+    setPushError("");
+    setPushTested(false);
+    setPushBusy(true);
+    try {
+      await api.pushTest();
+      setPushTested(true);
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setPushError(code === "not_subscribed" ? t("pwa.subscribeFailed") : t("errors.generic"));
     } finally {
       setPushBusy(false);
     }
@@ -168,14 +184,22 @@ export function AccountPage() {
               : t("pwa.notifyAccount")}
           </p>
           {pushError ? <p className="text-sm text-ticket">{pushError}</p> : null}
-          <button
-            type="button"
-            className={pushOn ? "btn-outline" : "btn-primary"}
-            disabled={pushBusy || (isIosDevice() && !isStandaloneDisplay())}
-            onClick={() => void onTogglePush()}
-          >
-            {pushBusy ? t("auth.submitting") : pushOn ? t("pwa.disable") : t("pwa.notifyCta")}
-          </button>
+          {pushTested ? <p className="field-ok">{t("pwa.testSent")}</p> : null}
+          <div className="pwa-banner-actions" style={{ marginLeft: 0 }}>
+            <button
+              type="button"
+              className={pushOn ? "btn-outline" : "btn-primary"}
+              disabled={pushBusy || (isIosDevice() && !isStandaloneDisplay())}
+              onClick={() => void onTogglePush()}
+            >
+              {pushBusy ? t("auth.submitting") : pushOn ? t("pwa.disable") : t("pwa.notifyCta")}
+            </button>
+            {pushOn ? (
+              <button type="button" className="btn-primary" disabled={pushBusy} onClick={() => void onTestPush()}>
+                {t("pwa.testCta")}
+              </button>
+            ) : null}
+          </div>
         </article>
       ) : null}
 

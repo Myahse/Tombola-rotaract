@@ -4,13 +4,13 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { pushSubscriptions } from "../db/schema.js";
 import { requireMember, type MemberRequest } from "../lib/auth.js";
-import { getVapidPublicKey, pushConfigured } from "../lib/push.js";
+import { getVapidPublicKey, pushConfigured, sendPushToMember } from "../lib/push.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
 export const pushRouter = Router();
 
 const subscriptionSchema = z.object({
-  endpoint: z.string().trim().url().max(2048),
+  endpoint: z.string().trim().url().max(4096),
   keys: z.object({
     p256dh: z.string().trim().min(10).max(200),
     auth: z.string().trim().min(8).max(200),
@@ -18,7 +18,7 @@ const subscriptionSchema = z.object({
 });
 
 const unsubscribeSchema = z.object({
-  endpoint: z.string().trim().url().max(2048).optional(),
+  endpoint: z.string().trim().url().max(4096).optional(),
 });
 
 pushRouter.get("/push/key", (_req, res) => {
@@ -87,5 +87,32 @@ pushRouter.delete("/push/subscribe", requireMember, async (req, res) => {
   } else {
     await db.delete(pushSubscriptions).where(eq(pushSubscriptions.memberId, memberId));
   }
+  res.json({ ok: true });
+});
+
+pushRouter.post("/push/test", requireMember, async (req, res) => {
+  if (!allowRequest(`push-test:${clientKey(req)}`, 8, 15 * 60 * 1000)) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  if (!pushConfigured()) {
+    res.status(503).json({ error: "push_unavailable" });
+    return;
+  }
+  const memberId = (req as MemberRequest).memberId;
+  const [row] = await db
+    .select({ id: pushSubscriptions.id })
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.memberId, memberId))
+    .limit(1);
+  if (!row) {
+    res.status(409).json({ error: "not_subscribed" });
+    return;
+  }
+  await sendPushToMember(memberId, {
+    title: "Tombola du club",
+    body: "Les notifications fonctionnent sur cet appareil.",
+    url: "/fr/account",
+  });
   res.json({ ok: true });
 });

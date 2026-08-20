@@ -1,7 +1,7 @@
 export type EventStatus = "draft" | "on_sale" | "closed" | "drawn";
 export type DrawMode = "scratch" | "roulette";
 export type OrderStatus = "reserved" | "paid" | "cancelled";
-export type PaymentMethod = "cash" | "wave";
+export type PaymentMethod = "cash" | "wave" | "physical";
 
 export type Prize = {
   id?: string;
@@ -93,6 +93,15 @@ export type AdminStats = {
   scratchedTickets?: number;
   prizeCount?: number;
   prizesSealed?: boolean;
+};
+
+export type AdminEventSummary = {
+  id: string;
+  titleFr: string;
+  titleEn: string;
+  status: EventStatus;
+  totalTickets: number;
+  createdAt: string;
 };
 
 export type AdminEvent = {

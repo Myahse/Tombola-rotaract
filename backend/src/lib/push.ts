@@ -77,6 +77,7 @@ async function sendToRow(
         keys: { p256dh: row.p256dh, auth: row.auth },
       },
       JSON.stringify(payload),
+      { TTL: 60 * 60 * 24, urgency: "high" },
     );
   } catch (error) {
     if (goneStatus(error)) {

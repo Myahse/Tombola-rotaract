@@ -97,6 +97,7 @@ export async function ensureSchema() {
     )
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS push_subscriptions_member_idx ON push_subscriptions (member_id)`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS events_one_on_sale_idx ON events (status) WHERE status = 'on_sale'`);
 }
 
 export function isUniqueViolation(error: unknown) {
