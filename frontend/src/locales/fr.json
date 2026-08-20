@@ -266,7 +266,11 @@
     "notifyCta": "Activer",
     "disable": "Désactiver",
     "blocked": "Les notifications sont bloquées dans les réglages du navigateur.",
-    "unavailable": "Les notifications ne sont pas disponibles sur cet appareil."
+    "unavailable": "Les notifications ne sont pas disponibles sur cet appareil.",
+    "subscribeFailed": "Impossible d’activer les notifications sur cet appareil. Réessayez depuis l’app installée.",
+    "testCta": "Envoyer un essai",
+    "testSent": "Un essai a été envoyé. Il doit apparaître tout de suite.",
+    "close": "OK"
   },
   "errors": {
     "generic": "Une erreur s’est produite.",

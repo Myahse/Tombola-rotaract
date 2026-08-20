@@ -1,9 +1,10 @@
-import { and, asc, count, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
 import { Router } from "express";
+import type { Request } from "express";
 import { z } from "zod";
-import { db } from "../db/index.js";
+import { db, isUniqueViolation } from "../db/index.js";
 import { drawResults, events, members, orders, prizes, tickets } from "../db/schema.js";
-import { adminEmailMatches, clearSession, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
+import { adminEmailMatches, clearSession, newAccessToken, passwordMatches, requireAdmin, setSession } from "../lib/auth.js";
 import {
   shuffle,
   randomTicketNumbers,
@@ -73,9 +74,41 @@ function slugify(title: string) {
   return `${base || "tombola"}-${Date.now().toString(36)}`;
 }
 
-async function latestEvent() {
-  const [event] = await db.select().from(events).orderBy(desc(events.createdAt)).limit(1);
-  return event ?? null;
+async function requestedEventId(req: Request) {
+  const fromQuery = req.query.eventId;
+  const queryId = Array.isArray(fromQuery) ? fromQuery[0] : fromQuery;
+  if (typeof queryId === "string" && z.string().uuid().safeParse(queryId).success) return queryId;
+  const bodyId = req.body && typeof req.body === "object" ? (req.body as { eventId?: unknown }).eventId : undefined;
+  if (typeof bodyId === "string" && z.string().uuid().safeParse(bodyId).success) return bodyId;
+  return null;
+}
+
+async function preferredEvent() {
+  const [onSale] = await db
+    .select()
+    .from(events)
+    .where(eq(events.status, "on_sale"))
+    .orderBy(desc(events.createdAt))
+    .limit(1);
+  if (onSale) return onSale;
+  const [open] = await db
+    .select()
+    .from(events)
+    .where(inArray(events.status, ["draft", "closed"]))
+    .orderBy(desc(events.createdAt))
+    .limit(1);
+  if (open) return open;
+  const [any] = await db.select().from(events).orderBy(desc(events.createdAt)).limit(1);
+  return any ?? null;
+}
+
+async function latestEvent(req?: Request) {
+  const id = req ? await requestedEventId(req) : null;
+  if (id) {
+    const [event] = await db.select().from(events).where(eq(events.id, id)).limit(1);
+    if (event) return event;
+  }
+  return preferredEvent();
 }
 
 async function contestantsFor(eventId: string) {
@@ -190,8 +223,25 @@ adminRouter.get("/me", requireAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
-adminRouter.get("/event", requireAdmin, async (_req, res) => {
-  const event = await latestEvent();
+adminRouter.get("/events", requireAdmin, async (_req, res) => {
+  const rows = await db
+    .select({
+      id: events.id,
+      titleFr: events.titleFr,
+      titleEn: events.titleEn,
+      status: events.status,
+      totalTickets: events.totalTickets,
+      createdAt: events.createdAt,
+    })
+    .from(events)
+    .orderBy(desc(events.createdAt));
+  res.json({
+    events: rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })),
+  });
+});
+
+adminRouter.get("/event", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
   if (!event) {
     res.json({ event: null, prizes: [], stats: null });
     return;
@@ -212,11 +262,11 @@ adminRouter.post("/event", requireAdmin, async (req, res) => {
     return;
   }
   const data = withFallbackLang(parsed.data);
-  const current = await latestEvent();
-  if (current && current.status !== "drawn") {
-    res.status(409).json({ error: "active_event_exists" });
-    return;
-  }
+  const [onSale] = await db
+    .select({ id: events.id })
+    .from(events)
+    .where(eq(events.status, "on_sale"))
+    .limit(1);
 
   const created = await db.transaction(async (tx) => {
     const [event] = await tx
@@ -233,7 +283,7 @@ adminRouter.post("/event", requireAdmin, async (req, res) => {
         currency: data.currency,
         totalTickets: data.totalTickets,
         drawMode: data.drawMode,
-        status: data.prizes.length ? "on_sale" : "draft",
+        status: data.prizes.length && !onSale ? "on_sale" : "draft",
       })
       .returning();
     if (!event) throw new Error("create_failed");
@@ -263,7 +313,7 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
     return;
   }
   const data = withFallbackLang(parsed.data);
-  const event = await latestEvent();
+  const event = await latestEvent(req);
   if (!event) {
     res.status(404).json({ error: "no_event" });
     return;
@@ -352,7 +402,7 @@ adminRouter.post("/event/status", requireAdmin, async (req, res) => {
     res.status(400).json({ error: "invalid_status" });
     return;
   }
-  const event = await latestEvent();
+  const event = await latestEvent(req);
   if (!event) {
     res.status(404).json({ error: "no_event" });
     return;
@@ -370,18 +420,35 @@ adminRouter.post("/event/status", requireAdmin, async (req, res) => {
       res.status(409).json({ error: "need_prizes" });
       return;
     }
+    const [other] = await db
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.status, "on_sale"), ne(events.id, event.id)))
+      .limit(1);
+    if (other) {
+      res.status(409).json({ error: "another_on_sale" });
+      return;
+    }
   }
-  const [updated] = await db
-    .update(events)
-    .set({ status: status.data, updatedAt: new Date() })
-    .where(eq(events.id, event.id))
-    .returning();
-  res.json({ event: updated });
-  void publishChange("event");
+  try {
+    const [updated] = await db
+      .update(events)
+      .set({ status: status.data, updatedAt: new Date() })
+      .where(eq(events.id, event.id))
+      .returning();
+    res.json({ event: updated });
+    void publishChange("event");
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      res.status(409).json({ error: "another_on_sale" });
+      return;
+    }
+    throw error;
+  }
 });
 
-adminRouter.get("/orders", requireAdmin, async (_req, res) => {
-  const event = await latestEvent();
+adminRouter.get("/orders", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
   if (!event) {
     res.json({ orders: [] });
     return;
@@ -408,8 +475,102 @@ adminRouter.get("/orders", requireAdmin, async (_req, res) => {
   res.json({ orders: rows });
 });
 
+const physicalSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .regex(/^[0-9+().\s-]*$/)
+    .optional()
+    .or(z.literal("")),
+  quantity: z.number().int().min(1).max(50),
+});
+
+adminRouter.post("/orders/physical", requireAdmin, async (req, res) => {
+  const parsed = physicalSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  const event = await latestEvent(req);
+  if (!event || event.status === "drawn") {
+    res.status(409).json({ error: "event_locked" });
+    return;
+  }
+  if (event.status === "draft") {
+    res.status(409).json({ error: "not_on_sale" });
+    return;
+  }
+
+  try {
+    const created = await db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${event.id}::text))`);
+      const usedRows = await tx
+        .select({ number: tickets.number })
+        .from(tickets)
+        .innerJoin(orders, eq(tickets.orderId, orders.id))
+        .where(and(eq(tickets.eventId, event.id), ne(orders.status, "cancelled")));
+      const numbers = randomTicketNumbers(
+        usedRows.map((row) => row.number),
+        event.totalTickets,
+        parsed.data.quantity,
+      );
+      if (numbers.length < parsed.data.quantity) {
+        throw Object.assign(new Error("not_enough_tickets"), { status: 409 });
+      }
+      const [order] = await tx
+        .insert(orders)
+        .values({
+          eventId: event.id,
+          memberId: null,
+          buyerName: parsed.data.name,
+          buyerEmail: "",
+          buyerPhone: parsed.data.phone?.trim() || null,
+          quantity: parsed.data.quantity,
+          paymentMethod: "physical",
+          status: "paid",
+          paidAt: new Date(),
+          accessToken: newAccessToken(),
+        })
+        .returning();
+      if (!order) throw new Error("order_failed");
+      await tx.insert(tickets).values(
+        numbers.map((number) => ({
+          eventId: event.id,
+          orderId: order.id,
+          number,
+        })),
+      );
+      if (drawModeOf(event.drawMode) === "scratch") {
+        await attachPrizesToTickets(tx, event.id);
+      }
+      const [paidRow] = await tx
+        .select({ n: count() })
+        .from(tickets)
+        .innerJoin(orders, eq(tickets.orderId, orders.id))
+        .where(and(eq(tickets.eventId, event.id), eq(orders.status, "paid")));
+      if (event.status === "on_sale" && Number(paidRow?.n ?? 0) >= event.totalTickets) {
+        await tx.update(events).set({ status: "closed", updatedAt: new Date() }).where(eq(events.id, event.id));
+      }
+      return { order, numbers };
+    });
+    const { accessToken: _accessToken, ...safeOrder } = created.order;
+    res.status(201).json({ order: { ...safeOrder, numbers: created.numbers } });
+    void publishChange("order");
+  } catch (error) {
+    const err = error as Error & { status?: number };
+    if (err.message === "not_enough_tickets") {
+      res.status(409).json({ error: "not_enough_tickets" });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
+  }
+});
+
 adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
-  const event = await latestEvent();
+  const event = await latestEvent(req);
   const orderId = String(req.params.id ?? "");
   if (!z.string().uuid().safeParse(orderId).success) {
     res.status(400).json({ error: "invalid_id" });
@@ -499,7 +660,8 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
     const { accessToken: _accessToken, ...safeOrder } = marked.order;
     res.json({ order: { ...safeOrder, numbers: marked.numbers } });
     void publishChange("order");
-    void notifyPurchase({
+    if (marked.order.paymentMethod !== "physical" && marked.order.buyerEmail.includes("@")) {
+      void notifyPurchase({
       name: marked.order.buyerName,
       email: marked.order.buyerEmail,
       eventTitleFr: marked.event.titleFr,
@@ -512,6 +674,7 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
       drawMode: drawModeOf(marked.event.drawMode),
       ticketsUrl: siteUrl(`/fr/tickets/${marked.order.accessToken}`),
     });
+    }
   } catch (error) {
     const err = error as Error & { status?: number };
     if (err.message === "not_found") {
@@ -528,7 +691,7 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
 });
 
 adminRouter.post("/orders/:id/unpaid", requireAdmin, async (req, res) => {
-  const event = await latestEvent();
+  const event = await latestEvent(req);
   const orderId = String(req.params.id ?? "");
   if (!z.string().uuid().safeParse(orderId).success) {
     res.status(400).json({ error: "invalid_id" });
@@ -586,7 +749,7 @@ adminRouter.post("/orders/:id/unpaid", requireAdmin, async (req, res) => {
 });
 
 adminRouter.post("/orders/:id/cancel", requireAdmin, async (req, res) => {
-  const event = await latestEvent();
+  const event = await latestEvent(req);
   const orderId = String(req.params.id ?? "");
   if (!z.string().uuid().safeParse(orderId).success) {
     res.status(400).json({ error: "invalid_id" });
@@ -626,8 +789,8 @@ adminRouter.post("/orders/:id/cancel", requireAdmin, async (req, res) => {
   void publishChange("order");
 });
 
-adminRouter.get("/assignments", requireAdmin, async (_req, res) => {
-  const event = await latestEvent();
+adminRouter.get("/assignments", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
   if (!event) {
     res.json({ sealed: false, totalTickets: 0, assignments: [] });
     return;
@@ -644,10 +807,13 @@ adminRouter.get("/assignments", requireAdmin, async (_req, res) => {
   });
 });
 
-adminRouter.post("/seal", requireAdmin, async (_req, res) => {
+adminRouter.post("/seal", requireAdmin, async (req, res) => {
   try {
+    const selected = await latestEvent(req);
     const result = await db.transaction(async (tx) => {
-      const [event] = await tx.select().from(events).orderBy(desc(events.createdAt)).limit(1);
+      const [event] = selected
+        ? await tx.select().from(events).where(eq(events.id, selected.id)).limit(1)
+        : [];
       if (!event) throw Object.assign(new Error("no_event"), { status: 404 });
       if (event.status === "drawn") throw Object.assign(new Error("event_locked"), { status: 409 });
       if (drawModeOf(event.drawMode) !== "scratch") throw Object.assign(new Error("not_scratch"), { status: 409 });
@@ -689,10 +855,13 @@ adminRouter.post("/seal", requireAdmin, async (_req, res) => {
   }
 });
 
-adminRouter.post("/draw", requireAdmin, async (_req, res) => {
+adminRouter.post("/draw", requireAdmin, async (req, res) => {
   try {
+    const selected = await latestEvent(req);
     const result = await db.transaction(async (tx) => {
-      const [event] = await tx.select().from(events).orderBy(desc(events.createdAt)).limit(1);
+      const [event] = selected
+        ? await tx.select().from(events).where(eq(events.id, selected.id)).limit(1)
+        : [];
       if (!event) throw Object.assign(new Error("no_event"), { status: 404 });
       if (event.status === "drawn") throw Object.assign(new Error("already_drawn"), { status: 409 });
       if (event.status !== "closed") throw Object.assign(new Error("sales_open"), { status: 409 });
@@ -747,6 +916,7 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
         }
         await tx.update(events).set({ status: "drawn", updatedAt: drawnAt }).where(eq(events.id, event.id));
         return {
+          eventId: event.id,
           unpaidOrders: Number(unpaid[0]?.n ?? 0),
           awarded: winners.length,
           prizes: eventPrizes.length,
@@ -774,16 +944,16 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
         .where(eq(events.id, event.id));
 
       return {
+        eventId: event.id,
         unpaidOrders: Number(unpaid[0]?.n ?? 0),
         awarded: awarded.length,
         prizes: eventPrizes.length,
       };
     });
-    const event = await latestEvent();
-    const winners = event ? await winnersFor(event.id) : [];
+    const winners = await winnersFor(result.eventId);
     res.json({ ...result, winners });
     void publishChange("draw");
-    void emailDrawResults();
+    void emailDrawResults(result.eventId);
   } catch (error) {
     const err = error as Error & { status?: number };
     if (err.status) {
@@ -795,8 +965,8 @@ adminRouter.post("/draw", requireAdmin, async (_req, res) => {
   }
 });
 
-async function emailDrawResults() {
-  const event = await latestEvent();
+async function emailDrawResults(eventId: string) {
+  const [event] = await db.select().from(events).where(eq(events.id, eventId)).limit(1);
   if (!event || event.status !== "drawn") return;
 
   const prizesWon = await db
@@ -865,8 +1035,8 @@ async function emailDrawResults() {
   await notifyDrawResults(recipients);
 }
 
-adminRouter.get("/contestants", requireAdmin, async (_req, res) => {
-  const event = await latestEvent();
+adminRouter.get("/contestants", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
   if (!event) {
     res.json({ contestants: [] });
     return;
@@ -874,8 +1044,8 @@ adminRouter.get("/contestants", requireAdmin, async (_req, res) => {
   res.json({ contestants: await contestantsFor(event.id) });
 });
 
-adminRouter.get("/winners", requireAdmin, async (_req, res) => {
-  const event = await latestEvent();
+adminRouter.get("/winners", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
   if (!event) {
     res.json({ winners: [] });
     return;
@@ -883,8 +1053,8 @@ adminRouter.get("/winners", requireAdmin, async (_req, res) => {
   res.json({ event, winners: await winnersFor(event.id) });
 });
 
-adminRouter.get("/scratches", requireAdmin, async (_req, res) => {
-  const event = await latestEvent();
+adminRouter.get("/scratches", requireAdmin, async (req, res) => {
+  const event = await latestEvent(req);
   if (!event) {
     res.json({ scratches: [] });
     return;

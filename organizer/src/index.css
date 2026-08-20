@@ -226,6 +226,14 @@ a:hover { color: var(--primary); }
 }
 .lang-switch button:hover:not(.active) { color: var(--ink); }
 
+.event-switch select {
+  max-width: 11rem;
+  height: 2.15rem;
+  padding: 0 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
 .header-end {
   display: flex;
   align-items: center;
@@ -434,6 +442,9 @@ a:hover { color: var(--primary); }
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
   margin-top: 1.25rem;
+}
+.modal-actions.single {
+  grid-template-columns: 1fr;
 }
 
 .badge {

@@ -94,6 +94,7 @@ export const api = {
       method: "DELETE",
       body: JSON.stringify(endpoint ? { endpoint } : {}),
     }),
+  pushTest: () => request<{ ok: boolean }>("/api/push/test", { method: "POST", body: JSON.stringify({}) }),
   login: (password: string) =>
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) }),
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),

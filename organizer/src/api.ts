@@ -1,6 +1,7 @@
 import { apiUrl } from "./config";
 import type {
   AdminEvent,
+  AdminEventSummary,
   AdminOrder,
   AdminStats,
   Contestant,
@@ -10,6 +11,7 @@ import type {
   ScratchedTicket,
   Winner,
 } from "./types";
+import { withEventId } from "./organizerEvent";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(apiUrl(path), {
@@ -40,37 +42,43 @@ export const api = {
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),
   me: () => request<{ ok: boolean }>("/api/admin/me"),
+  adminEvents: () => request<{ events: AdminEventSummary[] }>("/api/admin/events"),
   adminEvent: () =>
-    request<{ event: AdminEvent | null; prizes: Prize[]; stats: AdminStats | null }>("/api/admin/event"),
+    request<{ event: AdminEvent | null; prizes: Prize[]; stats: AdminStats | null }>(withEventId("/api/admin/event")),
   saveEvent: (body: Record<string, unknown>) =>
-    request<{ event: AdminEvent }>("/api/admin/event", { method: "PUT", body: JSON.stringify(body) }),
+    request<{ event: AdminEvent }>(withEventId("/api/admin/event"), { method: "PUT", body: JSON.stringify(body) }),
   createEvent: (body: Record<string, unknown>) =>
     request<{ event: AdminEvent }>("/api/admin/event", { method: "POST", body: JSON.stringify(body) }),
   setStatus: (status: string) =>
-    request<{ event: AdminEvent }>("/api/admin/event/status", {
+    request<{ event: AdminEvent }>(withEventId("/api/admin/event/status"), {
       method: "POST",
       body: JSON.stringify({ status }),
     }),
-  orders: () => request<{ orders: AdminOrder[] }>("/api/admin/orders"),
+  orders: () => request<{ orders: AdminOrder[] }>(withEventId("/api/admin/orders")),
+  addPhysical: (body: { name: string; quantity: number; phone?: string }) =>
+    request<{ order: AdminOrder }>(withEventId("/api/admin/orders/physical"), {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   markPaid: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/paid`, { method: "POST" }),
+    request<{ order: AdminOrder }>(withEventId(`/api/admin/orders/${encodeURIComponent(id)}/paid`), { method: "POST" }),
   unmarkPaid: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/unpaid`, { method: "POST" }),
+    request<{ order: AdminOrder }>(withEventId(`/api/admin/orders/${encodeURIComponent(id)}/unpaid`), { method: "POST" }),
   cancelOrder: (id: string) =>
-    request<{ order: AdminOrder }>(`/api/admin/orders/${encodeURIComponent(id)}/cancel`, { method: "POST" }),
+    request<{ order: AdminOrder }>(withEventId(`/api/admin/orders/${encodeURIComponent(id)}/cancel`), { method: "POST" }),
   draw: () =>
-    request<{ awarded: number; prizes: number; unpaidOrders: number; winners: Winner[] }>("/api/admin/draw", {
+    request<{ awarded: number; prizes: number; unpaidOrders: number; winners: Winner[] }>(withEventId("/api/admin/draw"), {
       method: "POST",
     }),
-  contestants: () => request<{ contestants: Contestant[] }>("/api/admin/contestants"),
-  winners: () => request<{ event: AdminEvent | null; winners: Winner[] }>("/api/admin/winners"),
+  contestants: () => request<{ contestants: Contestant[] }>(withEventId("/api/admin/contestants")),
+  winners: () => request<{ event: AdminEvent | null; winners: Winner[] }>(withEventId("/api/admin/winners")),
   assignments: () =>
-    request<{ sealed: boolean; totalTickets: number; assignments: Winner[] }>("/api/admin/assignments"),
+    request<{ sealed: boolean; totalTickets: number; assignments: Winner[] }>(withEventId("/api/admin/assignments")),
   sealPrizes: () =>
-    request<{ sealed: boolean; totalTickets: number; assignments: Winner[] }>("/api/admin/seal", {
+    request<{ sealed: boolean; totalTickets: number; assignments: Winner[] }>(withEventId("/api/admin/seal"), {
       method: "POST",
     }),
-  scratches: () => request<{ scratches: ScratchedTicket[] }>("/api/admin/scratches"),
+  scratches: () => request<{ scratches: ScratchedTicket[] }>(withEventId("/api/admin/scratches")),
 };
 
 export function formatMoney(amount: number, currency: string, lang: string) {

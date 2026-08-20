@@ -371,6 +371,13 @@ a:hover { color: var(--primary); }
   gap: 0.35rem;
   margin-left: auto;
 }
+.pwa-banner-error {
+  color: var(--error);
+  font-weight: 600;
+}
+.pwa-toast {
+  border-color: var(--primary);
+}
 .field-hint {
   display: block;
   margin-top: 0.35rem;

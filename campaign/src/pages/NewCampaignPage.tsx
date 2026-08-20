@@ -23,7 +23,7 @@ export function NewCampaignPage() {
         optedInOnly: true,
         extraEmails: "",
       })
-      .then(({ campaign }) => navigate(`/${lang}/${campaign.id}`, { replace: true }))
+      .then(({ campaign }) => navigate(`/${lang}/${campaign.id}`, { replace: true, state: { created: true } }))
       .catch(() => navigate(`/${lang}`, { replace: true }));
   }, [lang, navigate, t]);
 

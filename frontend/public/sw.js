@@ -1,4 +1,4 @@
-const CACHE = "tombola-shell-v1";
+const CACHE = "tombola-shell-v2";
 const PRECACHE = ["/offline.html", "/icons/icon-192.png", "/icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
@@ -14,11 +14,13 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))),
-      )
+      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data === "skipWaiting") self.skipWaiting();
 });
 
 self.addEventListener("fetch", (event) => {
@@ -27,7 +29,7 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith("/api") || url.pathname.startsWith("/ws")) return;
+  if (url.pathname === "/sw.js" || url.pathname.startsWith("/api") || url.pathname.startsWith("/ws")) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -42,7 +44,7 @@ self.addEventListener("fetch", (event) => {
   const cacheable =
     url.pathname.startsWith("/assets/") ||
     url.pathname.startsWith("/icons/") ||
-    /\.(?:png|svg|webp|woff2|css|js)$/.test(url.pathname);
+    /\.(?:png|svg|webp|woff2)$/.test(url.pathname);
   if (!cacheable) return;
 
   event.respondWith(
@@ -61,39 +63,54 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-self.addEventListener("push", (event) => {
-  let data = { title: "Tombola du club", body: "", url: "/fr" };
+function toAppUrl(target) {
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
+    return new URL(target || "/fr", self.location.origin).href;
   } catch {
-    if (event.data) data.body = event.data.text();
+    return new URL("/fr", self.location.origin).href;
   }
+}
+
+self.addEventListener("push", (event) => {
   event.waitUntil(
-    self.registration.showNotification(data.title || "Tombola du club", {
-      body: data.body || "",
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      data: { url: data.url || "/fr" },
-    }),
+    (async () => {
+      let data = { title: "Tombola du club", body: "", url: "/fr" };
+      try {
+        if (event.data) data = { ...data, ...event.data.json() };
+      } catch {
+        if (event.data) data.body = event.data.text();
+      }
+      const url = toAppUrl(data.url);
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) {
+        client.postMessage({ type: "tombola-push", title: data.title, body: data.body, url });
+      }
+      await self.registration.showNotification(data.title || "Tombola du club", {
+        body: data.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        data: { url },
+        renotify: true,
+        tag: "tombola",
+      });
+    })(),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = event.notification.data?.url || "/fr";
+  const url = toAppUrl(event.notification.data?.url);
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
-      for (const client of clients) {
-        if ("focus" in client) {
-          client.focus();
-          if ("navigate" in client && target) {
-            return client.navigate(target);
-          }
-          return undefined;
+    (async () => {
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) {
+        if (client.url && new URL(client.url).origin === self.location.origin && "focus" in client) {
+          await client.focus();
+          client.postMessage({ type: "tombola-navigate", url });
+          return;
         }
       }
-      if (self.clients.openWindow) return self.clients.openWindow(target);
-      return undefined;
-    }),
+      if (self.clients.openWindow) await self.clients.openWindow(url);
+    })(),
   );
 });
