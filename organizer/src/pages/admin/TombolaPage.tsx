@@ -5,6 +5,8 @@ import { api } from "../../api";
 import type { AdminEvent, Prize } from "../../types";
 import { PageSkeleton } from "../../components/PageSkeleton";
 import { NoticeModal } from "../../components/NoticeModal";
+import { ConfirmModal } from "../../components/ConfirmModal";
+import { PhysicalTicketsForm } from "../../components/PhysicalTicketsForm";
 import { useOrganizerEvent } from "../../eventContext";
 
 const emptyPrize = (rank: number): Prize => ({
@@ -41,6 +43,7 @@ export function TombolaPage() {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ title: string; body: string; next?: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   async function loadEvent() {
     const data = await api.adminEvent();
@@ -58,6 +61,9 @@ export function TombolaPage() {
         totalTickets: data.event.totalTickets,
         drawMode: data.event.drawMode === "roulette" ? "roulette" : "scratch",
       });
+    } else {
+      setForm(emptyForm);
+      setPrizes([emptyPrize(1)]);
     }
     if (data.prizes.length) setPrizes(data.prizes);
   }
@@ -142,10 +148,30 @@ export function TombolaPage() {
     }
   }
 
+  async function onDelete() {
+    setBusy(true);
+    setMessage("");
+    try {
+      await api.deleteEvent();
+      setConfirmDelete(false);
+      await refreshEvents();
+      await loadEvent();
+      setNotice({ title: t("admin.deletedTitle"), body: t("admin.deletedBody") });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "";
+      setConfirmDelete(false);
+      setMessage(code === "event_not_finished" ? t("errors.eventNotFinished") : t("errors.generic"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   if (event === undefined && !composing) return <PageSkeleton kind="tombola" />;
   const locked = Boolean(event?.status === "drawn" && !composing);
+  const canDelete = Boolean(event && !composing && (event.status === "closed" || event.status === "drawn"));
 
   return (
+    <>
     <form className="grid gap-5" onSubmit={onSubmit}>
       <h1>{event && !composing ? t("admin.tombola") : t("admin.newTombola")}</h1>
       {event && !composing ? (
@@ -283,19 +309,46 @@ export function TombolaPage() {
         </button>
       )}
       {message ? <p className="text-sm">{message}</p> : null}
-      {notice ? (
-        <NoticeModal
-          title={notice.title}
-          body={notice.body}
-          okLabel={t("admin.ok")}
-          onClose={() => {
-            const next = notice.next;
-            setNotice(null);
-            if (next) navigate(next);
-          }}
-        />
-      ) : null}
     </form>
+    {event && !composing && event.status !== "drawn" ? <PhysicalTicketsForm className="mt-8" /> : null}
+    {canDelete ? (
+      <div className="mt-8 grid gap-3">
+        <h2>{t("admin.deleteTitle")}</h2>
+        <p className="lede">{t("admin.deleteHelp")}</p>
+        <p>
+          <button type="button" className="btn-danger" disabled={busy} onClick={() => setConfirmDelete(true)}>
+            {t("admin.deleteTombola")}
+          </button>
+        </p>
+      </div>
+    ) : null}
+    {confirmDelete ? (
+      <ConfirmModal
+        title={t("admin.deleteTitle")}
+        body={t("admin.deleteBody")}
+        confirmLabel={t("admin.deleteTombola")}
+        cancelLabel={t("admin.back")}
+        busy={busy}
+        danger
+        onConfirm={() => void onDelete()}
+        onCancel={() => {
+          if (!busy) setConfirmDelete(false);
+        }}
+      />
+    ) : null}
+    {notice ? (
+      <NoticeModal
+        title={notice.title}
+        body={notice.body}
+        okLabel={t("admin.ok")}
+        onClose={() => {
+          const next = notice.next;
+          setNotice(null);
+          if (next) navigate(next);
+        }}
+      />
+    ) : null}
+    </>
   );
 }
 

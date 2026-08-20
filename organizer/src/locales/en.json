@@ -143,7 +143,7 @@
     "noAccount": "No account",
     "currentTombola": "Current tombola",
     "physicalTitle": "Physical tickets",
-    "physicalHelp": "For someone with no account. The ticket is sold at once, with a name, and it enters the draw. It does not appear in the online ticket office.",
+    "physicalHelp": "For someone with no account or no connection. Add their name: the ticket is sold at once and enters the draw. You can do this as soon as the tombola is created, even as a draft. These tickets do not appear in the online ticket office.",
     "physicalCta": "Save as sold",
     "physicalSaving": "Saving…",
     "physicalSaved": "Physical tickets saved. They are sold and will be in the draw.",
@@ -174,7 +174,13 @@
     "locked": "This tombola is finished.",
     "needPrizes": "Add at least one prize before opening sales.",
     "noBuyers": "No buyers yet.",
-    "unpaidCount": "{{count}} unpaid"
+    "unpaidCount": "{{count}} unpaid",
+    "deleteTombola": "Delete this tombola",
+    "deleteTitle": "Delete the tombola",
+    "deleteHelp": "You can delete a tombola after sales are closed, or after the draw. Prizes, tickets and buyers are removed with it.",
+    "deleteBody": "Permanently delete this tombola, with its prizes, tickets and buyers? This cannot be undone.",
+    "deletedTitle": "Tombola deleted",
+    "deletedBody": "The tombola has been deleted."
   },
   "errors": {
     "generic": "Something went wrong.",
@@ -186,6 +192,7 @@
     "invalidForm": "Check the title (at least 2 characters) and the prizes.",
     "apiDown": "The API is not reachable. Restart the backend server, then try again.",
     "anotherOnSale": "Another tombola still has ticket sales open. Close it before opening this one.",
+    "eventNotFinished": "You can only delete a tombola after sales are closed or after the draw.",
     "activeEvent": "A tombola is already in progress. Edit it, or finish it before creating another."
   },
   "prizeRank": "{{rank, ordinal}} prize"
