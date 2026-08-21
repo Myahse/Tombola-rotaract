@@ -106,6 +106,13 @@
     "tooManyImages": "Maximum 8 images.",
     "badImage": "Ce fichier n’a pas pu être utilisé. Essayez un JPEG ou PNG plus léger."
   },
+  "pwa": {
+    "installTitle": "Installer l’app",
+    "installText": "Ajoutez les campagnes e-mail à l’écran d’accueil pour les ouvrir comme une application.",
+    "installIos": "Sur iPhone, appuyez sur Partager, puis Sur l’écran d’accueil.",
+    "installCta": "Installer",
+    "later": "Plus tard"
+  },
   "errors": {
     "generic": "Une erreur s’est produite.",
     "invalidCredentials": "E-mail ou mot de passe incorrect.",

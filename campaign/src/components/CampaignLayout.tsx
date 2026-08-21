@@ -6,6 +6,7 @@ import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
 import { LoginModal } from "./LoginModal";
+import { PwaPrompts } from "./PwaPrompts";
 
 export function CampaignLayout() {
   const { lang } = useParams();
@@ -63,6 +64,7 @@ export function CampaignLayout() {
           <LangSwitcher />
         </div>
       </header>
+      <PwaPrompts authed={loggedIn} />
       <main className="page">
         <div key={authed === "loading" ? "auth" : location.pathname} className="page-appear">
           {authed === "loading" ? <p className="lede">…</p> : loggedIn ? <Outlet /> : null}

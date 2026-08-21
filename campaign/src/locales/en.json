@@ -106,6 +106,13 @@
     "tooManyImages": "Maximum 8 images.",
     "badImage": "This file could not be used. Try a smaller JPEG or PNG."
   },
+  "pwa": {
+    "installTitle": "Install the app",
+    "installText": "Add email campaigns to your home screen to open them like an app.",
+    "installIos": "On iPhone, tap Share, then Add to Home Screen.",
+    "installCta": "Install",
+    "later": "Later"
+  },
   "errors": {
     "generic": "Something went wrong.",
     "invalidCredentials": "Incorrect email or password.",
