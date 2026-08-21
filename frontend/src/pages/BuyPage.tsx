@@ -102,7 +102,10 @@ export function BuyPage() {
         phone: String(form.get("phone") ?? ""),
         paymentMethod,
       });
-      navigate(`/${lang}/tickets/${order.token}`);
+      const destination = order.eventId
+        ? `/${lang}/my-tickets/${order.eventId}`
+        : `/${lang}/tickets/${order.token}`;
+      navigate(destination);
     } catch (err) {
       setRetryable(isRetryableError(err));
       setError(formatApiError(err, t));

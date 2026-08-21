@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
@@ -7,6 +7,7 @@ import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
 import { BrandLogo } from "../components/BrandLogo";
 import { NoticeModal } from "../components/NoticeModal";
+import { DonateRefSheet } from "../components/DonateRefSheet";
 
 export function DonatePage() {
   const { t } = useTranslation();
@@ -20,6 +21,7 @@ export function DonatePage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [showRefSheet, setShowRefSheet] = useState(false);
 
   useEffect(() => {
     api
@@ -34,8 +36,7 @@ export function DonatePage() {
     setEmail((current) => current || member.email);
   }, [member]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function submitDonationRef() {
     setBusy(true);
     setError("");
     try {
@@ -57,6 +58,7 @@ export function DonatePage() {
             ? t("errors.tooMany")
             : t("errors.generic"),
       );
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -69,7 +71,6 @@ export function DonatePage() {
         <p className="eyebrow">{t("donate.kicker")}</p>
         <h1>{t("donate.title")}</h1>
         <p className="lede">{t("donate.lede")}</p>
-        <p className="lede">{t("pay.affiliate")}</p>
         <div className="mt-2 flex flex-wrap justify-center gap-2">
           {wavePayUrl ? (
             <a className="btn-primary" href={wavePayUrl} target="_blank" rel="noopener noreferrer">
@@ -102,44 +103,48 @@ export function DonatePage() {
       <section className="section" style={{ borderBottom: 0 }}>
         <h2>{t("donate.refTitle")}</h2>
         <p className="lede">{t("donate.refHelp")}</p>
-        <form className="mt-6 grid gap-4" onSubmit={(e) => void onSubmit(e)}>
-          <label>
-            {t("buy.name")}
-            <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} />
-          </label>
-          <label>
-            {t("buy.email")}
-            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" autoComplete="email" />
-          </label>
-          <label>
-            {t("donate.amount")}
-            <input
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              type="number"
-              min={100}
-              step={100}
-              required
-            />
-          </label>
-          <label>
-            {t("pay.waveId")}
-            <input
-              value={paymentRef}
-              onChange={(e) => setPaymentRef(e.target.value)}
-              placeholder={t("pay.waveIdPlaceholder")}
-              required
-              minLength={4}
-              maxLength={80}
-              autoComplete="off"
-            />
-          </label>
-          {error ? <p className="text-sm text-ticket">{error}</p> : null}
-          <button className="btn-primary" disabled={busy}>
-            {busy ? t("donate.sending") : t("donate.send")}
-          </button>
-        </form>
+        {error && !showRefSheet ? <p className="text-sm text-ticket mt-4">{error}</p> : null}
+        <button
+          type="button"
+          className="btn-primary btn-block mt-6"
+          onClick={() => {
+            setError("");
+            setShowRefSheet(true);
+          }}
+        >
+          {t("donate.send")}
+        </button>
       </section>
+
+      {showRefSheet ? (
+        <DonateRefSheet
+          title={t("donate.refTitle")}
+          help={t("donate.refHelp")}
+          name={name}
+          email={email}
+          amount={amount}
+          paymentRef={paymentRef}
+          nameLabel={t("buy.name")}
+          emailLabel={t("buy.email")}
+          amountLabel={t("donate.amount")}
+          refLabel={t("pay.waveId")}
+          refPlaceholder={t("pay.waveIdPlaceholder")}
+          confirmLabel={busy ? t("donate.sending") : t("donate.send")}
+          cancelLabel={t("pay.waveRefClose")}
+          busy={busy}
+          error={error}
+          onNameChange={setName}
+          onEmailChange={setEmail}
+          onAmountChange={setAmount}
+          onPaymentRefChange={setPaymentRef}
+          onConfirm={() => submitDonationRef()}
+          onClose={() => {
+            setShowRefSheet(false);
+            setError("");
+          }}
+        />
+      ) : null}
+
       {notice ? (
         <NoticeModal title={t("donate.title")} body={notice} okLabel={t("donate.ok")} onClose={() => setNotice("")} />
       ) : null}

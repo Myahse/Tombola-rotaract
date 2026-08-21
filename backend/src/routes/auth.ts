@@ -20,6 +20,7 @@ import { notifyEmailVerify, notifyMemberRegistered, notifyPasswordReset } from "
 import { parseAvatar } from "../lib/avatar.js";
 import { allowRequest, clientKey, enforceRateLimit, rateLimits, salesAreOpen } from "../lib/rateLimit.js";
 import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
+import { publishChange } from "../lib/publicSnapshot.js";
 import { siteUrl } from "../emails/layout.js";
 
 export const authRouter = Router();
@@ -434,6 +435,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       status: orders.status,
       quantity: orders.quantity,
       paymentMethod: orders.paymentMethod,
+      paymentRef: orders.paymentRef,
       createdAt: orders.createdAt,
       eventId: events.id,
       titleFr: events.titleFr,
@@ -442,6 +444,8 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       drawMode: events.drawMode,
       ticketPriceCents: events.ticketPriceCents,
       currency: events.currency,
+      paymentInstructionsFr: events.paymentInstructionsFr,
+      paymentInstructionsEn: events.paymentInstructionsEn,
       ticketNumber: tickets.number,
       prizeId: tickets.prizeId,
       prizeRank: prizes.rank,
@@ -466,6 +470,8 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       drawMode: string;
       ticketPriceCents: number;
       currency: string;
+      paymentInstructionsFr: string;
+      paymentInstructionsEn: string;
       orders: Map<
         string,
         {
@@ -473,6 +479,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
           status: string;
           quantity: number;
           paymentMethod: string;
+          paymentRef: string | null;
           createdAt: Date;
           tickets: {
             number: number;
@@ -498,6 +505,8 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
         drawMode: row.drawMode,
         ticketPriceCents: row.ticketPriceCents,
         currency: row.currency,
+        paymentInstructionsFr: row.paymentInstructionsFr,
+        paymentInstructionsEn: row.paymentInstructionsEn,
         orders: new Map(),
       };
       byEvent.set(row.eventId, event);
@@ -509,6 +518,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
         status: row.status,
         quantity: row.quantity,
         paymentMethod: row.paymentMethod,
+        paymentRef: row.paymentRef,
         createdAt: row.createdAt,
         tickets: [],
       };
@@ -546,6 +556,76 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
           drawModeOf(event.drawMode),
         ),
       })),
+      paymentInstructionsFr: event.paymentInstructionsFr,
+      paymentInstructionsEn: event.paymentInstructionsEn,
     })),
   });
+});
+
+const cancelReservedSchema = z.object({
+  quantity: z.number().int().min(1).max(20),
+});
+
+authRouter.post("/me/events/:eventId/cancel-reserved", requireMember, async (req, res) => {
+  if (!(await enforceRateLimit(res, `cancel:${clientKey(req)}`, rateLimits.cancelIp, rateLimits.windowMs))) {
+    return;
+  }
+  const parsed = cancelReservedSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  const eventId = typeof req.params.eventId === "string" ? req.params.eventId : "";
+  if (!eventId) {
+    res.status(400).json({ error: "missing_event" });
+    return;
+  }
+  const memberId = (req as MemberRequest).memberId;
+  let cancelled = 0;
+  try {
+    await db.transaction(async (tx) => {
+      const [event] = await tx.select({ status: events.status }).from(events).where(eq(events.id, eventId)).limit(1);
+      if (!event || event.status === "drawn") {
+        throw Object.assign(new Error("event_locked"), { status: 409 });
+      }
+      const reserved = await tx
+        .select()
+        .from(orders)
+        .where(and(eq(orders.memberId, memberId), eq(orders.eventId, eventId), eq(orders.status, "reserved")))
+        .orderBy(desc(orders.createdAt));
+      const totalReserved = reserved.reduce((sum, order) => sum + order.quantity, 0);
+      if (parsed.data.quantity > totalReserved) {
+        throw Object.assign(new Error("not_enough_reserved"), { status: 409, remaining: totalReserved });
+      }
+      let left = parsed.data.quantity;
+      for (const order of reserved) {
+        if (left <= 0) break;
+        const take = Math.min(left, order.quantity);
+        if (take === order.quantity) {
+          await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
+        } else {
+          await tx
+            .update(orders)
+            .set({ quantity: order.quantity - take })
+            .where(eq(orders.id, order.id));
+        }
+        cancelled += take;
+        left -= take;
+      }
+    });
+    res.json({ ok: true, cancelled });
+    void publishChange("order");
+  } catch (error) {
+    const err = error as Error & { status?: number; remaining?: number };
+    if (err.message === "event_locked") {
+      res.status(409).json({ error: "event_locked" });
+      return;
+    }
+    if (err.message === "not_enough_reserved") {
+      res.status(409).json({ error: "not_enough_reserved", remaining: err.remaining ?? 0 });
+      return;
+    }
+    console.error(error);
+    res.status(500).json({ error: "server_error" });
+  }
 });

@@ -136,7 +136,6 @@ export function HomePage() {
       <section className="section" style={{ borderBottom: 0 }}>
         <h2>{t("landing.donateTitle")}</h2>
         <p className="lede">{t("landing.donateText")}</p>
-        <p>{t("pay.affiliate")}</p>
         <div className="mt-6 flex flex-wrap gap-2">
           <Link to={`/${lang}/donate`} className="btn-primary">
             {t("landing.donateCta")}

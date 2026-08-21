@@ -20,7 +20,7 @@ export function NoticeModal({
   }, [onClose]);
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="notice-title" onClick={onClose}>
+    <div className="modal-backdrop is-open" role="dialog" aria-modal="true" aria-labelledby="notice-title" onClick={onClose}>
       <div className="modal-card" onClick={(event) => event.stopPropagation()}>
         <h1 id="notice-title">{title}</h1>
         <p className="modal-lead">{body}</p>

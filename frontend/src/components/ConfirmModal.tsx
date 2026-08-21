@@ -29,7 +29,7 @@ export function ConfirmModal({
 
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop is-open"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-title"

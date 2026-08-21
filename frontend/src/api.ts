@@ -143,6 +143,11 @@ export const api = {
       { method: "POST", body: JSON.stringify(body) },
     ),
     myTombolas: () => request<{ tombolas: MemberTombola[] }>("/api/me/tombolas"),
+  cancelReserved: (eventId: string, quantity: number) =>
+    request<{ ok: boolean; cancelled: number }>(`/api/me/events/${encodeURIComponent(eventId)}/cancel-reserved`, {
+      method: "POST",
+      body: JSON.stringify({ quantity }),
+    }),
   pushKey: () => request<{ publicKey: string | null }>("/api/push/key"),
   pushStatus: () => request<{ configured: boolean; subscribed: boolean }>("/api/push/status"),
   pushSubscribe: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>

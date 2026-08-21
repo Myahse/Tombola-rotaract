@@ -5,7 +5,6 @@ import { api, localized } from "../api";
 import { useAuth } from "../auth";
 import { Avatar } from "../components/Avatar";
 import { StatusPill } from "../components/ScratchTicket";
-import { WaveLogo } from "../components/WaveLogo";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
 import type { MemberTombola } from "../types";
@@ -349,7 +348,7 @@ export function AccountPage() {
           </Link>
         </div>
       ) : (
-        <div className="account-list">
+        <div className="account-list page-appear">
           {tombolas.map((tombola) => {
             const title = localized(tombola, i18n.language, "title");
             const statusLabel =
@@ -359,37 +358,22 @@ export function AccountPage() {
                   ? t("home.drawn")
                   : t("home.closed");
             const ticketCount = tombola.orders.reduce((sum, order) => sum + order.quantity, 0);
+            const reservedCount = tombola.orders
+              .filter((order) => order.status === "reserved")
+              .reduce((sum, order) => sum + order.quantity, 0);
             return (
               <article key={tombola.eventId} className="account-card">
                 <div className="account-card-head">
                   <h2>{title}</h2>
                   <StatusPill tone={tombola.status === "drawn" ? "ok" : "wait"}>{statusLabel}</StatusPill>
                 </div>
-                <p>
-                  {t("account.ticketCount", { count: ticketCount })}
-                </p>
-                {tombola.orders.map((order) => (
-                  <div key={order.token} className="account-order">
-                    <p>
-                      {order.status === "paid" ? t("confirm.statusPaid") : t("confirm.statusReserved")}
-                      {" · "}
-                      {order.paymentMethod === "wave" ? (
-                        <span className="pay-label">
-                          <WaveLogo />
-                          {t("pay.wave")}
-                        </span>
-                      ) : (
-                        t("pay.cash")
-                      )}
-                      {order.tickets.length
-                        ? ` · ${order.tickets.map((ticket) => ticket.number).join(", ")}`
-                        : ` · ${t("account.waitingNumbers", { count: order.quantity })}`}
-                    </p>
-                    <Link to={`/${lang}/tickets/${order.token}`} className="btn-outline">
-                      {t("account.openTickets")}
-                    </Link>
-                  </div>
-                ))}
+                <p>{t("account.ticketCount", { count: ticketCount })}</p>
+                {reservedCount > 0 ? (
+                  <p className="field-hint">{t("account.reservedSummary", { count: reservedCount })}</p>
+                ) : null}
+                <Link to={`/${lang}/my-tickets/${tombola.eventId}`} className="btn-primary">
+                  {t("account.openAllTickets")}
+                </Link>
               </article>
             );
           })}

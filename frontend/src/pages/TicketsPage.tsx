@@ -8,6 +8,7 @@ import { NumberedTicket, ScratchTicket, StatusPill } from "../components/Scratch
 import { TicketDeck } from "../components/TicketDeck";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { WaveRefSheet } from "../components/WaveRefSheet";
 import { useRealtime } from "../useRealtime";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
@@ -28,6 +29,7 @@ export function TicketsPage() {
   const [waveBusy, setWaveBusy] = useState(false);
   const [waveError, setWaveError] = useState("");
   const [waveDone, setWaveDone] = useState("");
+  const [showWaveRef, setShowWaveRef] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState("");
@@ -161,8 +163,7 @@ export function TicketsPage() {
     }
   }
 
-  async function onWaveRef(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  async function submitWaveRef() {
     if (!token) return;
     setWaveBusy(true);
     setWaveError("");
@@ -181,6 +182,7 @@ export function TicketsPage() {
             ? t("pay.waveIdLocked")
             : t("errors.generic"),
       );
+      throw err;
     } finally {
       setWaveBusy(false);
     }
@@ -333,33 +335,32 @@ export function TicketsPage() {
               <strong>{t("pay.wave")}</strong>
             </p>
             <p>{t("pay.waveLead")}</p>
-            <p>{t("pay.affiliate")}</p>
             {!paid && safeWavePayUrl(order.wavePayUrl) ? (
               <a className="btn-primary btn-block" href={safeWavePayUrl(order.wavePayUrl)} target="_blank" rel="noopener noreferrer">
                 {t("pay.waveCta")}
               </a>
             ) : null}
             {!paid ? (
-              <form className="mt-6 grid gap-3" onSubmit={(e) => void onWaveRef(e)}>
-                <label>
-                  {t("pay.waveId")}
-                  <input
-                    value={waveRef}
-                    onChange={(e) => setWaveRef(e.target.value)}
-                    placeholder={t("pay.waveIdPlaceholder")}
-                    autoComplete="off"
-                    required
-                    minLength={4}
-                    maxLength={80}
-                  />
-                </label>
-                <p className="lede">{t("pay.waveIdHelp")}</p>
-                {waveError ? <p className="text-sm text-ticket">{waveError}</p> : null}
-                {waveDone ? <p className="field-ok">{waveDone}</p> : null}
-                <button className="btn-outline" disabled={waveBusy}>
-                  {waveBusy ? t("pay.waveIdSaving") : t("pay.waveIdCta")}
+              <>
+                {order.paymentRef ? (
+                  <p className="lede mt-3">
+                    {t("pay.waveId")}: <strong className="wave-ref">{order.paymentRef}</strong>
+                  </p>
+                ) : null}
+                {waveDone && !showWaveRef ? <p className="field-ok mt-3">{waveDone}</p> : null}
+                <button
+                  type="button"
+                  className="btn-primary btn-block mt-3"
+                  onClick={() => {
+                    setWaveRef(order.paymentRef ?? waveRef);
+                    setWaveError("");
+                    setShowWaveRef(true);
+                  }}
+                >
+                  {order.paymentRef ? t("pay.waveRefEdit") : t("pay.waveRefOpen")}
                 </button>
-              </form>
+                {waveError && !showWaveRef ? <p className="text-sm text-ticket mt-3">{waveError}</p> : null}
+              </>
             ) : order.paymentRef ? (
               <p className="lede mt-3">
                 {t("pay.waveId")}: <strong className="wave-ref">{order.paymentRef}</strong>
@@ -422,6 +423,24 @@ export function TicketsPage() {
             </button>
           </form>
         </section>
+      ) : null}
+      {showWaveRef ? (
+        <WaveRefSheet
+          title={t("pay.waveId")}
+          help={t("pay.waveIdHelp")}
+          value={waveRef}
+          placeholder={t("pay.waveIdPlaceholder")}
+          confirmLabel={waveBusy ? t("pay.waveIdSaving") : t("pay.waveIdCta")}
+          cancelLabel={t("pay.waveRefClose")}
+          busy={waveBusy}
+          error={waveError}
+          onChange={setWaveRef}
+          onConfirm={() => submitWaveRef()}
+          onClose={() => {
+            setShowWaveRef(false);
+            setWaveError("");
+          }}
+        />
       ) : null}
       {confirmCancel ? (
         <ConfirmModal

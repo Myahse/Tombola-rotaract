@@ -177,6 +177,7 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
     });
 
     res.status(201).json({
+      eventId: created.event.id,
       token: created.order.accessToken,
       buyerName: created.order.buyerName,
       buyerEmail: created.order.buyerEmail,
@@ -245,6 +246,7 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
 
   res.json({
     token: order.accessToken,
+    eventId: order.eventId,
     buyerName: order.buyerName,
     quantity: order.quantity,
     paymentMethod: order.paymentMethod,

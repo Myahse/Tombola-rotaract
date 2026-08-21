@@ -55,6 +55,7 @@ export type OrderView = {
   ticketPriceCents: number;
   currency: string;
   eventStatus?: EventStatus;
+  eventId?: string;
   drawMode?: DrawMode;
   titleFr?: string;
   titleEn?: string;
@@ -90,6 +91,7 @@ export type MemberOrder = {
   status: OrderStatus;
   quantity: number;
   paymentMethod?: PaymentMethod;
+  paymentRef?: string | null;
   createdAt: string;
   tickets: OrderTicket[];
 };
@@ -102,6 +104,8 @@ export type MemberTombola = {
   drawMode?: DrawMode;
   ticketPriceCents: number;
   currency: string;
+  paymentInstructionsFr: string;
+  paymentInstructionsEn: string;
   orders: MemberOrder[];
 };
 

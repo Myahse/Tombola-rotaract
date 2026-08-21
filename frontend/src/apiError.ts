@@ -14,7 +14,7 @@ export function isApiError(err: unknown): err is ApiError {
   return err instanceof ApiError;
 }
 
-export function isRetryableApiError(err: unknown) {
+export function isRetryableApiError(err: unknown): err is ApiError {
   return isApiError(err) && (err.status === 429 || err.status === 503);
 }
 
