@@ -1444,6 +1444,32 @@ textarea.skeleton {
   padding: 0.4rem 0.5rem 0.5rem;
   font-size: 0.72rem;
 }
+.file-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+.file-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+}
+.file-card strong {
+  display: block;
+  font-size: 0.92rem;
+}
+.file-card p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
 .file-btn {
   position: relative;
   overflow: hidden;

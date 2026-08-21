@@ -103,8 +103,15 @@
     "sourceCustom": "Custom",
     "back": "All campaigns",
     "noRecipients": "Pick at least one audience or add custom emails.",
-    "tooManyImages": "Maximum 8 images.",
-    "badImage": "This file could not be used. Try a smaller JPEG or PNG."
+    "tooManyAttachments": "Maximum 8 files (images + documents).",
+    "badAttachment": "This file could not be used.",
+    "badImage": "This file could not be used. Try a smaller JPEG or PNG.",
+    "badDocument": "PDF only, 3 MB maximum.",
+    "fileTooLarge": "File is too large.",
+    "documents": "Attachments",
+    "documentsHelp": "PDF up to 3 MB. Sent as an email attachment (not shown in the message body).",
+    "addDocument": "Add a PDF",
+    "documentSize": "{{size}} KB"
   },
   "pwa": {
     "installTitle": "Install the app",

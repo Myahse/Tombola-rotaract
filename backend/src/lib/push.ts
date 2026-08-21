@@ -13,8 +13,16 @@ type VapidKeys = { publicKey: string; privateKey: string };
 
 let vapid: VapidKeys | null | undefined;
 
-function isProduction() {
+export function isProductionRuntime() {
   return process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+}
+
+function isProduction() {
+  return isProductionRuntime();
+}
+
+export function pushTestsAllowed() {
+  return !isProductionRuntime();
 }
 
 function loadVapid(): VapidKeys | null {

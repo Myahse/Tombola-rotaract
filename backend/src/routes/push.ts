@@ -4,7 +4,13 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { pushSubscriptions } from "../db/schema.js";
 import { requireMember, type MemberRequest } from "../lib/auth.js";
-import { getVapidPublicKey, isAllowedPushEndpoint, pushConfigured, sendPushToMember } from "../lib/push.js";
+import {
+  getVapidPublicKey,
+  isAllowedPushEndpoint,
+  pushConfigured,
+  pushTestsAllowed,
+  sendPushToMember,
+} from "../lib/push.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
 export const pushRouter = Router();
@@ -121,6 +127,10 @@ pushRouter.delete("/push/subscribe", requireMember, async (req, res) => {
 });
 
 pushRouter.post("/push/test", requireMember, async (req, res) => {
+  if (!pushTestsAllowed()) {
+    res.status(404).json({ error: "not_found" });
+    return;
+  }
   if (!(await allowRequest(`push-test:${clientKey(req)}`, 8, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;

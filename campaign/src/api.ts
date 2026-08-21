@@ -69,6 +69,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  addAttachment: (id: string, body: { filename: string; mimeType: string; content: string; inline: boolean }) =>
+    request<{ attachment: CampaignAttachment }>(`/api/admin/campaigns/${encodeURIComponent(id)}/attachments`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   deleteImage: (id: string, attachmentId: string) =>
     request<{ ok: boolean }>(
       `/api/admin/campaigns/${encodeURIComponent(id)}/attachments/${encodeURIComponent(attachmentId)}`,

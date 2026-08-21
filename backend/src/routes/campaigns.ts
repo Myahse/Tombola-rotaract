@@ -14,9 +14,11 @@ export const campaignRouter = Router();
 const sending = new Set<string>();
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const DOCUMENT_TYPES = new Set(["application/pdf"]);
 const MAX_ATTACHMENTS = 8;
 const MAX_RECIPIENTS = 800;
 const MAX_IMAGE_CHARS = 1_800_000;
+const MAX_DOCUMENT_CHARS = 4_000_000;
 
 const saveSchema = z.object({
   name: z.string().trim().max(120).optional().or(z.literal("")),
@@ -449,28 +451,41 @@ campaignRouter.post("/:id/attachments", async (req, res) => {
     .object({
       filename: z.string().trim().min(1).max(120),
       mimeType: z.string().trim().min(3).max(80),
-      content: z.string().min(24).max(MAX_IMAGE_CHARS),
+      content: z.string().min(24),
       inline: z.boolean().default(true),
     })
     .safeParse(req.body);
-  if (!parsed.success || !IMAGE_TYPES.has(parsed.data.mimeType)) {
-    res.status(400).json({ error: "invalid_image" });
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_attachment" });
+    return;
+  }
+  const { mimeType, content } = parsed.data;
+  const isImage = IMAGE_TYPES.has(mimeType);
+  const isDocument = DOCUMENT_TYPES.has(mimeType);
+  if (!isImage && !isDocument) {
+    res.status(400).json({ error: "invalid_attachment" });
+    return;
+  }
+  const maxChars = isDocument ? MAX_DOCUMENT_CHARS : MAX_IMAGE_CHARS;
+  if (content.length > maxChars) {
+    res.status(400).json({ error: "file_too_large" });
     return;
   }
   const existing = await attachmentsFor(campaign.id);
   if (existing.length >= MAX_ATTACHMENTS) {
-    res.status(400).json({ error: "too_many_images" });
+    res.status(400).json({ error: "too_many_attachments" });
     return;
   }
+  const inline = isDocument ? false : parsed.data.inline;
   const filename = parsed.data.filename.replace(/[^\w.\- ()àâéèêëïîôùüç]+/gi, "_").slice(0, 80);
   const [created] = await db
     .insert(campaignAttachments)
     .values({
       campaignId: campaign.id,
-      filename: filename || "image.jpg",
-      mimeType: parsed.data.mimeType,
-      content: parsed.data.content.replace(/^data:[^;]+;base64,/, ""),
-      inline: parsed.data.inline,
+      filename: filename || (isDocument ? "document.pdf" : "image.jpg"),
+      mimeType,
+      content: content.replace(/^data:[^;]+;base64,/, ""),
+      inline,
     })
     .returning();
   res.json({ attachment: publicAttachment(created) });

@@ -221,7 +221,7 @@ export function AccountPage() {
             >
               {pushBusy ? t("auth.submitting") : pushOn ? t("pwa.disable") : t("pwa.notifyCta")}
             </button>
-            {pushOn ? (
+            {pushOn && !import.meta.env.PROD ? (
               <button type="button" className="btn-primary" disabled={pushBusy} onClick={() => void onTestPush()}>
                 {t("pwa.testCta")}
               </button>

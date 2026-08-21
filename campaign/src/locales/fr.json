@@ -103,8 +103,15 @@
     "sourceCustom": "Perso",
     "back": "Toutes les campagnes",
     "noRecipients": "Choisissez au moins une audience ou ajoutez des e-mails.",
-    "tooManyImages": "Maximum 8 images.",
-    "badImage": "Ce fichier n’a pas pu être utilisé. Essayez un JPEG ou PNG plus léger."
+    "tooManyAttachments": "Maximum 8 fichiers (images + documents).",
+    "badAttachment": "Ce fichier n’a pas pu être utilisé.",
+    "badImage": "Ce fichier n’a pas pu être utilisé. Essayez un JPEG ou PNG plus léger.",
+    "badDocument": "PDF uniquement, 3 Mo maximum.",
+    "fileTooLarge": "Fichier trop lourd.",
+    "documents": "Pièces jointes",
+    "documentsHelp": "PDF jusqu’à 3 Mo. Envoyé en pièce jointe à l’e-mail (pas affiché dans le message).",
+    "addDocument": "Ajouter un PDF",
+    "documentSize": "{{size}} Ko"
   },
   "pwa": {
     "installTitle": "Installer l’app",

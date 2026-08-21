@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "../db/index.js";
 import { adminPushSubscriptions } from "../db/schema.js";
 import { requireAdmin } from "../lib/auth.js";
-import { getVapidPublicKey, isAllowedPushEndpoint, pushConfigured, sendPushToOrganizers } from "../lib/push.js";
+import { getVapidPublicKey, isAllowedPushEndpoint, pushConfigured, pushTestsAllowed, sendPushToOrganizers } from "../lib/push.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 
 const subscriptionSchema = z.object({
@@ -105,6 +105,10 @@ export function registerAdminPushRoutes(router: Router) {
   });
 
   router.post("/push/test", requireAdmin, async (req, res) => {
+    if (!pushTestsAllowed()) {
+      res.status(404).json({ error: "not_found" });
+      return;
+    }
     if (!(await allowRequest(`admin-push-test:${clientKey(req)}`, 8, 15 * 60 * 1000))) {
       res.status(429).json({ error: "too_many_requests" });
       return;

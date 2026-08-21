@@ -9,6 +9,7 @@ import { selectedFromDraft } from "../audience";
 import { SAMPLE_PERSON, type PreviewPerson } from "../emailPreview";
 import { api, attachmentUrl } from "../api";
 import { resizeCampaignImage } from "../resizeImage";
+import { readPdfAttachment } from "../readPdfAttachment";
 import type {
   AudiencePreview,
   Campaign,
@@ -42,8 +43,9 @@ function errorText(t: (key: string) => string, error: unknown) {
   if (code === "rate_limited") return t("errors.rateLimited");
   if (code === "brevo_not_configured") return t("errors.brevo");
   if (code === "no_recipients") return t("errors.noRecipients");
-  if (code === "too_many_images") return t("campaign.tooManyImages");
-  if (code === "invalid_image") return t("campaign.badImage");
+  if (code === "too_many_images" || code === "too_many_attachments") return t("campaign.tooManyAttachments");
+  if (code === "invalid_image" || code === "invalid_attachment") return t("campaign.badAttachment");
+  if (code === "file_too_large") return t("campaign.fileTooLarge");
   if (code === "api_down") return t("errors.apiDown");
   return t("errors.generic");
 }
@@ -63,7 +65,7 @@ export function CampaignEditorPage() {
   const [person, setPerson] = useState<PreviewPerson>(SAMPLE_PERSON);
   const [testEmail, setTestEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState<"save" | "test" | "send" | "image" | "delete" | "">("");
+  const [busy, setBusy] = useState<"save" | "test" | "send" | "image" | "document" | "delete" | "">("");
   const [focusField, setFocusField] = useState<"subject" | "preheader" | "heading" | "body" | "ctaLabel">("body");
   const [askingDelete, setAskingDelete] = useState(false);
   const [askingSend, setAskingSend] = useState(false);
@@ -184,7 +186,28 @@ export function CampaignEditorPage() {
     }
   }
 
-  async function removeImage(attachmentId: string) {
+  async function onDocuments(files: FileList | null) {
+    if (!id || !files?.length) return;
+    setBusy("document");
+    setMessage("");
+    try {
+      for (const file of [...files]) {
+        const payload = await readPdfAttachment(file);
+        if (!payload) {
+          setMessage(t("campaign.badDocument"));
+          continue;
+        }
+        const { attachment } = await api.addAttachment(id, payload);
+        setAttachments((current) => [...current, attachment]);
+      }
+    } catch (error) {
+      setMessage(errorText(t, error));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function removeAttachment(attachmentId: string) {
     if (!id) return;
     await api.deleteImage(id, attachmentId);
     setAttachments((current) => current.filter((item) => item.id !== attachmentId));
@@ -267,6 +290,9 @@ export function CampaignEditorPage() {
   if (!campaign || !draft) {
     return <p className="lede">…</p>;
   }
+
+  const inlineImages = attachments.filter((file) => file.inline);
+  const fileAttachments = attachments.filter((file) => !file.inline);
 
   return (
     <section className="grid gap-6">
@@ -413,15 +439,15 @@ export function CampaignEditorPage() {
                 />
               </label>
             ) : null}
-            {attachments.length ? (
+            {inlineImages.length ? (
               <div className="image-grid mt-4">
-                {attachments.map((file) => (
+                {inlineImages.map((file) => (
                   <article key={file.id} className="image-card">
                     <img src={attachmentUrl(campaign.id, file.id)} alt={file.filename} />
                     <footer>
-                      <span>{file.inline ? t("campaign.inline") : t("campaign.attachOnly")}</span>
+                      <span>{t("campaign.inline")}</span>
                       {!locked ? (
-                        <button type="button" className="btn-ghost" onClick={() => void removeImage(file.id)}>
+                        <button type="button" className="btn-ghost" onClick={() => void removeAttachment(file.id)}>
                           {t("campaign.remove")}
                         </button>
                       ) : null}
@@ -429,6 +455,43 @@ export function CampaignEditorPage() {
                   </article>
                 ))}
               </div>
+            ) : null}
+          </div>
+
+          <div>
+            <h2>{t("campaign.documents")}</h2>
+            <p className="hint">{t("campaign.documentsHelp")}</p>
+            {!locked ? (
+              <label className="btn-outline file-btn mt-3">
+                {t("campaign.addDocument")}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  multiple
+                  disabled={busy === "document"}
+                  onChange={(e) => {
+                    void onDocuments(e.target.files);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+            ) : null}
+            {fileAttachments.length ? (
+              <ul className="file-list mt-4">
+                {fileAttachments.map((file) => (
+                  <li key={file.id} className="file-card">
+                    <div>
+                      <strong>{file.filename}</strong>
+                      <p>{t("campaign.documentSize", { size: Math.max(1, Math.round(file.bytes / 1024)) })}</p>
+                    </div>
+                    {!locked ? (
+                      <button type="button" className="btn-ghost" onClick={() => void removeAttachment(file.id)}>
+                        {t("campaign.remove")}
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             ) : null}
           </div>
 
