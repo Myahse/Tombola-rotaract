@@ -336,6 +336,8 @@
     "notifyAccount": "Les notifications suivent vos tickets : paiement confirmé, tickets offerts, et clôture du tirage.",
     "notifyIos": "Sur iPhone, ajoutez d’abord l’app à l’écran d’accueil pour activer les notifications.",
     "notifyCta": "Activer",
+    "notifyEnabled": "Notifications activées.",
+    "notifyBrowserOff": "Pour les couper, passez par les réglages de notifications du navigateur.",
     "disable": "Désactiver",
     "blocked": "Les notifications sont bloquées dans les réglages du navigateur.",
     "unavailable": "Les notifications ne sont pas disponibles sur cet appareil.",

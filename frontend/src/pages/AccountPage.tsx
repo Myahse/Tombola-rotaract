@@ -9,7 +9,6 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
 import type { MemberTombola } from "../types";
 import {
-  disablePush,
   enablePush,
   getPushSubscription,
   isIosDevice,
@@ -121,16 +120,10 @@ export function AccountPage() {
     }
   }
 
-  async function onTogglePush() {
+  async function onEnablePush() {
     setPushError("");
     setPushBusy(true);
     try {
-      if (pushOn) {
-        const endpoint = await disablePush();
-        await api.pushUnsubscribe(endpoint ?? undefined);
-        setPushOn(false);
-        return;
-      }
       const { publicKey } = await api.pushKey();
       if (!publicKey) {
         setPushError(t("pwa.unavailable"));
@@ -206,21 +199,26 @@ export function AccountPage() {
         <article className="account-card account-profile">
           <h2>{t("pwa.notifyTitle")}</h2>
           <p className="field-hint" style={{ margin: 0 }}>
-            {isIosDevice() && !isStandaloneDisplay()
-              ? t("pwa.notifyIos")
-              : t("pwa.notifyAccount")}
+            {pushOn
+              ? t("pwa.notifyBrowserOff")
+              : isIosDevice() && !isStandaloneDisplay()
+                ? t("pwa.notifyIos")
+                : t("pwa.notifyAccount")}
           </p>
           {pushError ? <p className="text-sm text-ticket">{pushError}</p> : null}
+          {pushOn ? <p className="field-ok">{t("pwa.notifyEnabled")}</p> : null}
           {pushTested ? <p className="field-ok">{t("pwa.testSent")}</p> : null}
           <div className="pwa-banner-actions" style={{ marginLeft: 0 }}>
-            <button
-              type="button"
-              className={pushOn ? "btn-outline" : "btn-primary"}
-              disabled={pushBusy || (isIosDevice() && !isStandaloneDisplay())}
-              onClick={() => void onTogglePush()}
-            >
-              {pushBusy ? t("auth.submitting") : pushOn ? t("pwa.disable") : t("pwa.notifyCta")}
-            </button>
+            {!pushOn ? (
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={pushBusy || (isIosDevice() && !isStandaloneDisplay())}
+                onClick={() => void onEnablePush()}
+              >
+                {pushBusy ? t("auth.submitting") : t("pwa.notifyCta")}
+              </button>
+            ) : null}
             {pushOn && !import.meta.env.PROD ? (
               <button type="button" className="btn-primary" disabled={pushBusy} onClick={() => void onTestPush()}>
                 {t("pwa.testCta")}

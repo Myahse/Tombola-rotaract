@@ -336,6 +336,8 @@
     "notifyAccount": "Notifications follow your tickets: payment confirmed, gifted tickets, and when the draw closes.",
     "notifyIos": "On iPhone, add the app to your home screen first to enable notifications.",
     "notifyCta": "Turn on",
+    "notifyEnabled": "Notifications are on.",
+    "notifyBrowserOff": "To turn them off, use your browser’s notification settings.",
     "disable": "Turn off",
     "blocked": "Notifications are blocked in your browser settings.",
     "unavailable": "Notifications are not available on this device.",
