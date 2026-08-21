@@ -122,6 +122,21 @@ export function escapeHtml(value: string) {
     .replaceAll('"', "&quot;");
 }
 
+export function emailEnglishBlock(text: string) {
+  return `<p style="margin:14px 0 0;font-size:13px;color:#73737a;border-top:1px solid #ececee;padding-top:14px;"><strong>ENGLISH :</strong>${escapeHtml(text)}</p>`;
+}
+
+export function emailHighlightBox(label: string, valueHtml: string) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;border:1px solid #ececee;border-radius:12px;overflow:hidden;">
+    <tr>
+      <td style="padding:14px 16px;background:#faf0f4;">
+        <p style="margin:0 0 4px;text-transform:uppercase;letter-spacing:0.06em;font-size:11px;font-weight:650;color:#be034d;">${escapeHtml(label)}</p>
+        <p style="margin:0;font-size:18px;font-weight:650;color:#141416;">${valueHtml}</p>
+      </td>
+    </tr>
+  </table>`;
+}
+
 export function siteUrl(path = "") {
   return publicOrigin(path, {
     env: process.env.PUBLIC_SITE_URL,

@@ -420,12 +420,32 @@ a:hover { color: var(--primary); }
   position: fixed;
   inset: 0;
   z-index: 80;
-  display: grid;
-  place-items: end center;
-  padding: 0.75rem max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem max(1.25rem, env(safe-area-inset-right)) max(1.25rem, env(safe-area-inset-bottom)) max(1.25rem, env(safe-area-inset-left));
   background: var(--scrim);
   backdrop-filter: blur(8px);
-  animation: appear-fade 0.35s ease both;
+  -webkit-backdrop-filter: blur(8px);
+}
+.modal-backdrop.is-open {
+  animation: backdrop-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.modal-backdrop.is-closing {
+  animation: backdrop-out 0.3s ease forwards;
+}
+.modal-backdrop.sheet-backdrop {
+  z-index: 100;
+  align-items: flex-end;
+  justify-content: stretch;
+  padding: 0;
+}
+body.modal-open {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+body.modal-open .bottom-nav {
+  pointer-events: none;
 }
 .modal-card {
   width: min(100%, 22.5rem);
@@ -434,7 +454,56 @@ a:hover { color: var(--primary); }
   border-radius: 16px;
   padding: 1.45rem 1.35rem 1.4rem;
   box-shadow: var(--card-shadow);
+}
+.modal-backdrop:not(.is-closing) > .modal-card:not(.cancel-sheet) {
   animation: appear-up 0.48s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cancel-sheet {
+  width: 100%;
+  max-width: none;
+  max-height: min(92dvh, 100%);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 20px 20px 0 0;
+  padding: 0.85rem 1.35rem max(calc(1.1rem + var(--safe-b)), env(safe-area-inset-bottom));
+  box-shadow: none;
+}
+.cancel-sheet.is-open {
+  animation: sheet-up 0.46s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cancel-sheet.is-closing {
+  animation: sheet-down 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.sheet-handle {
+  width: 2.5rem;
+  height: 0.28rem;
+  margin: 0 auto 0.85rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+}
+.sheet-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+.modal-error {
+  margin-top: 0.15rem;
+  animation: appear-up 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.btn-spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid color-mix(in srgb, currentColor 25%, transparent);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+.physical-tickets-mobile {
+  display: grid;
+  gap: 0.55rem;
 }
 .modal-card h1 { font-size: 1.35rem; margin-top: 0.2rem; }
 .modal-lead {
@@ -801,6 +870,13 @@ a:hover { color: var(--primary); }
   justify-content: space-between;
   gap: 0.75rem;
 }
+.buyers-head-actions,
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
 .buyers-count {
   margin: 0.35rem 0 0;
   color: var(--muted);
@@ -908,6 +984,26 @@ a:hover { color: var(--primary); }
 .hide-mobile { display: none !important; }
 
 @media (min-width: 768px) {
+  .modal-backdrop.sheet-backdrop {
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+  }
+  .cancel-sheet {
+    width: min(100%, 26rem);
+    max-width: 26rem;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 1.45rem 1.35rem 1.4rem;
+    box-shadow: var(--card-shadow);
+  }
+  .cancel-sheet.is-open {
+    animation: dialog-in 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .cancel-sheet.is-closing {
+    animation: dialog-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  .sheet-handle { display: none; }
   .fact-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.5rem 2rem;
@@ -920,7 +1016,6 @@ a:hover { color: var(--primary); }
 @media (min-width: 900px) {
   .hide-mobile { display: flex !important; }
   .show-mobile { display: none !important; }
-  .modal-backdrop { place-items: center; padding: 1.25rem; }
   .site-header {
     flex-wrap: nowrap;
     padding: 0.5rem 2rem;
@@ -1056,6 +1151,73 @@ textarea.skeleton {
   from { opacity: 0; }
   to { opacity: 1; }
 }
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes backdrop-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes sheet-up {
+  from { opacity: 0.98; transform: translate3d(0, 100%, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes sheet-down {
+  from { opacity: 1; transform: translate3d(0, 0, 0); }
+  to { opacity: 0.98; transform: translate3d(0, 100%, 0); }
+}
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(1.25rem) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes dialog-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(0.75rem) scale(0.97); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.pwa-stack {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.7rem 0.9rem 0;
+}
+.pwa-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  background: var(--card);
+}
+.pwa-banner strong {
+  display: block;
+  font-size: 0.95rem;
+}
+.pwa-banner p {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 500;
+}
+.pwa-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+.pwa-banner-error {
+  color: var(--error);
+  font-weight: 600;
+}
+.pwa-toast {
+  border-color: var(--primary);
+}
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -1063,7 +1225,12 @@ textarea.skeleton {
   .skeleton { animation: none; }
   .page-appear > *,
   .modal-backdrop,
-  .modal-card { animation: none; }
+  .modal-card,
+  .modal-backdrop.is-open,
+  .modal-backdrop.is-closing,
+  .cancel-sheet.is-open,
+  .cancel-sheet.is-closing { animation: none !important; }
+  .btn-spinner { animation: none; }
 }
 
 @media print {

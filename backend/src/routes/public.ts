@@ -11,6 +11,12 @@ import { drawModeOf, heldSeatCount, maskScratchPrizes } from "../lib/tickets.js"
 import { allowRequest, clientKey, enforceRateLimit, rateLimits, salesAreOpen } from "../lib/rateLimit.js";
 import { notifyGiftTickets } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
+import {
+  notifyOrganizerDonation,
+  notifyOrganizerNewOrder,
+  notifyOrganizerOrderCancelled,
+  notifyOrganizerPaymentRef,
+} from "../lib/organizerNotify.js";
 
 export const publicRouter = Router();
 
@@ -196,6 +202,11 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       tickets: [],
     });
     void publishChange("order");
+    notifyOrganizerNewOrder(
+      created.order.buyerName,
+      created.order.quantity,
+      created.order.paymentMethod,
+    );
   } catch (error) {
     const err = error as Error & { status?: number; remaining?: number };
     if (err.message === "not_on_sale") {
@@ -254,6 +265,7 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
     wavePayUrl: wavePayUrl(),
     status: order.status,
     createdAt: order.createdAt,
+    paidAt: order.paidAt,
     ticketPriceCents: event?.ticketPriceCents ?? 0,
     currency: event?.currency ?? "XOF",
     eventStatus: event?.status ?? "draft",
@@ -319,6 +331,7 @@ publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) 
     .returning();
   res.json({ paymentRef: updated?.paymentRef ?? parsed.data.paymentRef });
   void publishChange("order");
+  notifyOrganizerPaymentRef(order.buyerName, parsed.data.paymentRef.trim());
 });
 
 publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
@@ -347,10 +360,11 @@ publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
       }
       await tx.delete(tickets).where(eq(tickets.orderId, order.id));
       await tx.update(orders).set({ status: "cancelled" }).where(eq(orders.id, order.id));
-      return true;
+      return { buyerName: order.buyerName, quantity: order.quantity };
     });
-    res.json({ ok: cancelled });
+    res.json({ ok: true });
     void publishChange("order");
+    notifyOrganizerOrderCancelled(cancelled.buyerName, cancelled.quantity);
   } catch (error) {
     const err = error as Error & { status?: number };
     if (err.message === "not_found") {
@@ -501,7 +515,9 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
         giverName: giver.name,
         recipientName: recipient?.name ?? email,
         recipientEmail: email,
+        recipientMemberId: recipientId,
         hasAccount: Boolean(recipient),
+        eventId: order.eventId,
         eventTitleFr: event.titleFr,
         eventTitleEn: event.titleEn,
       };
@@ -512,15 +528,18 @@ publicRouter.post("/orders/:token/share", requireMember, async (req, res) => {
     void notifyGiftTickets({
       name: gifted.recipientName,
       email: gifted.recipientEmail,
+      memberId: gifted.recipientMemberId,
       giverName: gifted.giverName,
       eventTitleFr: gifted.eventTitleFr,
       eventTitleEn: gifted.eventTitleEn,
       numbers: gifted.numbers,
       hasAccount: gifted.hasAccount,
       ticketsUrl: siteUrl(
-        gifted.hasAccount
-          ? `/fr/login?next=${encodeURIComponent(`/fr/tickets/${gifted.giftToken}`)}`
-          : `/fr/register?next=${encodeURIComponent(`/fr/tickets/${gifted.giftToken}`)}`,
+        gifted.hasAccount && gifted.recipientMemberId
+          ? `/fr/my-tickets/${gifted.eventId}`
+          : gifted.hasAccount
+            ? `/fr/login?next=${encodeURIComponent(`/fr/tickets/${gifted.giftToken}`)}`
+            : `/fr/register?next=${encodeURIComponent(`/fr/tickets/${gifted.giftToken}`)}`,
       ),
     });
   } catch (error) {
@@ -668,4 +687,5 @@ publicRouter.post("/donations", async (req, res) => {
     status: created?.status,
   });
   void publishChange("order");
+  if (created) notifyOrganizerDonation(created.donorName, created.amountCents);
 });

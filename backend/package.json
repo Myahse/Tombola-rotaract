@@ -11,6 +11,7 @@
     "start": "tsx src/index.ts",
     "build": "node -e \"process.exit(0)\"",
     "typecheck": "tsc --noEmit",
+    "preview:emails": "tsx scripts/preview-all-emails.ts",
     "db:seed": "tsx src/seed.ts",
     "db:clear-rate-limits": "tsx src/clearRateLimits.ts",
     "db:push": "drizzle-kit push"
@@ -26,6 +27,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
     "express": "^5.2.1",
+    "pdfkit": "^0.19.1",
     "postgres": "^3.4.9",
     "tsx": "^4.23.12",
     "typescript": "~5.8.3",
@@ -34,6 +36,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/pdfkit": "^0.17.6",
     "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10"
   }

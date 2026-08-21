@@ -1,4 +1,4 @@
-import { escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
+import { emailEnglishBlock, escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
 
 export type VerifyEmail = {
   name: string;
@@ -15,8 +15,10 @@ export function verifyEmailMessage(data: VerifyEmail) {
     ctaUrl: data.verifyUrl,
     bodyHtml: `
       <p style="margin:0 0 14px;color:#141416;">Confirmez ${escapeHtml(data.email)} pour le compte Rotaract IUGB Club. Cela permet de rattacher les tickets offerts à cette adresse.</p>
-      <p style="margin:0 0 14px;">Le lien expire dans 24 heures. Si vous n’avez pas créé ce compte, ignorez cet e-mail.</p>
-      <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> ${escapeHtml(name)}, confirm this email to attach gifted tickets. The link expires in 24 hours. Ignore this message if you did not create the account.</p>
+      <p style="margin:0 0 14px;color:#141416;">Le lien expire dans 24 heures. Si vous n’avez pas créé ce compte, ignorez cet e-mail.</p>
+      ${emailEnglishBlock(
+        `${name}, confirm ${data.email} to attach gifted tickets. The link expires in 24 hours. Ignore this message if you did not create the account.`,
+      )}
     `,
   });
 
@@ -26,7 +28,7 @@ export function verifyEmailMessage(data: VerifyEmail) {
     `Lien (valable 24 heures) : ${data.verifyUrl}`,
     "Si vous n’avez pas créé ce compte, ignorez cet e-mail.",
     "",
-    `EN: ${name}, confirm this email to attach gifted tickets. The link expires in 24 hours.`,
+    `ENGLISH : ${name}, confirm ${data.email} to attach gifted tickets. The link expires in 24 hours.`,
   ].join("\n");
 
   return {

@@ -1388,6 +1388,99 @@ textarea.skeleton {
   to { transform: rotate(360deg); }
 }
 
+.receipt-section-head,
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.payment-receipt {
+  max-width: 560px;
+  margin-top: 1rem;
+  padding: 1.5rem 1.35rem 1.25rem;
+  border: 1px solid #ececee;
+  border-radius: 16px;
+  background: #ffffff;
+  color: #141416;
+  box-shadow: 0 16px 40px rgba(20, 20, 22, 0.08);
+}
+.payment-receipt-brand img {
+  display: block;
+  width: 220px;
+  max-width: 86%;
+  height: auto;
+  margin: 0 auto;
+}
+.payment-receipt-kicker {
+  margin: 1rem 0 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 650;
+  color: #be034d;
+}
+.payment-receipt-title {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.payment-receipt-intro {
+  margin: 0.75rem 0 0;
+  color: #141416;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+.payment-receipt-rows {
+  margin: 1rem 0 0;
+  border: 1px solid #ececee;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.payment-receipt-rows > div {
+  padding: 0.7rem 0.9rem;
+  border-bottom: 1px solid #ececee;
+}
+.payment-receipt-rows > div:last-child {
+  border-bottom: 0;
+}
+.payment-receipt-rows > div.is-highlight {
+  background: #faf0f4;
+}
+.payment-receipt-rows dt {
+  margin: 0 0 0.15rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+  font-weight: 650;
+  color: #a1a1a8;
+}
+.payment-receipt-rows > div.is-highlight dt {
+  color: #be034d;
+}
+.payment-receipt-rows dd {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+.payment-receipt-hint {
+  margin: 0.9rem 0 0;
+  color: #141416;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+.payment-receipt-en {
+  margin: 0.9rem 0 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid #ececee;
+  color: #73737a;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .ticket-deck-card { transition: none !important; }

@@ -7,7 +7,9 @@ import type { AdminEvent, AdminOrder } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
 import { PageSkeleton } from "../../components/PageSkeleton";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { ExportActions } from "../../components/ExportActions";
 import { PhysicalTicketsForm } from "../../components/PhysicalTicketsForm";
+import { exportOrdersExcel, exportOrdersPdf } from "../../lib/exportOrders";
 import { useOrganizerEvent } from "../../eventContext";
 
 type PendingAction = { type: "paid" | "unpaid" | "cancel"; order: AdminOrder } | null;
@@ -133,6 +135,14 @@ export function BuyersPage() {
 
   if (!ready) return <PageSkeleton kind="list" />;
 
+  const exportCtx = {
+    orders: sorted,
+    event,
+    lang: i18n.language,
+    formatAmount: amount,
+    t,
+  };
+
   return (
     <section className="buyers-page">
       <div className="buyers-head">
@@ -144,9 +154,17 @@ export function BuyersPage() {
             </p>
           ) : null}
         </div>
-        <Link to={`/${lang}/qr`} className="btn-outline">
-          {t("admin.qr")}
-        </Link>
+        <div className="buyers-head-actions">
+          {sorted.length ? (
+            <ExportActions
+              onExportExcel={() => void exportOrdersExcel(exportCtx)}
+              onExportPdf={() => void exportOrdersPdf(exportCtx)}
+            />
+          ) : null}
+          <Link to={`/${lang}/qr`} className="btn-outline">
+            {t("admin.qr")}
+          </Link>
+        </div>
       </div>
       <p className="lede mt-3">{t("admin.waveHelp")}</p>
       {error ? <p className="text-sm text-ticket mt-3">{error}</p> : null}

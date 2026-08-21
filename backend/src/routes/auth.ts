@@ -22,6 +22,7 @@ import { allowRequest, clientKey, enforceRateLimit, rateLimits, salesAreOpen } f
 import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
 import { siteUrl } from "../emails/layout.js";
+import { notifyOrganizerOrderCancelled } from "../lib/organizerNotify.js";
 
 export const authRouter = Router();
 
@@ -182,7 +183,7 @@ authRouter.post("/auth/register", async (req, res) => {
   await sendVerifyLink(member);
   await issueMemberAuth(res, member.id, member.tokenVersion);
   res.status(201).json({ member: publicMember(member) });
-  void notifyMemberRegistered({ name: member.name, email: member.email });
+  void notifyMemberRegistered({ name: member.name, email: member.email, id: member.id });
 });
 
 authRouter.post("/auth/login", async (req, res) => {
@@ -437,6 +438,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       paymentMethod: orders.paymentMethod,
       paymentRef: orders.paymentRef,
       createdAt: orders.createdAt,
+      paidAt: orders.paidAt,
       eventId: events.id,
       titleFr: events.titleFr,
       titleEn: events.titleEn,
@@ -481,6 +483,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
           paymentMethod: string;
           paymentRef: string | null;
           createdAt: Date;
+          paidAt: Date | null;
           tickets: {
             number: number;
             prizeId: string | null;
@@ -520,6 +523,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
         paymentMethod: row.paymentMethod,
         paymentRef: row.paymentRef,
         createdAt: row.createdAt,
+        paidAt: row.paidAt,
         tickets: [],
       };
       event.orders.set(row.token, order);
@@ -548,6 +552,7 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       orders: [...event.orders.values()].map((order) => ({
         ...order,
         createdAt: order.createdAt.toISOString(),
+        paidAt: order.paidAt?.toISOString() ?? null,
         tickets: maskScratchPrizes(
           order.tickets.map((ticket) => ({
             ...ticket,
@@ -615,6 +620,10 @@ authRouter.post("/me/events/:eventId/cancel-reserved", requireMember, async (req
     });
     res.json({ ok: true, cancelled });
     void publishChange("order");
+    if (cancelled > 0) {
+      const [member] = await db.select({ name: members.name }).from(members).where(eq(members.id, memberId)).limit(1);
+      if (member) notifyOrganizerOrderCancelled(member.name, cancelled);
+    }
   } catch (error) {
     const err = error as Error & { status?: number; remaining?: number };
     if (err.message === "event_locked") {

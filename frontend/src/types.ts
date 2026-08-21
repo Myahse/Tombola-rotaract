@@ -52,6 +52,8 @@ export type OrderView = {
   paymentRef?: string | null;
   wavePayUrl?: string;
   status: OrderStatus;
+  createdAt?: string;
+  paidAt?: string | null;
   ticketPriceCents: number;
   currency: string;
   eventStatus?: EventStatus;
@@ -93,6 +95,7 @@ export type MemberOrder = {
   paymentMethod?: PaymentMethod;
   paymentRef?: string | null;
   createdAt: string;
+  paidAt?: string | null;
   tickets: OrderTicket[];
 };
 

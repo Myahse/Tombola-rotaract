@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, formatMoney, localized } from "../api";
@@ -12,6 +12,8 @@ import { WaveRefSheet } from "../components/WaveRefSheet";
 import { useRealtime } from "../useRealtime";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
+import { PaymentReceiptSection } from "../components/PaymentReceiptSection";
+import { buildReceiptData, receiptLabels } from "../lib/receipt";
 
 export function TicketsPage() {
   const { token, lang } = useParams();
@@ -64,6 +66,31 @@ export function TicketsPage() {
     }
   });
 
+  const receiptData = useMemo(() => {
+    if (!order || order.status !== "paid") return null;
+    const ticketList = order.tickets ?? [];
+    return buildReceiptData({
+      buyerName: order.buyerName,
+      eventTitleFr: order.titleFr ?? "",
+      eventTitleEn: order.titleEn ?? "",
+      ticketPriceCents: order.ticketPriceCents,
+      currency: order.currency,
+      drawMode: order.drawMode,
+      lang: i18n.language,
+      orders: [
+        {
+          quantity: order.quantity,
+          paymentMethod: order.paymentMethod,
+          paymentRef: order.paymentRef,
+          paidAt: order.paidAt,
+          createdAt: order.createdAt,
+          tickets: ticketList,
+        },
+      ],
+    });
+  }, [order, i18n.language]);
+  const receiptLabelSet = useMemo(() => receiptLabels(t), [t]);
+
   if (loading) return <PageSkeleton kind="tickets" />;
   if (!member) {
     return <Navigate to={`/${lang}/login?next=${encodeURIComponent(next)}`} replace />;
@@ -94,6 +121,9 @@ export function TicketsPage() {
   const scratchMode = order.drawMode !== "roulette";
   const canScratch = paid && scratchMode;
   const lockedLabel = !paid ? t("scratch.payFirst") : t("ticket.waitRoulette");
+  const receiptHeading = receiptData
+    ? t("receipt.headingNamed", { name: receiptData.buyerName.trim().split(/\s+/)[0] || receiptData.buyerName })
+    : "";
 
   function applyScratch(ticketNumber: number, result: {
     scratchedAt: string;
@@ -225,6 +255,10 @@ export function TicketsPage() {
         <p className="lede">{paid ? (scratchMode ? t("scratch.howto") : t("ticket.howto")) : t("confirm.waitingTickets")}</p>
         <p className="lede">{t("confirm.saveLink")}</p>
       </section>
+
+      {receiptData ? (
+        <PaymentReceiptSection data={receiptData} labels={receiptLabelSet} buyerHeading={receiptHeading} />
+      ) : null}
 
       {paid && tickets.length ? (
         <section className="section">

@@ -20,8 +20,10 @@ import { publishChange } from "../lib/publicSnapshot.js";
 import { notifyDrawResults, notifyPurchase } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
+import { registerAdminPushRoutes } from "./adminPush.js";
 
 export const adminRouter = Router();
+registerAdminPushRoutes(adminRouter);
 
 const eventSchema = z.object({
   titleFr: z.string().trim().min(2).max(120),
@@ -503,10 +505,9 @@ const physicalSchema = z.object({
   phone: z
     .string()
     .trim()
+    .min(8)
     .max(40)
-    .regex(/^[0-9+().\s-]*$/)
-    .optional()
-    .or(z.literal("")),
+    .regex(/^[0-9+().\s-]+$/),
   quantity: z.number().int().min(1).max(50),
 });
 
@@ -685,18 +686,42 @@ adminRouter.post("/orders/:id/paid", requireAdmin, async (req, res) => {
     void publishChange("order");
     if (marked.order.paymentMethod !== "physical" && marked.order.buyerEmail.includes("@")) {
       void notifyPurchase({
-      name: marked.order.buyerName,
-      email: marked.order.buyerEmail,
-      eventTitleFr: marked.event.titleFr,
-      eventTitleEn: marked.event.titleEn,
-      quantity: marked.order.quantity,
-      ticketPriceCents: marked.event.ticketPriceCents,
-      currency: marked.event.currency,
-      numbers: marked.numbers,
-      paymentMethod: marked.order.paymentMethod,
-      drawMode: drawModeOf(marked.event.drawMode),
-      ticketsUrl: siteUrl(`/fr/tickets/${marked.order.accessToken}`),
-    });
+        name: marked.order.buyerName,
+        email: marked.order.buyerEmail,
+        memberId: marked.order.memberId,
+        eventTitleFr: marked.event.titleFr,
+        eventTitleEn: marked.event.titleEn,
+        quantity: marked.order.quantity,
+        ticketPriceCents: marked.event.ticketPriceCents,
+        currency: marked.event.currency,
+        numbers: marked.numbers,
+        paymentMethod: marked.order.paymentMethod,
+        paymentRef: marked.order.paymentRef,
+        paidAt: marked.order.paidAt?.toISOString() ?? new Date().toISOString(),
+        drawMode: drawModeOf(marked.event.drawMode),
+        ticketsUrl: siteUrl(
+          marked.order.memberId
+            ? `/fr/my-tickets/${marked.event.id}`
+            : `/fr/tickets/${marked.order.accessToken}`,
+        ),
+      });
+    } else if (marked.order.memberId) {
+      void notifyPurchase({
+        name: marked.order.buyerName,
+        email: "",
+        memberId: marked.order.memberId,
+        eventTitleFr: marked.event.titleFr,
+        eventTitleEn: marked.event.titleEn,
+        quantity: marked.order.quantity,
+        ticketPriceCents: marked.event.ticketPriceCents,
+        currency: marked.event.currency,
+        numbers: marked.numbers,
+        paymentMethod: marked.order.paymentMethod,
+        paymentRef: marked.order.paymentRef,
+        paidAt: marked.order.paidAt?.toISOString() ?? new Date().toISOString(),
+        drawMode: drawModeOf(marked.event.drawMode),
+        ticketsUrl: siteUrl(`/fr/my-tickets/${marked.event.id}`),
+      });
     }
   } catch (error) {
     const err = error as Error & { status?: number };
@@ -1022,6 +1047,7 @@ async function emailDrawResults(eventId: string) {
       buyerName: orders.buyerName,
       buyerEmail: orders.buyerEmail,
       accessToken: orders.accessToken,
+      memberId: orders.memberId,
     })
     .from(orders)
     .where(and(eq(orders.eventId, event.id), eq(orders.status, "paid")));
@@ -1046,9 +1072,12 @@ async function emailDrawResults(eventId: string) {
     recipients.push({
       name: buyer.buyerName,
       email: buyer.buyerEmail,
+      memberId: buyer.memberId,
       eventTitleFr: event.titleFr,
       eventTitleEn: event.titleEn,
-      ticketsUrl: siteUrl(`/fr/tickets/${token}`),
+      ticketsUrl: siteUrl(
+        buyer.memberId ? `/fr/my-tickets/${event.id}` : `/fr/tickets/${token}`,
+      ),
       prizes: board,
       wins,
       drawMode: event.drawMode === "roulette" ? ("roulette" as const) : ("scratch" as const),

@@ -149,7 +149,10 @@ export const api = {
       body: JSON.stringify({ quantity }),
     }),
   pushKey: () => request<{ publicKey: string | null }>("/api/push/key"),
-  pushStatus: () => request<{ configured: boolean; subscribed: boolean }>("/api/push/status"),
+  pushStatus: (endpoint?: string) =>
+    request<{ configured: boolean; subscribed: boolean }>(
+      endpoint ? `/api/push/status?endpoint=${encodeURIComponent(endpoint)}` : "/api/push/status",
+    ),
   pushSubscribe: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
     request<{ ok: boolean }>("/api/push/subscribe", { method: "POST", body: JSON.stringify(body) }),
   pushUnsubscribe: (endpoint?: string) =>

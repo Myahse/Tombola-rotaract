@@ -8,6 +8,7 @@ import { BrandLogo } from "./BrandLogo";
 import { LiveProvider } from "../live";
 import { LoginModal } from "./LoginModal";
 import { PageSkeleton } from "./PageSkeleton";
+import { PwaPrompts } from "./PwaPrompts";
 import { OrganizerEventProvider, useOrganizerEvent } from "../eventContext";
 
 const publicSite = import.meta.env.VITE_PUBLIC_SITE ?? "http://localhost:5173";
@@ -122,6 +123,7 @@ function OrganizerShell() {
         </div>
       </header>
       <main className="page">
+        {loggedIn ? <PwaPrompts authed={loggedIn} /> : null}
         <div key={`${authed}-${location.pathname}-${eventId ?? ""}`} className="page-appear">
           {authed === "loading" ? <PageSkeleton kind="page" /> : loggedIn ? <Outlet /> : null}
         </div>

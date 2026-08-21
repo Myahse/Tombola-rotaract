@@ -1,4 +1,4 @@
-import { escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
+import { emailEnglishBlock, escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
 
 export type ResultsPrize = {
   rank: number;
@@ -27,24 +27,26 @@ export function drawResultsEmail(data: DrawResultsEmail) {
 
   if (data.drawMode === "scratch") {
     const html = wrapEmail({
-      preheader: `${name}, la tombola est close. Grattez vos tickets pour voir.`,
-      heading: `${name}, c’est le moment de gratter`,
+      preheader: `${name}, la tombola ${data.eventTitleFr} est close. Grattez vos tickets.`,
+      heading: `${name}, la tombola est close`,
       ctaLabel: "Gratter mes tickets",
       ctaUrl: data.ticketsUrl,
       bodyHtml: `
-        <p style="margin:0 0 14px;color:#141416;">La tombola <strong>${escapeHtml(data.eventTitleFr)}</strong> est close. Les lots ont été attribués à des numéros à la roulette dès la création. Si vous n’avez pas encore gratté, vos tickets sont toujours dans votre compte.</p>
-        <p style="margin:0 0 14px;color:#141416;">Un ami n’a pas joué ? <a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Qu’il prenne sa place pour la suivante</a>. Vous pouvez aussi <a href="${escapeHtml(donateUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">soutenir le club</a>.</p>
-        <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — The tombola for ${escapeHtml(data.eventTitleEn)} is closed. Prizes were assigned to ticket numbers on the wheel at creation. Scratch yours to see if you won. See you at the next tombola.</p>
+        <p style="margin:0 0 14px;color:#141416;">La tombola <strong>${escapeHtml(data.eventTitleFr)}</strong> est close. Les lots sont déjà assignés à des numéros. Grattez vos tickets pour voir le résultat.</p>
+        <p style="margin:0 0 14px;color:#141416;"><a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Prochaine tombola →</a></p>
+        ${emailEnglishBlock(
+          `${name}, the ${data.eventTitleEn} tombola is closed. Scratch your tickets online to see if you won.`,
+        )}
       `,
     });
     return {
-      subject: `${name}, grattez vos tickets — le tirage est fait`,
+      subject: `${name}, grattez vos tickets · ${data.eventTitleFr}`,
       html,
       text: [
-        `${name}, c’est le moment de gratter.`,
-        `La tombola ${data.eventTitleFr} est close. Les lots ont été attribués à des numéros à la roulette dès la création. Découvrez le vôtre en grattant.`,
+        `${name}, la tombola est close.`,
+        `${data.eventTitleFr} : les lots sont assignés. Grattez vos tickets pour voir le résultat.`,
         `Vos tickets : ${data.ticketsUrl}`,
-        `EN — Scratch your tickets for ${data.eventTitleEn}.`,
+        `ENGLISH : ${name}, the ${data.eventTitleEn} tombola is closed. Scratch your tickets online to see if you won.`,
       ].join("\n"),
       params: {
         name,
@@ -74,7 +76,7 @@ export function drawResultsEmail(data: DrawResultsEmail) {
       const bg = yours ? "#faf0f4" : "#ffffff";
       const border = last ? "0" : "1px solid #ececee";
       const you = yours
-        ? `<p style="margin:4px 0 0;font-size:12px;font-weight:650;color:#be034d;">C’est vous</p>`
+        ? `<p style="margin:4px 0 0;font-size:12px;font-weight:650;color:#be034d;">Votre lot</p>`
         : "";
       return `<tr>
         <td style="padding:12px 16px;border-bottom:${border};background:${bg};">
@@ -88,18 +90,22 @@ export function drawResultsEmail(data: DrawResultsEmail) {
     .join("");
 
   const intro = won
-    ? `Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est terminé. Voici tous les lots — et le vôtre est dans la liste.`
-    : `Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est terminé. Voici tous les lots, en une seule fois.`;
+    ? `Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est passé.`
+    : `Le tirage de <strong>${escapeHtml(data.eventTitleFr)}</strong> est passé. Voici le palmarès.`;
 
   const personal = won
-    ? `<p style="margin:0 0 16px;color:#141416;">Vous repartez avec <strong>${escapeHtml(yourWins)}</strong>. Passez au club pour retirer votre lot.</p>`
-    : `<p style="margin:0 0 16px;color:#141416;">Cette fois, vos numéros n’ont pas été appelés. On se revoit à la prochaine.</p>`;
+    ? `<p style="margin:0 0 16px;color:#141416;">Vous avez gagné : <strong>${escapeHtml(yourWins)}</strong>. Passez au club pour récupérer votre lot.</p>`
+    : `<p style="margin:0 0 16px;color:#141416;">Pas de lot pour vos numéros cette fois.</p>`;
+
+  const englishSummary = won
+    ? `${name}, you won: ${data.wins.map((prize) => prize.prizeNameEn).join(", ")}. Full results below.`
+    : `${name}, draw results for ${data.eventTitleEn}. Your numbers did not win. Full list below.`;
 
   const html = wrapEmail({
     preheader: won
-      ? `${name}, le tirage est tombé. Vous gagnez : ${yourWins}.`
-      : `${name}, le tirage de ${data.eventTitleFr} est tombé. Voici tous les lots.`,
-    heading: won ? `${name}, le tirage est tombé — et vous êtes dessus` : `${name}, le tirage est tombé`,
+      ? `${name}, vous avez gagné : ${yourWins}.`
+      : `${name}, résultats du tirage · ${data.eventTitleFr}.`,
+    heading: won ? `${name}, vous avez gagné` : `${name}, résultats du tirage`,
     ctaLabel: won ? "Voir mes tickets" : "Voir le palmarès",
     ctaUrl: won ? data.ticketsUrl : resultsUrl,
     bodyHtml: `
@@ -108,14 +114,14 @@ export function drawResultsEmail(data: DrawResultsEmail) {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;border:1px solid #ececee;border-radius:12px;overflow:hidden;">
         ${rows}
       </table>
-      <p style="margin:0 0 14px;color:#141416;">Un ami n’a pas joué ? <a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Qu’il prenne sa place pour la suivante</a>. Vous pouvez aussi <a href="${escapeHtml(donateUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">soutenir le club</a>.</p>
-      ${won ? `<p style="margin:0 0 14px;font-size:14px;"><a href="${escapeHtml(resultsUrl)}" style="color:#141416;font-weight:650;">Le palmarès en ligne →</a></p>` : `<p style="margin:0 0 14px;font-size:14px;"><a href="${escapeHtml(data.ticketsUrl)}" style="color:#141416;font-weight:650;">Gratter mes tickets →</a></p>`}
-      <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> — The draw for ${escapeHtml(data.eventTitleEn)} is done. All prizes are in this email${won ? ` — and you won: ${escapeHtml(data.wins.map((prize) => prize.prizeNameEn).join(", "))}` : ""}. See you at the next tombola.</p>
+      <p style="margin:0 0 14px;color:#141416;"><a href="${escapeHtml(buyUrl)}" style="color:#be034d;font-weight:650;text-decoration:none;">Prochaine tombola →</a></p>
+      ${won ? `<p style="margin:0 0 14px;font-size:14px;"><a href="${escapeHtml(resultsUrl)}" style="color:#141416;font-weight:650;">Palmarès en ligne →</a></p>` : ""}
+      ${emailEnglishBlock(englishSummary)}
     `,
   });
 
   const textLines = [
-    won ? `${name}, le tirage est tombé — et vous êtes dessus.` : `${name}, le tirage est tombé.`,
+    won ? `${name}, vous avez gagné.` : `${name}, résultats du tirage.`,
     data.eventTitleFr,
     "",
     ...data.prizes.map((prize) => {
@@ -125,18 +131,18 @@ export function drawResultsEmail(data: DrawResultsEmail) {
       return `Lot ${prize.rank} : ${prize.prizeNameFr} — ${prize.buyerName} (n°${prize.ticketNumber})${yours ? " ← vous" : ""}`;
     }),
     "",
-    won ? `Vos lots : ${yourWins}` : "Cette fois, pas de lot — on se revoit à la prochaine.",
+    won ? `Votre lot : ${yourWins}` : "Pas de lot pour vos numéros cette fois.",
     `Palmarès : ${resultsUrl}`,
-    `Vos tickets : ${data.ticketsUrl}`,
+    won ? `Vos tickets : ${data.ticketsUrl}` : "",
     `Prochaine tombola : ${buyUrl}`,
     "",
-    `EN — All prizes are listed above. ${won ? `You won: ${data.wins.map((prize) => prize.prizeNameEn).join(", ")}.` : "No prize this time."} See you at the next draw.`,
-  ];
+    `ENGLISH : ${englishSummary}`,
+  ].filter(Boolean);
 
   return {
     subject: won
-      ? `${name}, le tirage est tombé — voici tous les lots`
-      : `${name}, le tirage de ${data.eventTitleFr} est tombé`,
+      ? `${name}, vous avez gagné · ${data.eventTitleFr}`
+      : `Résultats · ${data.eventTitleFr}`,
     html,
     text: textLines.join("\n"),
     params: {

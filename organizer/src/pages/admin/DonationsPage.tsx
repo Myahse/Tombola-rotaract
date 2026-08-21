@@ -6,6 +6,8 @@ import type { AdminDonation } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
 import { PageSkeleton } from "../../components/PageSkeleton";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { ExportActions } from "../../components/ExportActions";
+import { exportDonationsExcel, exportDonationsPdf } from "../../lib/exportDonations";
 
 export function DonationsPage() {
   const { t, i18n } = useTranslation();
@@ -51,6 +53,13 @@ export function DonationsPage() {
 
   if (!ready) return <PageSkeleton kind="list" />;
 
+  const exportCtx = {
+    rows: sorted,
+    lang: i18n.language,
+    formatAmount: (row: AdminDonation) => formatMoney(row.amountCents, "XOF", i18n.language),
+    t,
+  };
+
   return (
     <section className="buyers-page">
       <div className="buyers-head">
@@ -62,6 +71,12 @@ export function DonationsPage() {
             </p>
           ) : null}
         </div>
+        {sorted.length ? (
+          <ExportActions
+            onExportExcel={() => void exportDonationsExcel(exportCtx)}
+            onExportPdf={() => void exportDonationsPdf(exportCtx)}
+          />
+        ) : null}
       </div>
       <p className="lede mt-3">{t("admin.donationsHelp")}</p>
       {error ? <p className="text-sm text-ticket mt-3">{error}</p> : null}

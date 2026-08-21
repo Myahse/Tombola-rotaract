@@ -57,7 +57,7 @@ export const api = {
     }),
   deleteEvent: () => request<{ ok: boolean }>(withEventId("/api/admin/event"), { method: "DELETE" }),
   orders: () => request<{ orders: AdminOrder[] }>(withEventId("/api/admin/orders")),
-  addPhysical: (body: { name: string; quantity: number; phone?: string }) =>
+  addPhysical: (body: { name: string; quantity: number; phone: string }) =>
     request<{ order: AdminOrder }>(withEventId("/api/admin/orders/physical"), {
       method: "POST",
       body: JSON.stringify(body),
@@ -84,6 +84,21 @@ export const api = {
   donations: () => request<{ donations: AdminDonation[] }>("/api/admin/donations"),
   markDonationReceived: (id: string) =>
     request<{ donation: AdminDonation }>(`/api/admin/donations/${encodeURIComponent(id)}/received`, { method: "POST" }),
+  pushKey: () => request<{ publicKey: string | null }>("/api/admin/push/key"),
+  pushStatus: (endpoint?: string) =>
+    request<{ configured: boolean; subscribed: boolean }>(
+      endpoint
+        ? `/api/admin/push/status?endpoint=${encodeURIComponent(endpoint)}`
+        : "/api/admin/push/status",
+    ),
+  pushSubscribe: (body: { endpoint: string; keys: { p256dh: string; auth: string } }) =>
+    request<{ ok: boolean }>("/api/admin/push/subscribe", { method: "POST", body: JSON.stringify(body) }),
+  pushUnsubscribe: (endpoint?: string) =>
+    request<{ ok: boolean }>("/api/admin/push/subscribe", {
+      method: "DELETE",
+      body: JSON.stringify(endpoint ? { endpoint } : {}),
+    }),
+  pushTest: () => request<{ ok: boolean }>("/api/admin/push/test", { method: "POST", body: JSON.stringify({}) }),
 };
 
 export function formatMoney(amount: number, currency: string, lang: string) {

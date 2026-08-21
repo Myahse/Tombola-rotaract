@@ -10,8 +10,10 @@ import { PageSkeleton } from "../components/PageSkeleton";
 import { CancelReservedModal } from "../components/CancelReservedModal";
 import { WaveRefSheet } from "../components/WaveRefSheet";
 import { WaveLogo } from "../components/WaveLogo";
+import { PaymentReceiptSection } from "../components/PaymentReceiptSection";
 import { useRealtime } from "../useRealtime";
 import { safeWavePayUrl } from "../safeWave";
+import { buildTombolaReceipt, receiptLabels } from "../lib/receipt";
 
 type FlatTicket = OrderTicket & { orderToken: string };
 
@@ -99,6 +101,14 @@ export function EventTicketsPage() {
   const scratchMode = tombola?.drawMode !== "roulette";
   const drawn = tombola?.status === "drawn";
   const canScratch = paidTickets.length > 0 && scratchMode && tombola?.status !== "drawn";
+  const receiptData = useMemo(
+    () => (tombola && member ? buildTombolaReceipt(tombola, member.name, i18n.language) : null),
+    [tombola, member, i18n.language],
+  );
+  const receiptLabelSet = useMemo(() => receiptLabels(t), [t]);
+  const receiptHeading = receiptData
+    ? t("receipt.headingNamed", { name: receiptData.buyerName.trim().split(/\s+/)[0] || receiptData.buyerName })
+    : "";
 
   useEffect(() => {
     if (reservedTickets > 0) {
@@ -216,6 +226,10 @@ export function EventTicketsPage() {
           </Link>
         </p>
       </section>
+
+      {receiptData ? (
+        <PaymentReceiptSection data={receiptData} labels={receiptLabelSet} buyerHeading={receiptHeading} />
+      ) : null}
 
       {paidTickets.length ? (
         <section className="section">

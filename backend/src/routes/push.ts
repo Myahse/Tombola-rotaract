@@ -32,6 +32,16 @@ pushRouter.get("/push/status", requireMember, async (req, res) => {
     res.json({ configured: false, subscribed: false });
     return;
   }
+  const endpoint = typeof req.query.endpoint === "string" ? req.query.endpoint.trim() : "";
+  if (endpoint) {
+    const [row] = await db
+      .select({ id: pushSubscriptions.id })
+      .from(pushSubscriptions)
+      .where(and(eq(pushSubscriptions.memberId, memberId), eq(pushSubscriptions.endpoint, endpoint)))
+      .limit(1);
+    res.json({ configured: true, subscribed: Boolean(row) });
+    return;
+  }
   const [row] = await db
     .select({ id: pushSubscriptions.id })
     .from(pushSubscriptions)

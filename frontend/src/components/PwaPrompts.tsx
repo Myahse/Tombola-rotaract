@@ -8,6 +8,7 @@ import {
   dismissInstall,
   dismissNotify,
   enablePush,
+  getPushSubscription,
   installDismissed,
   isIosDevice,
   isStandaloneDisplay,
@@ -67,10 +68,11 @@ export function PwaPrompts() {
         if (cancelled) return;
         setPublicKey(keyData.publicKey);
         if (!keyData.publicKey) return;
-        const status = await api.pushStatus();
+        const local = await getPushSubscription();
+        const status = await api.pushStatus(local?.endpoint);
         if (cancelled) return;
         setSubscribed(status.subscribed);
-        if (Notification.permission === "granted" && !status.subscribed) {
+        if (Notification.permission === "granted" && !status.subscribed && local) {
           const subscription = await enablePush(keyData.publicKey);
           if (!subscription || cancelled) return;
           await api.pushSubscribe(subscription);

@@ -99,6 +99,26 @@
     "cancelPaid": "Le club a déjà confirmé le paiement. Contactez un organisateur.",
     "cancelLocked": "Le tirage a déjà eu lieu. Cette commande ne peut plus être annulée."
   },
+  "receipt": {
+    "title": "Reçu de paiement",
+    "lead": "Téléchargez votre reçu en image ou PDF, comme un justificatif.",
+    "kicker": "Rotaract IUGB Club · Reçu",
+    "heading": "Paiement confirmé",
+    "headingNamed": "{{name}}, votre paiement est confirmé",
+    "intro": "Voici votre reçu. Vos tickets sont enregistrés à votre nom et participent au tirage de {{event}}.",
+    "tombola": "Tombola",
+    "confirmedOn": "Confirmé le",
+    "payment": "Paiement",
+    "waveId": "Identifiant Wave",
+    "buyer": "Acheteur",
+    "numbers": "Vos numéros",
+    "totalPaid": "Total payé",
+    "english": "ENGLISH",
+    "exportPng": "PNG",
+    "exportPdf": "PDF",
+    "exporting": "Export…",
+    "exportFailed": "Impossible d’exporter le reçu. Réessayez."
+  },
   "share": {
     "title": "Offrir des tickets",
     "lead": "Envoyez un ou plusieurs tickets payés à quelqu’un. Ils quittent votre compte et apparaissent sur le sien. Impossible après le tirage.",

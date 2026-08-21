@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import webpush from "web-push";
 import { db } from "../db/index.js";
-import { members, pushSubscriptions } from "../db/schema.js";
+import { adminPushSubscriptions, members, pushSubscriptions } from "../db/schema.js";
 
 export type PushPayload = {
   title: string;
@@ -88,12 +88,13 @@ function goneStatus(error: unknown) {
   return status === 404 || status === 410;
 }
 
-async function sendToRow(
-  row: typeof pushSubscriptions.$inferSelect,
+async function sendNotification(
+  row: { id: string; endpoint: string; p256dh: string; auth: string },
   payload: PushPayload,
+  remove: (id: string) => Promise<void>,
 ) {
   if (!isAllowedPushEndpoint(row.endpoint)) {
-    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, row.id));
+    await remove(row.id);
     return;
   }
   try {
@@ -107,11 +108,29 @@ async function sendToRow(
     );
   } catch (error) {
     if (goneStatus(error)) {
-      await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, row.id));
+      await remove(row.id);
       return;
     }
     console.error("Push send failed", error);
   }
+}
+
+async function sendToRow(
+  row: typeof pushSubscriptions.$inferSelect,
+  payload: PushPayload,
+) {
+  await sendNotification(row, payload, async (id) => {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.id, id));
+  });
+}
+
+async function sendToAdminRow(
+  row: typeof adminPushSubscriptions.$inferSelect,
+  payload: PushPayload,
+) {
+  await sendNotification(row, payload, async (id) => {
+    await db.delete(adminPushSubscriptions).where(eq(adminPushSubscriptions.id, id));
+  });
 }
 
 export async function sendPushToMember(memberId: string, payload: PushPayload) {
@@ -133,4 +152,21 @@ export async function sendPushToEmail(email: string, payload: PushPayload) {
     .limit(1);
   if (!member) return;
   await sendPushToMember(member.id, payload);
+}
+
+export async function sendPushToMemberOrEmail(
+  target: { memberId?: string | null; email?: string | null },
+  payload: PushPayload,
+) {
+  if (target.memberId) {
+    await sendPushToMember(target.memberId, payload);
+    return;
+  }
+  if (target.email) await sendPushToEmail(target.email, payload);
+}
+
+export async function sendPushToOrganizers(payload: PushPayload) {
+  if (!loadVapid()) return;
+  const rows = await db.select().from(adminPushSubscriptions);
+  await Promise.all(rows.map((row) => sendToAdminRow(row, payload)));
 }

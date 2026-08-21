@@ -1,4 +1,4 @@
-import { escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
+import { emailEnglishBlock, emailHighlightBox, escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
 
 export type WelcomeEmail = {
   name: string;
@@ -17,8 +17,13 @@ export function welcomeEmail(data: WelcomeEmail) {
     bodyHtml: `
       <p style="margin:0 0 14px;color:#141416;">Vous faites maintenant partie de la tombola du <strong>Rotaract IUGB Club</strong>. Un compte, toutes les tombolas : cérémonie, réunion, ou la prochaine surprise du club.</p>
       <p style="margin:0 0 14px;">Le rituel est simple : vous réservez, vous payez, vous grattez. Et on recommence.</p>
-      <p style="margin:0 0 14px;">N’attendez pas le dernier jour. Les meilleurs lots partent avec ceux qui sont déjà dans le chapeau.</p>
-      <p style="margin:0;font-size:13px;color:#73737a;"><a href="${escapeHtml(accountUrl)}" style="color:#141416;font-weight:650;">Mes tombolas</a> — vos tickets restent ici.<br /><em>EN</em> — Your club account is ready. Grab tickets now, pay, then scratch. We’ll want you back for the next one.</p>
+      <p style="margin:0 0 14px;font-size:13px;color:#73737a;">
+        <a href="${escapeHtml(accountUrl)}" style="color:#141416;font-weight:650;text-decoration:none;">Mes tombolas</a>
+        · Vos tickets restent ici, tombola après tombola.
+      </p>
+      ${emailEnglishBlock(
+        `${name}, your Rotaract IUGB Club account is ready. Buy tickets, pay, then scratch. Your tickets stay at ${accountUrl}.`,
+      )}
     `,
   });
 
@@ -29,7 +34,7 @@ export function welcomeEmail(data: WelcomeEmail) {
     `Prendre des tickets : ${buyUrl}`,
     `Mes tombolas : ${accountUrl}`,
     "",
-    "EN — Your account is ready. Grab tickets now — we’ll want you back for the next draw.",
+    "ENGLISH : Your account is ready. Buy tickets, pay, then scratch. Your tickets stay at " + accountUrl + ".",
   ].join("\n");
 
   return {

@@ -1,4 +1,4 @@
-import { escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
+import { emailEnglishBlock, emailHighlightBox, escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
 
 export type GiftTicketsEmail = {
   name: string;
@@ -16,16 +16,21 @@ export function giftTicketsEmail(data: GiftTicketsEmail) {
   const giver = firstName(data.giverName);
   const numbers = data.numbers.join(", ");
   const tickets = data.numbers.length === 1 ? "ticket" : "tickets";
+  const ticketLabel = data.numbers.length === 1 ? "Votre numéro" : "Vos numéros";
+  const englishSummary = data.hasAccount
+    ? `${giver} sent you ${data.numbers.length} ${data.numbers.length === 1 ? "ticket" : "tickets"} for ${data.eventTitleEn}. Numbers: ${numbers}. Log in with this email to see them.`
+    : `${giver} sent you ${data.numbers.length} ${data.numbers.length === 1 ? "ticket" : "tickets"} for ${data.eventTitleEn}. Numbers: ${numbers}. Create an account with this email to claim them.`;
+
   const html = wrapEmail({
     preheader: `${giver} vous offre ${data.numbers.length} ${tickets} pour ${data.eventTitleFr}.`,
     heading: `${name}, ${giver} vous offre des tickets`,
     ctaLabel: data.hasAccount ? "Voir mes tickets" : "Créer mon compte",
     ctaUrl: data.ticketsUrl,
     bodyHtml: `
-      <p style="margin:0 0 14px;color:#141416;"><strong>${escapeHtml(data.giverName)}</strong> vous a transmis ${data.numbers.length} ${tickets} pour <strong>${escapeHtml(data.eventTitleFr)}</strong>.</p>
-      <p style="margin:0 0 14px;font-size:18px;font-weight:650;color:#141416;">n° ${escapeHtml(numbers)}</p>
-      <p style="margin:0 0 14px;">${data.hasAccount ? "Connectez-vous avec cet e-mail pour les retrouver." : "Créez un compte avec cet e-mail pour les voir et participer au tirage."}</p>
-      <p style="margin:0;font-size:13px;color:#73737a;"><em>EN</em> ${escapeHtml(giver)} sent you ticket numbers ${escapeHtml(numbers)} for ${escapeHtml(data.eventTitleEn)}. ${data.hasAccount ? "Log in with this email to see them." : "Create an account with this email to claim them."}</p>
+      <p style="margin:0 0 16px;color:#141416;"><strong>${escapeHtml(data.giverName)}</strong> vous a transmis ${data.numbers.length} ${tickets} pour <strong>${escapeHtml(data.eventTitleFr)}</strong>.</p>
+      ${emailHighlightBox(ticketLabel, `n° ${escapeHtml(numbers)}`)}
+      <p style="margin:0 0 14px;color:#141416;">${data.hasAccount ? "Connectez-vous avec cet e-mail pour les retrouver dans votre compte." : "Créez un compte avec cet e-mail pour les voir et participer au tirage."}</p>
+      ${emailEnglishBlock(englishSummary)}
     `,
   });
 
@@ -38,7 +43,7 @@ export function giftTicketsEmail(data: GiftTicketsEmail) {
       ? `Voir mes tickets : ${data.ticketsUrl}`
       : `Créer un compte pour les voir : ${data.ticketsUrl}`,
     "",
-    `EN: ${giver} sent you ticket numbers ${numbers}. Open ${data.ticketsUrl}`,
+    `ENGLISH : ${englishSummary}`,
   ].join("\n");
 
   return {

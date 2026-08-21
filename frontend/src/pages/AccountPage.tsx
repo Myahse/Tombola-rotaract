@@ -11,6 +11,7 @@ import type { MemberTombola } from "../types";
 import {
   disablePush,
   enablePush,
+  getPushSubscription,
   isIosDevice,
   isStandaloneDisplay,
   pushSupported,
@@ -52,16 +53,17 @@ export function AccountPage() {
       .then((data) => setTombolas(data.tombolas))
       .catch(() => setTombolas([]));
     if (pushSupported()) {
-      api
-        .pushStatus()
-        .then((data) => {
+      void (async () => {
+        try {
+          const local = await getPushSubscription();
+          const data = await api.pushStatus(local?.endpoint);
           setPushConfigured(data.configured);
           setPushOn(data.subscribed);
-        })
-        .catch(() => {
+        } catch {
           setPushConfigured(false);
           setPushOn(false);
-        });
+        }
+      })();
     }
   }, [member]);
 

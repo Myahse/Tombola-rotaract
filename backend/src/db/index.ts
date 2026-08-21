@@ -98,6 +98,17 @@ export async function ensureSchema() {
     )
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS push_subscriptions_member_idx ON push_subscriptions (member_id)`);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS admin_push_subscriptions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      endpoint text NOT NULL UNIQUE,
+      p256dh text NOT NULL,
+      auth text NOT NULL,
+      user_agent text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
   await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS events_one_on_sale_idx ON events (status) WHERE status = 'on_sale'`);
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS donations (
