@@ -57,17 +57,3 @@ Keep nameservers `ns31.domaincontrol.com` / `ns32.domaincontrol.com`. Add:
 Do **not** point `api` at Vercel (`76.76.21.21`). That record is only for the three frontend apps.
 
 Free Render instances spin down after idle time; the first request can take ~50s. Upgrade the service to Starter if the live draw must stay connected.
-
-### API environment variables (Render)
-
-- `DATABASE_URL` — Neon pooled connection
-- `SESSION_SECRET`
-- `ADMIN_PASSWORD`
-- `ADMIN_EMAIL` (optional)
-- `CORS_ORIGIN` = `https://tombola.rotaractiugb.com,https://organisateurs.rotaractiugb.com,https://campagnes.rotaractiugb.com`
-- `PUBLIC_SITE_URL` = `https://tombola.rotaractiugb.com`
-- `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`
-
-Frontend production URLs are in `frontend/.env.production`, `organizer/.env.production`, and `campaign/.env.production` (they already call `https://api.rotaractiugb.com`).
-
-For the campaigns Vercel project, set `TOMBOLA_APP=campaign` (or use a production URL that contains `campagne`).
