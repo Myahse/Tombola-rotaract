@@ -12,6 +12,7 @@
     "build": "node -e \"process.exit(0)\"",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx src/seed.ts",
+    "db:clear-rate-limits": "tsx src/clearRateLimits.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

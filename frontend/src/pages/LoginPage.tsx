@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
+import { formatApiError, isRetryableError } from "../formatApiError";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { safeNextPath } from "../safeNext";
@@ -13,6 +14,7 @@ export function LoginPage() {
   const navigate = useNavigate();
   const { member, loading, refresh } = useAuth();
   const [error, setError] = useState("");
+  const [retryable, setRetryable] = useState(false);
   const [busy, setBusy] = useState(false);
   const next = safeNextPath(params.get("next"), lang);
 
@@ -26,6 +28,7 @@ export function LoginPage() {
     const form = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
+    setRetryable(false);
     try {
       await api.memberLogin({
         email: String(form.get("email") ?? ""),
@@ -34,7 +37,8 @@ export function LoginPage() {
       await refresh();
       navigate(next, { replace: true });
     } catch (err) {
-      setError(err instanceof Error && err.message === "invalid_credentials" ? t("errors.invalidCredentials") : t("errors.generic"));
+      setRetryable(isRetryableError(err));
+      setError(formatApiError(err, t));
     } finally {
       setBusy(false);
     }
@@ -59,7 +63,7 @@ export function LoginPage() {
         </p>
         {error ? <p className="text-sm text-ticket">{error}</p> : null}
         <button disabled={busy} className="btn-primary btn-block">
-          {busy ? t("auth.submitting") : t("auth.submitLogin")}
+          {busy ? t("auth.submitting") : retryable ? t("errors.retryAction") : t("auth.submitLogin")}
         </button>
       </form>
       <p className="auth-switch">

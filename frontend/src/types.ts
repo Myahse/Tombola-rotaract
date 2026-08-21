@@ -16,6 +16,8 @@ export type PublicEvent = {
   id: string;
   slug: string;
   status: EventStatus;
+  salesOpensAt?: string | null;
+  salesOpen?: boolean;
   titleFr: string;
   titleEn: string;
   descriptionFr: string;

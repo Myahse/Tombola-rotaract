@@ -142,6 +142,7 @@ export async function ensureSchema() {
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS refresh_tokens_member_idx ON refresh_tokens (member_id)`);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS refresh_tokens_family_idx ON refresh_tokens (family_id)`);
+  await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS sales_opens_at timestamptz`);
 }
 
 export function isUniqueViolation(error: unknown) {

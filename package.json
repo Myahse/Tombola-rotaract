@@ -5,7 +5,20 @@
   "scripts": {
     "dev": "concurrently -n api,web,org,mail -c magenta,cyan,yellow,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix organizer\" \"npm run dev --prefix campaign\"",
     "db:seed": "npm run db:seed --prefix backend",
-    "build": "node scripts/vercel-build.mjs"
+    "build": "node scripts/vercel-build.mjs",
+    "load:smoke": "node scripts/k6-run.mjs smoke.js",
+    "load:public": "node scripts/k6-run.mjs public-read.js",
+    "load:ramp": "node scripts/k6-run.mjs concurrency-ramp.js",
+    "load:prod:smoke": "node scripts/k6-run.mjs prod-smoke.js -e CONFIRM=yes",
+    "load:prod:public": "node scripts/k6-run.mjs prod-public-read.js -e CONFIRM=yes",
+    "load:prod:ramp": "node scripts/k6-run.mjs prod-ramp.js -e CONFIRM=yes",
+    "load:member": "node scripts/k6-run.mjs member-flow.js",
+    "load:member:login": "node scripts/k6-run.mjs member-login.js",
+    "load:prod:member": "node scripts/k6-run.mjs prod-member-flow.js -e CONFIRM=yes",
+    "load:prod:member:login": "node scripts/k6-run.mjs prod-member-login.js -e CONFIRM=yes",
+    "load:docker:smoke": "docker run --rm -i -v \"%cd%/k6:/scripts\" -e BASE_URL=http://host.docker.internal:3001 grafana/k6 run /scripts/smoke.js",
+    "load:docker:public": "docker run --rm -i -v \"%cd%/k6:/scripts\" -e BASE_URL=http://host.docker.internal:3001 grafana/k6 run /scripts/public-read.js",
+    "load:docker:ramp": "docker run --rm -i -v \"%cd%/k6:/scripts\" -e BASE_URL=http://host.docker.internal:3001 grafana/k6 run /scripts/concurrency-ramp.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"

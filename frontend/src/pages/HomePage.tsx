@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api, formatMoney, localized } from "../api";
+import { api, eventCanBuy, eventPreRegister, formatMoney, localized } from "../api";
+import { SalesCountdown } from "../components/SalesCountdown";
 import type { PublicEvent } from "../types";
 import { StatusPill } from "../components/ScratchTicket";
 import { BrandLogo } from "../components/BrandLogo";
@@ -25,7 +26,8 @@ export function HomePage() {
     }
   });
 
-  const canBuy = event?.status === "on_sale" && event.remainingTickets > 0;
+  const canBuy = eventCanBuy(event);
+  const preRegister = eventPreRegister(event);
 
   return (
     <>
@@ -38,6 +40,10 @@ export function HomePage() {
             canBuy ? (
               <Link to={`/${lang}/buy`} className="btn-primary">
                 {t("nav.buy")}
+              </Link>
+            ) : preRegister ? (
+              <Link to={`/${lang}/register?next=${encodeURIComponent(`/${lang}/buy`)}`} className="btn-primary">
+                {t("sales.preRegisterCta")}
               </Link>
             ) : (
               <Link to={`/${lang}/tombola`} className="btn-primary">
@@ -102,6 +108,8 @@ export function HomePage() {
                 <dd>{formatMoney(event.ticketPriceCents, event.currency, i18n.language)}</dd>
               </div>
             </dl>
+            {preRegister && event.salesOpensAt ? <SalesCountdown opensAt={event.salesOpensAt} /> : null}
+            {preRegister ? <p className="mt-4">{t("sales.preRegisterLead")}</p> : null}
             <div className="mt-6 flex flex-wrap gap-2">
               <Link to={`/${lang}/tombola`} className="btn-outline">
                 {t("landing.seeTombola")}
@@ -109,6 +117,10 @@ export function HomePage() {
               {canBuy ? (
                 <Link to={`/${lang}/buy`} className="btn-primary">
                   {t("nav.buy")}
+                </Link>
+              ) : preRegister ? (
+                <Link to={`/${lang}/register?next=${encodeURIComponent(`/${lang}/buy`)}`} className="btn-primary">
+                  {t("sales.preRegisterCta")}
                 </Link>
               ) : null}
               {event.status === "drawn" && event.drawMode !== "scratch" ? (

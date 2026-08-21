@@ -34,6 +34,7 @@ const eventSchema = z.object({
   currency: z.string().trim().min(3).max(8).default("XOF"),
   totalTickets: z.number().int().min(1).max(10000),
   drawMode: z.enum(["scratch", "roulette"]).default("scratch"),
+  salesOpensAt: z.string().datetime().nullable().optional(),
   prizes: z
     .array(
       z.object({
@@ -353,6 +354,7 @@ adminRouter.put("/event", requireAdmin, async (req, res) => {
         currency: data.currency,
         totalTickets: data.totalTickets,
         drawMode: data.drawMode,
+        salesOpensAt: data.salesOpensAt ? new Date(data.salesOpensAt) : null,
         updatedAt: new Date(),
       })
       .where(eq(events.id, event.id))

@@ -18,7 +18,7 @@ import {
 import { hashPassword, verifyPassword } from "../lib/passwords.js";
 import { notifyEmailVerify, notifyMemberRegistered, notifyPasswordReset } from "../lib/mail.js";
 import { parseAvatar } from "../lib/avatar.js";
-import { allowRequest, clientKey } from "../lib/rateLimit.js";
+import { allowRequest, clientKey, enforceRateLimit, rateLimits, salesAreOpen } from "../lib/rateLimit.js";
 import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 import { siteUrl } from "../emails/layout.js";
 
@@ -117,8 +117,8 @@ async function sendVerifyLink(member: { id: string; name: string; email: string 
 }
 
 authRouter.post("/auth/register", async (req, res) => {
-  if (!(await allowRequest(`register:${clientKey(req)}`, 8, 15 * 60 * 1000))) {
-    res.status(429).json({ error: "too_many_requests" });
+  const ip = clientKey(req);
+  if (!(await enforceRateLimit(res, `register:ip:${ip}`, rateLimits.registerIp, rateLimits.windowMs))) {
     return;
   }
   const parsed = registerSchema.safeParse(req.body);
@@ -131,6 +131,16 @@ authRouter.post("/auth/register", async (req, res) => {
   }
 
   const email = parsed.data.email.trim().toLowerCase();
+  if (
+    !(await enforceRateLimit(
+      res,
+      `register:email:${email}`,
+      rateLimits.registerEmail,
+      rateLimits.registerEmailWindowMs,
+    ))
+  ) {
+    return;
+  }
   const [existing] = await db.select({ id: members.id }).from(members).where(eq(members.email, email)).limit(1);
   if (existing) {
     res.status(409).json({ error: "email_taken" });
@@ -175,8 +185,7 @@ authRouter.post("/auth/register", async (req, res) => {
 });
 
 authRouter.post("/auth/login", async (req, res) => {
-  if (!(await allowRequest(`login:${clientKey(req)}`, 15, 15 * 60 * 1000))) {
-    res.status(429).json({ error: "too_many_requests" });
+  if (!(await enforceRateLimit(res, `login:${clientKey(req)}`, rateLimits.loginIp, rateLimits.windowMs))) {
     return;
   }
   const parsed = loginSchema.safeParse(req.body);

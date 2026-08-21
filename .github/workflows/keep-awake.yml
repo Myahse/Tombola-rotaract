@@ -2,12 +2,29 @@ name: Keep Render API awake
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    # Render free spins down after ~15 min idle — ping every 3 minutes.
+    - cron: "*/3 * * * *"
   workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Render health endpoint
-        run: curl -fsS --max-time 60 https://tombola-rotaract.onrender.com/api/health
+      - name: Ping API (Render + custom domain)
+        continue-on-error: true
+        run: |
+          set +e
+          for url in \
+            "https://tombola-rotaract.onrender.com/api/health" \
+            "https://api.rotaractiugb.com/api/health"
+          do
+            echo "Pinging $url"
+            for attempt in 1 2 3; do
+              if curl -fsS --max-time 120 "$url"; then
+                echo "OK $url"
+                break
+              fi
+              echo "Attempt $attempt failed for $url — retry in 15s"
+              sleep 15
+            done
+          done

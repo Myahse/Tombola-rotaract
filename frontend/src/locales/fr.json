@@ -54,6 +54,13 @@
     "donateText": "Vous pouvez aussi faire un don via Wave. Doaty Délice, affilié au Rotaract IUGB Club, reçoit les paiements.",
     "donateCta": "Faire un don"
   },
+  "sales": {
+    "opensAt": "Ouverture des ventes : {{time}}",
+    "opensIn": "Ouverture des ventes dans {{time}}",
+    "openNow": "Les ventes sont ouvertes.",
+    "preRegisterLead": "Créez votre compte dès maintenant. La vente ouvre bientôt.",
+    "preRegisterCta": "Créer un compte"
+  },
   "buy": {
     "title": "Acheter des tickets",
     "intro": "Connectez-vous, puis achetez. Payez en espèces ou via Wave. Les tickets, avec un numéro tiré au hasard, n’apparaissent que lorsque le club confirme le paiement.",
@@ -311,7 +318,11 @@
     "termsRequired": "Cochez les deux cases pour créer un compte.",
     "notEnough": "Il ne reste pas assez de tickets.",
     "notOnSale": "La billetterie n’est pas ouverte.",
+    "salesNotOpen": "La billetterie n’a pas encore ouvert.",
     "tooMany": "Trop de tentatives. Réessayez dans un moment.",
+    "retryRegister": "Inscription impossible. Réessayez dans {{seconds}} secondes.",
+    "retryAction": "Inscription impossible. Réessayez.",
+    "serviceUnavailable": "Le service est occupé. Réessayez dans un instant.",
     "invalidToken": "Ce lien n’est plus valable. Demandez-en un nouveau.",
     "currentRequired": "Indiquez votre mot de passe actuel pour en choisir un nouveau."
   },

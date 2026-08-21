@@ -1,10 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { api, formatMoney } from "../api";
+import { api, eventCanBuy, eventPreRegister, formatMoney } from "../api";
+import { formatApiError, isRetryableError } from "../formatApiError";
 import { useAuth } from "../auth";
 import type { PublicEvent } from "../types";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { SalesCountdown } from "../components/SalesCountdown";
 import { WaveLogo } from "../components/WaveLogo";
 
 export function BuyPage() {
@@ -16,6 +18,7 @@ export function BuyPage() {
   const [quantity, setQuantity] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wave">("wave");
   const [error, setError] = useState("");
+  const [retryable, setRetryable] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -52,13 +55,34 @@ export function BuyPage() {
     );
   }
   if (event === undefined) return <PageSkeleton kind="buy" />;
-  if (!event || event.status !== "on_sale" || event.remainingTickets < 1) {
+  if (!event || event.status !== "on_sale") {
     return (
       <section className="vitrine-hero">
         <h1>{t("buy.none")}</h1>
         <Link to={`/${lang}`} className="btn-outline">
           {t("nav.home")}
         </Link>
+      </section>
+    );
+  }
+  if (!eventCanBuy(event)) {
+    const preRegister = eventPreRegister(event);
+    return (
+      <section className="section" style={{ borderBottom: 0 }}>
+        <p className="eyebrow">{t("home.kicker")}</p>
+        <h1>{t("buy.title")}</h1>
+        {preRegister && event.salesOpensAt ? <SalesCountdown opensAt={event.salesOpensAt} /> : null}
+        <p className="mt-4">{preRegister ? t("sales.preRegisterLead") : t("buy.none")}</p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {preRegister ? (
+            <Link to={`/${lang}/register?next=${encodeURIComponent(`/${lang}/buy`)}`} className="btn-primary">
+              {t("sales.preRegisterCta")}
+            </Link>
+          ) : null}
+          <Link to={`/${lang}`} className="btn-outline">
+            {t("nav.home")}
+          </Link>
+        </div>
       </section>
     );
   }
@@ -71,6 +95,7 @@ export function BuyPage() {
     const form = new FormData(e.currentTarget);
     setBusy(true);
     setError("");
+    setRetryable(false);
     try {
       const order = await api.buy({
         quantity,
@@ -79,16 +104,8 @@ export function BuyPage() {
       });
       navigate(`/${lang}/tickets/${order.token}`);
     } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      setError(
-        code === "not_enough_tickets"
-          ? t("errors.notEnough")
-          : code === "not_on_sale"
-            ? t("errors.notOnSale")
-            : code === "login_required"
-              ? t("buy.needAccount")
-              : t("errors.generic"),
-      );
+      setRetryable(isRetryableError(err));
+      setError(formatApiError(err, t));
     } finally {
       setBusy(false);
     }
@@ -153,7 +170,7 @@ export function BuyPage() {
         </p>
         {error ? <p className="text-sm text-ticket">{error}</p> : null}
         <button disabled={busy} className="btn-primary btn-block">
-          {busy ? t("buy.submitting") : t("buy.submit")}
+          {busy ? t("buy.submitting") : retryable ? t("errors.retryAction") : t("buy.submit")}
         </button>
       </form>
     </section>

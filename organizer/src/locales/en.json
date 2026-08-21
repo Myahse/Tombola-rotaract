@@ -132,6 +132,8 @@
     "payEn": "Payment instructions (EN)",
     "price": "Ticket price (XOF)",
     "totalTickets": "Number of tickets",
+    "salesOpensAt": "Ticket sales open at",
+    "salesOpensAtHelp": "Optional. Members can register before this time; buying starts when this moment is reached (Africa/Abidjan local time in your browser).",
     "prizes": "Prizes (1st to last)",
     "prizeName": "Prize name",
     "prizeFr": "Prize name",

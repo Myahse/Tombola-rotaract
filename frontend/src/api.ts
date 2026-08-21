@@ -1,4 +1,5 @@
 import { apiUrl } from "./config";
+import { ApiError, withRetry } from "./apiError";
 import type {
   AdminEvent,
   AdminOrder,
@@ -11,18 +12,55 @@ import type {
   Winner,
 } from "./types";
 
+export { ApiError, withRetry } from "./apiError";
+export { errorCopy, isApiError, isRetryableApiError } from "./apiError";
+
+const COLD_START_ATTEMPTS = 4;
+const REQUEST_TIMEOUT_MS = 90_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithWakeRetry(path: string, init?: RequestInit): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < COLD_START_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    try {
+      const response = await fetch(apiUrl(path), {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(init?.headers ?? {}),
+        },
+        ...init,
+        signal: controller.signal,
+      });
+      window.clearTimeout(timer);
+      return response;
+    } catch (err) {
+      window.clearTimeout(timer);
+      lastError = err;
+      if (attempt >= COLD_START_ATTEMPTS - 1) {
+        break;
+      }
+      await sleep(5000 + attempt * 4000);
+    }
+  }
+  throw lastError instanceof Error ? lastError : new ApiError("network_error", 503);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiUrl(path), {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    ...init,
-  });
-  const data = (await response.json().catch(() => ({}))) as T & { error?: string };
+  let response: Response;
+  try {
+    response = await fetchWithWakeRetry(path, init);
+  } catch {
+    throw new ApiError("network_error", 503);
+  }
+  const data = (await response.json().catch(() => ({}))) as T & { error?: string; retryAfter?: number };
   if (!response.ok) {
-    throw new Error(data.error ?? "request_failed");
+    throw new ApiError(data.error ?? "request_failed", response.status, data.retryAfter);
   }
   return data;
 }
@@ -38,7 +76,7 @@ export const api = {
       "/api/event/current/results",
     ),
   buy: (body: { quantity: number; phone?: string; paymentMethod: "cash" | "wave" }) =>
-    request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) }),
+    withRetry(() => request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) })),
   order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
   sendPaymentRef: (token: string, paymentRef: string) =>
     request<{ paymentRef: string }>(`/api/orders/${encodeURIComponent(token)}/payment-ref`, {
@@ -73,9 +111,14 @@ export const api = {
     clubRole: string;
     acceptTerms: true;
     acceptEmails: true;
-  }) => request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
+  }) =>
+    withRetry(() =>
+      request<{ member: Member }>("/api/auth/register", { method: "POST", body: JSON.stringify(body) }),
+    ),
   memberLogin: (body: { email: string; password: string }) =>
-    request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    withRetry(() =>
+      request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
+    ),
   memberLogout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   memberMe: () => request<{ member: Member }>("/api/auth/me"),
   forgotPassword: (email: string) =>
@@ -148,4 +191,12 @@ export function formatMoney(amount: number, currency: string, lang: string) {
 export function localized<T extends Record<string, unknown>>(item: T, lang: string, field: string) {
   const key = `${field}${lang === "en" ? "En" : "Fr"}` as keyof T;
   return String(item[key] ?? "");
+}
+
+export function eventCanBuy(event: PublicEvent | null | undefined) {
+  return Boolean(event && event.status === "on_sale" && event.salesOpen !== false && event.remainingTickets > 0);
+}
+
+export function eventPreRegister(event: PublicEvent | null | undefined) {
+  return Boolean(event && event.status === "on_sale" && event.salesOpen === false && event.salesOpensAt);
 }

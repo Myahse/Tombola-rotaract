@@ -132,6 +132,8 @@
     "payEn": "Consignes de paiement (EN)",
     "price": "Prix du ticket (F CFA)",
     "totalTickets": "Nombre de tickets",
+    "salesOpensAt": "Ouverture des ventes",
+    "salesOpensAtHelp": "Facultatif. Les membres peuvent s’inscrire avant cette heure ; l’achat commence à ce moment (heure locale de votre navigateur).",
     "prizes": "Lots (du 1er au dernier)",
     "prizeName": "Nom du lot",
     "prizeFr": "Nom du lot",

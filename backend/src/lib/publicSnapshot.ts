@@ -3,6 +3,7 @@ import { db } from "../db/index.js";
 import { events, orders, prizes } from "../db/schema.js";
 import { broadcast } from "./realtime.js";
 import { drawModeOf } from "./tickets.js";
+import { salesAreOpen } from "./rateLimit.js";
 
 export async function getCurrentPublicEvent() {
   const [event] = await db
@@ -45,10 +46,13 @@ export async function publicSnapshot() {
     .where(eq(prizes.eventId, event.id))
     .orderBy(asc(prizes.rank));
   const stats = await ticketStats(event.id);
+  const open = salesAreOpen(event.salesOpensAt);
   return {
     id: event.id,
     slug: event.slug,
     status: event.status,
+    salesOpensAt: event.salesOpensAt?.toISOString() ?? null,
+    salesOpen: open,
     titleFr: event.titleFr,
     titleEn: event.titleEn,
     descriptionFr: event.descriptionFr,

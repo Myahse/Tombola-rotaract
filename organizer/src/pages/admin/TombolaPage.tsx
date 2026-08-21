@@ -28,7 +28,16 @@ const emptyForm = {
   currency: "XOF",
   totalTickets: 50,
   drawMode: "scratch" as "scratch" | "roulette",
+  salesOpensAt: "",
 };
+
+function toDatetimeLocal(iso: string | null | undefined) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 export function TombolaPage() {
   const { t } = useTranslation();
@@ -60,6 +69,7 @@ export function TombolaPage() {
         currency: data.event.currency,
         totalTickets: data.event.totalTickets,
         drawMode: data.event.drawMode === "roulette" ? "roulette" : "scratch",
+        salesOpensAt: toDatetimeLocal(data.event.salesOpensAt),
       });
     } else {
       setForm(emptyForm);
@@ -107,6 +117,7 @@ export function TombolaPage() {
       paymentInstructionsEn: form.paymentInstructionsFr,
       ticketPriceCents: Number.isFinite(form.ticketPriceCents) ? form.ticketPriceCents : 0,
       totalTickets: Number.isFinite(form.totalTickets) ? form.totalTickets : 1,
+      salesOpensAt: form.salesOpensAt.trim() ? new Date(form.salesOpensAt).toISOString() : null,
       prizes: namedPrizes,
     };
     try {
@@ -235,6 +246,14 @@ export function TombolaPage() {
             disabled={locked}
           />
         </div>
+        <Field
+          label={t("admin.salesOpensAt")}
+          type="datetime-local"
+          value={form.salesOpensAt}
+          onChange={(v) => update("salesOpensAt", v)}
+          disabled={locked}
+        />
+        <p className="text-sm text-ink/70">{t("admin.salesOpensAtHelp")}</p>
         <fieldset className="pay-options">
           <legend>{t("admin.drawMode")}</legend>
           <label className={`pay-option ${form.drawMode === "scratch" ? "active" : ""}`}>

@@ -8,7 +8,7 @@ import { getCurrentPublicEvent, publicSnapshot, publishChange } from "../lib/pub
 import { broadcast } from "../lib/realtime.js";
 import { wavePayUrl } from "../lib/payments.js";
 import { drawModeOf, heldSeatCount, maskScratchPrizes } from "../lib/tickets.js";
-import { allowRequest, clientKey } from "../lib/rateLimit.js";
+import { allowRequest, clientKey, enforceRateLimit, rateLimits, salesAreOpen } from "../lib/rateLimit.js";
 import { notifyGiftTickets } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
 
@@ -109,8 +109,7 @@ publicRouter.get("/event/current/results", async (_req, res) => {
 });
 
 publicRouter.post("/orders", requireMember, async (req, res) => {
-  if (!(await allowRequest(`buy:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
-    res.status(429).json({ error: "too_many_requests" });
+  if (!(await enforceRateLimit(res, `buy:${clientKey(req)}`, rateLimits.buyIp, rateLimits.windowMs))) {
     return;
   }
   const parsed = buySchema.safeParse(req.body);
@@ -142,6 +141,9 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
 
       if (!event) {
         throw Object.assign(new Error("not_on_sale"), { status: 409 });
+      }
+      if (!salesAreOpen(event.salesOpensAt)) {
+        throw Object.assign(new Error("sales_not_open"), { status: 409 });
       }
 
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${event.id}::text))`);
@@ -197,6 +199,10 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
     const err = error as Error & { status?: number; remaining?: number };
     if (err.message === "not_on_sale") {
       res.status(409).json({ error: "not_on_sale" });
+      return;
+    }
+    if (err.message === "sales_not_open") {
+      res.status(409).json({ error: "sales_not_open" });
       return;
     }
     if (err.message === "not_enough_tickets") {
@@ -314,8 +320,7 @@ publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) 
 });
 
 publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
-  if (!(await allowRequest(`cancel:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
-    res.status(429).json({ error: "too_many_requests" });
+  if (!(await enforceRateLimit(res, `cancel:${clientKey(req)}`, rateLimits.cancelIp, rateLimits.windowMs))) {
     return;
   }
   const token = typeof req.params.token === "string" ? req.params.token : "";

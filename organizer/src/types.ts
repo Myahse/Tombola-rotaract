@@ -117,6 +117,7 @@ export type AdminEvent = {
   currency: string;
   totalTickets: number;
   drawMode?: DrawMode;
+  salesOpensAt?: string | null;
 };
 
 export type AdminOrder = {

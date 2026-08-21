@@ -2,6 +2,7 @@ import { useState, type FormEvent, type MouseEvent } from "react";
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
+import { formatApiError, isRetryableError } from "../formatApiError";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { resizeImage } from "../resizeImage";
@@ -27,6 +28,7 @@ export function RegisterPage() {
   const { member, loading, refresh } = useAuth();
   const [step, setStep] = useState<1 | 2>(1);
   const [error, setError] = useState("");
+  const [retryable, setRetryable] = useState(false);
   const [busy, setBusy] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [name, setName] = useState("");
@@ -72,6 +74,7 @@ export function RegisterPage() {
     }
     setBusy(true);
     setError("");
+    setRetryable(false);
     try {
       await api.register({
         name,
@@ -87,16 +90,8 @@ export function RegisterPage() {
       await refresh();
       navigate(next, { replace: true });
     } catch (err) {
-      const code = err instanceof Error ? err.message : "";
-      setError(
-        code === "email_taken"
-          ? t("errors.emailTaken")
-          : code === "terms_required"
-            ? t("errors.termsRequired")
-            : code === "invalid_form"
-              ? t("errors.invalidRegister")
-              : t("errors.generic"),
-      );
+      setRetryable(isRetryableError(err));
+      setError(formatApiError(err, t));
     } finally {
       setBusy(false);
     }
@@ -243,7 +238,7 @@ export function RegisterPage() {
           </fieldset>
           {error ? <p className="text-sm text-ticket">{error}</p> : null}
           <button disabled={busy || !acceptTerms || !acceptEmails} className="btn-primary btn-block">
-            {busy ? t("auth.submitting") : t("auth.submitRegister")}
+            {busy ? t("auth.submitting") : retryable ? t("errors.retryAction") : t("auth.submitRegister")}
           </button>
           <button
             type="button"
