@@ -73,3 +73,70 @@ export type CampaignDraft = {
   optedInOnly: boolean;
   extraEmails: string;
 };
+
+export type AdhesionStatus = "awaiting_sponsor" | "awaiting_review";
+
+export type AdhesionApplication = {
+  id: string;
+  fullName: string;
+  birthDate: string;
+  sex: "female" | "male" | "other";
+  address: string;
+  phone: string;
+  email: string;
+  profession: string;
+  sponsorName: string;
+  sponsorEmail: string;
+  sponsorRole: string | null;
+  pledgeName: string;
+  pledgeRules: boolean;
+  pledgeParticipate: boolean;
+  pledgeDues: boolean;
+  pledgeObservation: boolean;
+  applicantSignature: string;
+  sponsorConfirmName: string | null;
+  sponsorSignature: string | null;
+  sponsorDate: string | null;
+  status: AdhesionStatus;
+  depositDate: string | null;
+  commissionOpinion: string | null;
+  finalDecision: "pending" | "accepted" | "rejected";
+  presidentSignature: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AdhesionApplicantSubmit = {
+  fullName: string;
+  birthDate: string;
+  sex: "female" | "male" | "other";
+  address: string;
+  phone: string;
+  email: string;
+  profession: string;
+  sponsorName: string;
+  sponsorEmail: string;
+  pledgeName: string;
+  pledgeRules: boolean;
+  pledgeParticipate: boolean;
+  pledgeDues: boolean;
+  pledgeObservation: boolean;
+  applicantSignature: string;
+  lang?: "fr" | "en";
+};
+
+export type AdhesionSponsorPreview = {
+  fullName: string;
+  email: string;
+  profession: string;
+  sponsorName: string;
+  status: AdhesionStatus;
+};
+
+export type AdhesionSponsorSubmit = {
+  sponsorName: string;
+  sponsorRole: string;
+  sponsorConfirmName: string;
+  sponsorSignature: string;
+  sponsorDate: string;
+};

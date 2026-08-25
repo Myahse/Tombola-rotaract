@@ -137,6 +137,20 @@ export function emailHighlightBox(label: string, valueHtml: string) {
   </table>`;
 }
 
+export function campaignSiteUrl(path = "") {
+  return publicOrigin(path, {
+    env: process.env.CAMPAIGN_SITE_URL ?? process.env.PUBLIC_CAMPAIGN_URL,
+    production: "https://campagnes.rotaractiugb.com",
+    local: "http://localhost:5175",
+    allowed: (host) =>
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "rotaract-campagnes.vercel.app" ||
+      host === "campagnes.rotaractiugb.com" ||
+      host.endsWith(".rotaractiugb.com"),
+  });
+}
+
 export function siteUrl(path = "") {
   return publicOrigin(path, {
     env: process.env.PUBLIC_SITE_URL,

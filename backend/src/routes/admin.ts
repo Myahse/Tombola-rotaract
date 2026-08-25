@@ -21,9 +21,11 @@ import { notifyDrawResults, notifyPurchase } from "../lib/mail.js";
 import { siteUrl } from "../emails/layout.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 import { registerAdminPushRoutes } from "./adminPush.js";
+import { registerAdminQcmRoutes } from "./qcmAdmin.js";
 
 export const adminRouter = Router();
 registerAdminPushRoutes(adminRouter);
+registerAdminQcmRoutes(adminRouter);
 
 const eventSchema = z.object({
   titleFr: z.string().trim().min(2).max(120),

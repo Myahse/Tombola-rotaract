@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./loadEnv.js";
 import { db } from "./db/index.js";
 import { events, prizes } from "./db/schema.js";
 

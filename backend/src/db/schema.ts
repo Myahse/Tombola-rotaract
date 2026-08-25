@@ -189,6 +189,37 @@ export const campaignRecipients = pgTable("campaign_recipients", {
   sentAt: timestamp("sent_at", { withTimezone: true }),
 });
 
+export const adhesionApplications = pgTable("adhesion_applications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  fullName: text("full_name").notNull(),
+  birthDate: text("birth_date").notNull(),
+  sex: text("sex").notNull(),
+  address: text("address").notNull(),
+  phone: text("phone").notNull(),
+  email: text("email").notNull(),
+  profession: text("profession").notNull(),
+  sponsorName: text("sponsor_name").notNull(),
+  sponsorEmail: text("sponsor_email").notNull().default(""),
+  sponsorRole: text("sponsor_role"),
+  pledgeName: text("pledge_name").notNull(),
+  pledgeRules: boolean("pledge_rules").notNull(),
+  pledgeParticipate: boolean("pledge_participate").notNull(),
+  pledgeDues: boolean("pledge_dues").notNull(),
+  pledgeObservation: boolean("pledge_observation").notNull(),
+  applicantSignature: text("applicant_signature").notNull(),
+  sponsorConfirmName: text("sponsor_confirm_name"),
+  sponsorSignature: text("sponsor_signature"),
+  sponsorDate: text("sponsor_date"),
+  sponsorToken: text("sponsor_token").unique(),
+  status: text("status").notNull().default("awaiting_sponsor"),
+  depositDate: text("deposit_date"),
+  commissionOpinion: text("commission_opinion"),
+  finalDecision: text("final_decision").notNull().default("pending"),
+  presidentSignature: text("president_signature"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   memberId: uuid("member_id")
@@ -225,6 +256,72 @@ export const donations = pgTable("donations", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   receivedAt: timestamp("received_at", { withTimezone: true }),
 });
+export const qcmExams = pgTable("qcm_exams", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull().unique(),
+  titleFr: text("title_fr").notNull(),
+  titleEn: text("title_en").notNull(),
+  questionCount: integer("question_count").notNull().default(20),
+  passScore: integer("pass_score").notNull().default(14),
+  status: text("status").notNull().default("draft"),
+  scoresSentAt: timestamp("scores_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const qcmQuestions = pgTable(
+  "qcm_questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => qcmExams.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    promptFr: text("prompt_fr").notNull(),
+    promptEn: text("prompt_en").notNull(),
+    choices: text("choices").notNull(),
+    correctChoiceId: text("correct_choice_id").notNull(),
+  },
+  (table) => [unique().on(table.examId, table.position)],
+);
+
+export const qcmAttempts = pgTable(
+  "qcm_attempts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    examId: uuid("exam_id")
+      .notNull()
+      .references(() => qcmExams.id, { onDelete: "cascade" }),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("in_progress"),
+    currentIndex: integer("current_index").notNull().default(0),
+    score: integer("score"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    lastAnsweredAt: timestamp("last_answered_at", { withTimezone: true }),
+  },
+  (table) => [unique().on(table.examId, table.memberId)],
+);
+
+export const qcmAnswers = pgTable(
+  "qcm_answers",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => qcmAttempts.id, { onDelete: "cascade" }),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => qcmQuestions.id, { onDelete: "cascade" }),
+    choiceId: text("choice_id").notNull(),
+    correct: boolean("correct").notNull(),
+    answeredAt: timestamp("answered_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [unique().on(table.attemptId, table.questionId)],
+);
+
 export type MemberRow = typeof members.$inferSelect;
 export type DonationRow = typeof donations.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
@@ -232,3 +329,6 @@ export type PrizeRow = typeof prizes.$inferSelect;
 export type OrderRow = typeof orders.$inferSelect;
 export type TicketRow = typeof tickets.$inferSelect;
 export type CampaignRow = typeof campaigns.$inferSelect;
+export type QcmExamRow = typeof qcmExams.$inferSelect;
+export type QcmQuestionRow = typeof qcmQuestions.$inferSelect;
+export type QcmAttemptRow = typeof qcmAttempts.$inferSelect;

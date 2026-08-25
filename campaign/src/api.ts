@@ -7,6 +7,10 @@ import type {
   CampaignMeta,
   CampaignPerson,
   CampaignRecipient,
+  AdhesionApplication,
+  AdhesionApplicantSubmit,
+  AdhesionSponsorPreview,
+  AdhesionSponsorSubmit,
 } from "./types";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -89,6 +93,34 @@ export const api = {
       `/api/admin/campaigns/${encodeURIComponent(id)}/send`,
       { method: "POST" },
     ),
+  submitAdhesion: (body: AdhesionApplicantSubmit) =>
+    request<{ ok: boolean; id: string }>("/api/forms/adhesion", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getAdhesionSponsor: (token: string) =>
+    request<{ application: AdhesionSponsorPreview }>(`/api/forms/adhesion/sponsor/${encodeURIComponent(token)}`),
+  submitAdhesionSponsor: (token: string, body: AdhesionSponsorSubmit) =>
+    request<{ ok: boolean }>(`/api/forms/adhesion/sponsor/${encodeURIComponent(token)}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  listAdhesion: () => request<{ applications: AdhesionApplication[] }>("/api/admin/forms/adhesion"),
+  getAdhesion: (id: string) =>
+    request<{ application: AdhesionApplication }>(`/api/admin/forms/adhesion/${encodeURIComponent(id)}`),
+  reviewAdhesion: (
+    id: string,
+    body: {
+      depositDate?: string;
+      commissionOpinion?: string;
+      finalDecision: AdhesionApplication["finalDecision"];
+      presidentSignature?: string;
+    },
+  ) =>
+    request<{ application: AdhesionApplication }>(`/api/admin/forms/adhesion/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 };
 
 export function attachmentUrl(campaignId: string, attachmentId: string) {

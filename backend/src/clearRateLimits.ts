@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./loadEnv.js";
 import { client } from "./db/index.js";
 
 const deleted = await client`

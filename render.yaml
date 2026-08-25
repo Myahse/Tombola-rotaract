@@ -22,11 +22,13 @@ services:
       - key: ADMIN_EMAIL
         sync: false
       - key: CORS_ORIGIN
-        value: https://tombola.rotaractiugb.com,https://organisateurs.rotaractiugb.com,https://campagnes.rotaractiugb.com
+        value: https://tombola.rotaractiugb.com,https://organisateurs.rotaractiugb.com,https://campagnes.rotaractiugb.com,https://examen.rotaractiugb.com,https://surveillance.rotaractiugb.com
       - key: PUBLIC_SITE_URL
         value: https://tombola.rotaractiugb.com
       - key: PUBLIC_API_URL
         value: https://api.rotaractiugb.com
+      - key: CAMPAIGN_SITE_URL
+        value: https://campagnes.rotaractiugb.com
       - key: WAVE_PAY_URL
         value: https://pay.wave.com/m/M_ci_pHlyZFYyH1Su/c/ci/
       - key: RATE_LIMIT_REGISTER_PER_IP

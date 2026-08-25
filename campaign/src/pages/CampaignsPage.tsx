@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { ConfirmModal } from "../components/ConfirmModal";
+import { adhesionCampaignDraft } from "../formTemplate";
 import type { Campaign, CampaignMeta } from "../types";
 
 function statusClass(status: Campaign["status"]) {
@@ -18,7 +19,7 @@ export function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [meta, setMeta] = useState<CampaignMeta | null>(null);
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<"blank" | "adhesion" | "">("");
   const [pendingId, setPendingId] = useState("");
   const [deleting, setDeleting] = useState(false);
 
@@ -31,28 +32,32 @@ export function CampaignsPage() {
       .catch(() => setMessage(t("errors.generic")));
   }, [t]);
 
-  async function create() {
-    setBusy(true);
+  async function create(kind: "blank" | "adhesion" = "blank") {
+    setBusy(kind);
     setMessage("");
     try {
-      const { campaign } = await api.create({
-        name: "",
-        subject: t("campaign.new"),
-        preheader: "",
-        heading: "",
-        body: "",
-        ctaLabel: "",
-        ctaUrl: "",
-        includeMembers: true,
-        includeBuyers: false,
-        optedInOnly: true,
-        extraEmails: "",
-      });
+      const draft =
+        kind === "adhesion"
+          ? adhesionCampaignDraft(lang ?? "fr", t)
+          : {
+              name: "",
+              subject: t("campaign.new"),
+              preheader: "",
+              heading: "",
+              body: "",
+              ctaLabel: "",
+              ctaUrl: "",
+              includeMembers: true,
+              includeBuyers: false,
+              optedInOnly: true,
+              extraEmails: "",
+            };
+      const { campaign } = await api.create(draft);
       navigate(`/${lang}/${campaign.id}`, { state: { created: true } });
     } catch {
       setMessage(t("errors.generic"));
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
@@ -88,9 +93,14 @@ export function CampaignsPage() {
             </p>
           ) : null}
         </div>
-        <button type="button" className="btn-primary" disabled={busy} onClick={() => void create()}>
-          {t("campaign.new")}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-outline" disabled={Boolean(busy)} onClick={() => void create("adhesion")}>
+            {busy === "adhesion" ? t("campaign.saving") : t("form.newCampaign")}
+          </button>
+          <button type="button" className="btn-primary" disabled={Boolean(busy)} onClick={() => void create("blank")}>
+            {busy === "blank" ? t("campaign.saving") : t("campaign.new")}
+          </button>
+        </div>
       </div>
       {meta && !meta.brevo ? <p className="lede mt-4 text-ticket">{t("campaign.brevoOff")}</p> : null}
       {message ? <p className="mt-4 text-sm text-ticket">{message}</p> : null}

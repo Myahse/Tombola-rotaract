@@ -51,6 +51,7 @@ export function CampaignLayout() {
             <NavLink to={base} end className={({ isActive }) => (isActive ? "active" : "")}>
               {t("nav.campaigns")}
             </NavLink>
+            <NavLink to={`${base}/forms`}>{t("nav.forms")}</NavLink>
             <NavLink to={`${base}/new`}>{t("nav.new")}</NavLink>
           </nav>
         ) : null}
@@ -71,11 +72,12 @@ export function CampaignLayout() {
         </div>
       </main>
       {loggedIn ? (
-        <nav className="bottom-nav nav-2 show-mobile no-print" aria-label="Mobile">
+        <nav className="bottom-nav nav-3 show-mobile no-print" aria-label="Mobile">
           <NavLink to={base} end className={({ isActive }) => (isActive ? "active" : "")}>
             {t("nav.campaigns")}
           </NavLink>
-          <NavLink to={`${base}/new`}>{t("nav.new")}</NavLink>
+          <NavLink to={`${base}/forms`}>{t("nav.forms")}</NavLink>
+          <NavLink to={`${base}/new`}>{t("nav.newShort")}</NavLink>
         </nav>
       ) : null}
       {authed === "no" ? <LoginModal onSuccess={() => setAuthed("yes")} /> : null}

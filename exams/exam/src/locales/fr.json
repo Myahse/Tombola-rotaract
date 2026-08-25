@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "login": "Connexion",
+    "logout": "Déconnexion"
+  },
+  "lang": { "fr": "FR", "en": "EN" },
+  "home": { "kicker": "Intronisation" },
+  "auth": {
+    "loginTitle": "Connexion",
+    "loginLead": "Connectez-vous avec le compte du club pour passer le QCM.",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "submitLogin": "Se connecter",
+    "submitting": "Veuillez patienter…",
+    "noAccount": "Pas encore de compte ?",
+    "createAccount": "Créer un compte sur le site du club"
+  },
+  "qcm": {
+    "kicker": "Intronisation",
+    "title": "QCM d’intronisation",
+    "intro": "{{count}} questions, une par une. Il faut au moins {{pass}} bonnes réponses.",
+    "ruleStep": "Une seule question à la fois.",
+    "ruleBack": "Vous ne pouvez pas revenir en arrière.",
+    "ruleLive": "La salle de surveillance suit votre progression en direct.",
+    "ruleCamera": "Caméra et micro restent allumés pendant tout le QCM.",
+    "ruleStay": "Restez sur cet écran jusqu’à la fin. Vous ne pouvez pas quitter la page.",
+    "stayHint": "Restez sur cette page. Vous pouvez déplacer la carte caméra, mais elle reste dans l’écran.",
+    "start": "Commencer le QCM",
+    "starting": "Ouverture…",
+    "progress": "Question {{current}} / {{total}}",
+    "closed": "Le QCM n’est pas ouvert pour le moment.",
+    "doneTitle": "QCM terminé",
+    "score": "Votre note : {{score}} / {{total}}",
+    "doneLead": "Le club vous enverra aussi la note par e-mail après la session.",
+    "waitingSend": "Votre note reste affichée ici jusqu’à ce que l’examinateur l’envoie par e-mail.",
+    "passed": "Admis",
+    "failed": "Non admis",
+    "callTitle": "Appel vidéo",
+    "you": "Vous",
+    "proctor": "Surveillance",
+    "cameraWait": "Autorisez la caméra et le micro pour continuer.",
+    "cameraDenied": "Caméra ou micro refusé. Autorisez-les dans le navigateur, puis rechargez la page.",
+    "callEnded": "L’appel vidéo est terminé.",
+    "stopped": "Session terminée."
+  },
+  "errors": {
+    "generic": "Une erreur s’est produite.",
+    "invalidCredentials": "E-mail ou mot de passe incorrect.",
+    "apiDown": "L’API n’est pas joignable. Relancez le serveur backend, puis réessayez."
+  }
+}

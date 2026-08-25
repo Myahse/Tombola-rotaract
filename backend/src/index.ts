@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "./loadEnv.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
@@ -11,8 +11,10 @@ import { attachRealtime } from "./lib/realtime.js";
 import { adminRouter } from "./routes/admin.js";
 import { authRouter } from "./routes/auth.js";
 import { campaignRouter } from "./routes/campaigns.js";
+import { adminFormsRouter, publicFormsRouter } from "./routes/forms.js";
 import { publicRouter } from "./routes/public.js";
 import { pushRouter } from "./routes/push.js";
+import { qcmRouter } from "./routes/qcm.js";
 import { ensureSchema } from "./db/index.js";
 
 const app = express();
@@ -80,6 +82,9 @@ app.get("/api/health", (_req, res) => {
 app.use("/api", authRouter);
 app.use("/api", pushRouter);
 app.use("/api", publicRouter);
+app.use("/api", qcmRouter);
+app.use("/api/forms", publicFormsRouter);
+app.use("/api/admin/forms", adminFormsRouter);
 app.use("/api/admin/campaigns", campaignRouter);
 app.use("/api/admin", adminRouter);
 

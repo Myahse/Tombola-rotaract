@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "login": "Log in",
+    "logout": "Log out"
+  },
+  "lang": { "fr": "FR", "en": "EN" },
+  "home": { "kicker": "Induction" },
+  "auth": {
+    "loginTitle": "Log in",
+    "loginLead": "Log in with your club account to take the quiz.",
+    "email": "Email",
+    "password": "Password",
+    "submitLogin": "Log in",
+    "submitting": "Please wait…",
+    "noAccount": "No account yet?",
+    "createAccount": "Create an account on the club site"
+  },
+  "qcm": {
+    "kicker": "Induction",
+    "title": "Induction quiz",
+    "intro": "{{count}} questions, one at a time. You need at least {{pass}} correct answers.",
+    "ruleStep": "One question at a time.",
+    "ruleBack": "You cannot go back.",
+    "ruleLive": "The monitoring room watches your progress live.",
+    "ruleCamera": "Camera and microphone stay on for the whole quiz.",
+    "ruleStay": "Stay on this screen until you finish. You cannot leave the page.",
+    "stayHint": "Stay on this page. You can drag the camera card, but it stays on screen.",
+    "start": "Start the quiz",
+    "starting": "Opening…",
+    "progress": "Question {{current}} / {{total}}",
+    "closed": "The quiz is not open right now.",
+    "doneTitle": "Quiz complete",
+    "score": "Your score: {{score}} / {{total}}",
+    "doneLead": "The club will also email your mark after the session.",
+    "waitingSend": "Your score stays on this screen until the examiner emails it.",
+    "passed": "Pass",
+    "failed": "Not passed",
+    "callTitle": "Video call",
+    "you": "You",
+    "proctor": "Proctor",
+    "cameraWait": "Allow the camera and microphone to continue.",
+    "cameraDenied": "Camera or microphone was blocked. Allow them in the browser, then reload.",
+    "callEnded": "The video call has ended.",
+    "stopped": "Session ended."
+  },
+  "errors": {
+    "generic": "Something went wrong.",
+    "invalidCredentials": "Incorrect email or password.",
+    "apiDown": "The API is not reachable. Restart the backend server, then try again."
+  }
+}

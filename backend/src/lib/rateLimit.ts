@@ -18,6 +18,7 @@ export const rateLimits = {
   registerEmailWindowMs: envInt("RATE_LIMIT_REGISTER_EMAIL_MINUTES", 60) * 60 * 1000,
   loginIp: envInt("RATE_LIMIT_LOGIN_PER_IP", process.env.NODE_ENV === "production" ? 30 : 15),
   buyIp: envInt("RATE_LIMIT_BUY_PER_IP", process.env.NODE_ENV === "production" ? 50 : 20),
+  formIp: envInt("RATE_LIMIT_FORM_PER_IP", process.env.NODE_ENV === "production" ? 12 : 8),
   cancelIp: envInt("RATE_LIMIT_CANCEL_PER_IP", process.env.NODE_ENV === "production" ? 20 : 10),
   windowMs: WINDOW_MS,
 };

@@ -829,6 +829,7 @@ body.modal-open .bottom-nav {
 .bottom-nav.nav-4 { grid-template-columns: repeat(4, 1fr); }
 .bottom-nav.nav-5 { grid-template-columns: repeat(5, 1fr); }
 .bottom-nav.nav-6 { grid-template-columns: repeat(6, 1fr); }
+.bottom-nav.nav-7 { grid-template-columns: repeat(7, 1fr); }
 
 .qr-display {
   display: grid;
@@ -1231,6 +1232,31 @@ textarea.skeleton {
   .cancel-sheet.is-open,
   .cancel-sheet.is-closing { animation: none !important; }
   .btn-spinner { animation: none; }
+}
+
+.qcm-cards {
+  display: grid;
+  gap: 0.75rem;
+}
+.qcm-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 0.95rem 1rem;
+  background: var(--card);
+  display: grid;
+  gap: 0.45rem;
+}
+.qcm-card.is-live {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
+}
+.qcm-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+.qcm-card-top strong {
+  font-size: 1rem;
 }
 
 @media print {

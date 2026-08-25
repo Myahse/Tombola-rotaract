@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../loadEnv.js";
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema.js";
@@ -154,6 +154,102 @@ export async function ensureSchema() {
   await client.unsafe(`CREATE INDEX IF NOT EXISTS refresh_tokens_member_idx ON refresh_tokens (member_id)`);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS refresh_tokens_family_idx ON refresh_tokens (family_id)`);
   await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS sales_opens_at timestamptz`);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS qcm_exams (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      slug text NOT NULL UNIQUE,
+      title_fr text NOT NULL,
+      title_en text NOT NULL,
+      question_count integer NOT NULL DEFAULT 20,
+      pass_score integer NOT NULL DEFAULT 14,
+      status text NOT NULL DEFAULT 'draft',
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS qcm_questions (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      exam_id uuid NOT NULL REFERENCES qcm_exams(id) ON DELETE CASCADE,
+      position integer NOT NULL,
+      prompt_fr text NOT NULL,
+      prompt_en text NOT NULL,
+      choices text NOT NULL,
+      correct_choice_id text NOT NULL,
+      UNIQUE (exam_id, position)
+    )
+  `);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS qcm_attempts (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      exam_id uuid NOT NULL REFERENCES qcm_exams(id) ON DELETE CASCADE,
+      member_id uuid NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+      status text NOT NULL DEFAULT 'in_progress',
+      current_index integer NOT NULL DEFAULT 0,
+      score integer,
+      started_at timestamptz NOT NULL DEFAULT now(),
+      completed_at timestamptz,
+      last_answered_at timestamptz,
+      UNIQUE (exam_id, member_id)
+    )
+  `);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS qcm_attempts_exam_idx ON qcm_attempts (exam_id, status)`);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS qcm_answers (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      attempt_id uuid NOT NULL REFERENCES qcm_attempts(id) ON DELETE CASCADE,
+      question_id uuid NOT NULL REFERENCES qcm_questions(id) ON DELETE CASCADE,
+      choice_id text NOT NULL,
+      correct boolean NOT NULL,
+      answered_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (attempt_id, question_id)
+    )
+  `);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS qcm_answers_attempt_idx ON qcm_answers (attempt_id)`);
+  await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS scores_sent_at timestamptz`);
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS adhesion_applications (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      full_name text NOT NULL,
+      birth_date text NOT NULL,
+      sex text NOT NULL,
+      address text NOT NULL,
+      phone text NOT NULL,
+      email text NOT NULL,
+      profession text NOT NULL,
+      sponsor_name text NOT NULL,
+      sponsor_email text NOT NULL DEFAULT '',
+      sponsor_role text,
+      pledge_name text NOT NULL,
+      pledge_rules boolean NOT NULL,
+      pledge_participate boolean NOT NULL,
+      pledge_dues boolean NOT NULL,
+      pledge_observation boolean NOT NULL,
+      applicant_signature text NOT NULL,
+      sponsor_confirm_name text,
+      sponsor_signature text,
+      sponsor_date text,
+      sponsor_token text UNIQUE,
+      status text NOT NULL DEFAULT 'awaiting_sponsor',
+      deposit_date text,
+      commission_opinion text,
+      final_decision text NOT NULL DEFAULT 'pending',
+      president_signature text,
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await client.unsafe(`ALTER TABLE adhesion_applications ALTER COLUMN sponsor_role DROP NOT NULL`);
+  await client.unsafe(`ALTER TABLE adhesion_applications ALTER COLUMN sponsor_confirm_name DROP NOT NULL`);
+  await client.unsafe(`ALTER TABLE adhesion_applications ALTER COLUMN sponsor_signature DROP NOT NULL`);
+  await client.unsafe(`ALTER TABLE adhesion_applications ALTER COLUMN sponsor_date DROP NOT NULL`);
+  await client.unsafe(`ALTER TABLE adhesion_applications ADD COLUMN IF NOT EXISTS sponsor_email text NOT NULL DEFAULT ''`);
+  await client.unsafe(`ALTER TABLE adhesion_applications ADD COLUMN IF NOT EXISTS sponsor_token text`);
+  await client.unsafe(`ALTER TABLE adhesion_applications ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'awaiting_review'`);
+  await client.unsafe(`UPDATE adhesion_applications SET sponsor_token = gen_random_uuid()::text WHERE sponsor_token IS NULL`);
+  await client.unsafe(`CREATE UNIQUE INDEX IF NOT EXISTS adhesion_sponsor_token_idx ON adhesion_applications (sponsor_token)`);
+  const { seedInductionQcm } = await import("../lib/qcm.js");
+  await seedInductionQcm();
 }
 
 export function isUniqueViolation(error: unknown) {

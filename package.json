@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "concurrently -n api,web,org,mail -c magenta,cyan,yellow,green \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix organizer\" \"npm run dev --prefix campaign\"",
+    "dev": "concurrently -n api,web,org,mail,mon,exam -c magenta,cyan,yellow,green,blue,white \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\" \"npm run dev --prefix organizer\" \"npm run dev --prefix campaign\" \"npm run dev --prefix exams/monitor\" \"npm run dev --prefix exams/exam\"",
     "db:seed": "npm run db:seed --prefix backend",
     "build": "node scripts/vercel-build.mjs",
     "load:smoke": "node scripts/k6-run.mjs smoke.js",

@@ -4,6 +4,13 @@ import { giftTicketsEmail, type GiftTicketsEmail } from "../emails/gift.js";
 import { resetPasswordEmail, type ResetPasswordEmail } from "../emails/reset.js";
 import { verifyEmailMessage, type VerifyEmail } from "../emails/verify.js";
 import { welcomeEmail } from "../emails/welcome.js";
+import { qcmScoreEmail, type QcmScoreEmail } from "../emails/qcmScore.js";
+import {
+  adhesionApplicantAckEmail,
+  adhesionNoticeEmail,
+  adhesionSponsorInviteEmail,
+  type AdhesionNotice,
+} from "../emails/adhesionNotice.js";
 import { siteUrl } from "../emails/layout.js";
 import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
 import { buildPurchaseReceiptPdf, purchaseReceiptPdfFilename } from "./purchaseReceiptPdf.js";
@@ -196,5 +203,61 @@ export async function notifyDrawResults(recipients: (DrawResultsEmail & MemberTa
         : null,
       pushPayload,
     );
+  }
+}
+
+export async function notifyQcmScore(recipients: Array<QcmScoreEmail & { memberId?: string }>) {
+  for (const recipient of recipients) {
+    if (!recipient.email.trim()) continue;
+    const resultFr = recipient.passed ? "Admis" : "Non admis";
+    await deliverEmailAndPush(
+      { memberId: recipient.memberId, email: recipient.email, name: recipient.name },
+      async () => {
+        try {
+          await send({ email: recipient.email, name: recipient.name }, qcmScoreEmail(recipient));
+        } catch (error) {
+          console.error(`QCM score email failed for ${recipient.email}`, error);
+        }
+      },
+      {
+        title: "Note du QCM",
+        body: `${recipient.score}/${recipient.total} · ${resultFr}`,
+        url: "/",
+      },
+    );
+  }
+}
+
+export async function notifyAdhesionApplicant(row: AdhesionNotice) {
+  if (!row.email) return;
+  try {
+    await send({ email: row.email, name: row.fullName }, adhesionApplicantAckEmail(row));
+  } catch (error) {
+    console.error(`Adhesion applicant ack failed for ${row.email}`, error);
+  }
+}
+
+export async function notifyAdhesionSponsor(row: AdhesionNotice, lang: "fr" | "en") {
+  const email = row.sponsorEmail?.trim().toLowerCase();
+  if (!email || !row.sponsorToken) return;
+  try {
+    await send({ email, name: row.sponsorName }, adhesionSponsorInviteEmail(row, lang));
+  } catch (error) {
+    console.error(`Adhesion sponsor invite failed for ${email}`, error);
+  }
+}
+
+export async function notifyAdhesionApplication(row: AdhesionNotice) {
+  const emails = (process.env.ADMIN_EMAIL ?? "")
+    .split(",")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+  const message = adhesionNoticeEmail(row);
+  for (const email of emails) {
+    try {
+      await send({ email }, message);
+    } catch (error) {
+      console.error(`Adhesion notice failed for ${email}`, error);
+    }
   }
 }

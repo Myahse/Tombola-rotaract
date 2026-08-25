@@ -8,6 +8,7 @@ import { PeoplePicker } from "../components/PeoplePicker";
 import { selectedFromDraft } from "../audience";
 import { SAMPLE_PERSON, type PreviewPerson } from "../emailPreview";
 import { api, attachmentUrl } from "../api";
+import { adhesionCampaignDraft } from "../formTemplate";
 import { resizeCampaignImage } from "../resizeImage";
 import { readPdfAttachment } from "../readPdfAttachment";
 import type {
@@ -307,6 +308,15 @@ export function CampaignEditorPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {!locked ? (
+            <button
+              type="button"
+              className="btn-outline"
+              onClick={() => patch(adhesionCampaignDraft(lang ?? "fr", t))}
+            >
+              {t("form.useTemplate")}
+            </button>
+          ) : null}
           <button type="button" className="btn-outline" onClick={() => void duplicate()}>
             {t("campaign.duplicate")}
           </button>

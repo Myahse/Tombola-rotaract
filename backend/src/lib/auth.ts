@@ -348,6 +348,40 @@ export async function hasAdminSessionFromCookieHeader(cookieHeader: string | und
   return Boolean(row && row.role === "admin" && !row.revokedAt && row.expiresAt.getTime() > Date.now());
 }
 
+export async function memberFromCookieHeader(cookieHeader: string | undefined) {
+  const access = readAccess(cookieFromHeader(cookieHeader, MEMBER_ACCESS_COOKIE));
+  if (access?.role === "member" && access.sub && (await accessStillValid(access))) {
+    const [member] = await db
+      .select({ id: members.id, name: members.name })
+      .from(members)
+      .where(eq(members.id, access.sub))
+      .limit(1);
+    return member ?? null;
+  }
+  const refreshRaw = cookieFromHeader(cookieHeader, MEMBER_REFRESH_COOKIE);
+  if (!refreshRaw) return null;
+  const tokenHash = hashToken(refreshRaw);
+  const [row] = await db
+    .select({
+      memberId: refreshTokens.memberId,
+      expiresAt: refreshTokens.expiresAt,
+      revokedAt: refreshTokens.revokedAt,
+      role: refreshTokens.role,
+    })
+    .from(refreshTokens)
+    .where(eq(refreshTokens.tokenHash, tokenHash))
+    .limit(1);
+  if (!row?.memberId || row.role !== "member" || row.revokedAt || row.expiresAt.getTime() <= Date.now()) {
+    return null;
+  }
+  const [member] = await db
+    .select({ id: members.id, name: members.name })
+    .from(members)
+    .where(eq(members.id, row.memberId))
+    .limit(1);
+  return member ?? null;
+}
+
 export async function revokeMemberAuth(req: Request, res: Response) {
   const access = readAccess(req.cookies?.[MEMBER_ACCESS_COOKIE] as string | undefined);
   if (access?.jti) blacklistAccessJti(access.jti, access.exp);
