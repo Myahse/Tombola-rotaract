@@ -14,10 +14,8 @@ export function VideoTile({ stream, muted = false, mirror = false, label, classN
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    el.muted = muted;
     if (el.srcObject !== stream) el.srcObject = stream;
-    if (stream) void el.play().catch(() => undefined);
-  }, [stream, muted]);
+  }, [stream]);
 
   return (
     <div className={`call-tile ${className}`.trim()}>

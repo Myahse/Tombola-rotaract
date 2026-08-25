@@ -207,6 +207,9 @@ export async function ensureSchema() {
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS qcm_answers_attempt_idx ON qcm_answers (attempt_id)`);
   await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS scores_sent_at timestamptz`);
+  await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS exam_duration_seconds integer`);
+  await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS question_duration_seconds integer`);
+  await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS question_started_at timestamptz`);
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS adhesion_applications (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

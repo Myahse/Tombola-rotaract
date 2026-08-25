@@ -19,7 +19,7 @@ export type RealtimeMessage =
   | { type: "qcm.call.peers"; monitorIds: string[] }
   | { type: "qcm.call.ready"; monitorId?: string }
   | { type: "qcm.call.denied" }
-  | { type: "qcm.call.offer"; to: string; sdp: string; from?: string; name?: string; memberId?: string }
+  | { type: "qcm.call.offer"; to: string; sdp: string; from?: string; name?: string; memberId?: string; screenStreamId?: string }
   | { type: "qcm.call.answer"; to: string; sdp: string; from?: string }
   | { type: "qcm.call.ice"; to: string; candidate: string; from?: string }
   | { type: "qcm.call.hangup"; from?: string; to?: string }

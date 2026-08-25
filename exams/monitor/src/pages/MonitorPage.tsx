@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { examSiteUrl } from "../config";
@@ -7,15 +7,45 @@ import { VideoTile } from "../components/VideoTile";
 import { useLiveStatus, useLiveTick, useAwayIds } from "../live";
 import type { QcmAdminState } from "../types";
 
-function CandidateVideo({ stream, name }: { stream: MediaStream | null; name: string }) {
+function CandidateVideo({
+  stream,
+  screen,
+  name,
+}: {
+  stream: MediaStream | null;
+  screen: MediaStream | null;
+  name: string;
+}) {
   const { t } = useTranslation();
+  const wrapRef = useRef<HTMLDivElement>(null);
   const [listen, setListen] = useState(false);
+  const main = screen ?? stream;
+  const pip = screen ? stream : null;
+
+  function expand() {
+    const node = wrapRef.current;
+    if (!node) return;
+    if (document.fullscreenElement === node) {
+      void document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    void node.requestFullscreen?.().catch(() => undefined);
+  }
+
   return (
-    <div className="call-card-video">
-      <VideoTile stream={stream} muted={!listen} label={name} />
-      <button type="button" className="call-listen" onClick={() => setListen((value) => !value)}>
-        {listen ? t("qcm.mute") : t("qcm.listen")}
-      </button>
+    <div className={`call-card-video${screen ? " has-screen" : ""}`} ref={wrapRef}>
+      <VideoTile stream={main} muted={Boolean(screen) || !listen} label={name} className={screen ? "is-screen" : ""} />
+      {pip ? <VideoTile stream={pip} muted={!listen} mirror label={t("qcm.camera")} className="is-pip" /> : null}
+      <div className="call-video-actions">
+        <button type="button" className="call-listen" onClick={() => setListen((value) => !value)}>
+          {listen ? t("qcm.mute") : t("qcm.listen")}
+        </button>
+        {screen ? (
+          <button type="button" className="call-listen" onClick={expand}>
+            {t("qcm.expandScreen")}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -129,23 +159,6 @@ export function MonitorPage() {
       </p>
       <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
       <p className="lede mt-3">{t("qcm.lead")}</p>
-
-      <div className="call-self mt-4">
-        {local ? <VideoTile stream={local} muted mirror label={t("qcm.you")} /> : <VideoTile stream={null} label={t("qcm.you")} />}
-        {camera === "need" ? <p className="field-hint">{t("qcm.cameraWait")}</p> : null}
-        {camera === "denied" ? <p className="text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
-        {camera === "off" ? <p className="field-hint">{t("qcm.callEnded")}</p> : null}
-        {camera === "ready" ? (
-          <button type="button" className="btn-hangup" onClick={hangUp}>
-            {t("qcm.endCall")}
-          </button>
-        ) : null}
-        {camera === "off" || camera === "denied" ? (
-          <button type="button" className="btn-primary" onClick={() => void startCall()}>
-            {t("qcm.startCall")}
-          </button>
-        ) : null}
-      </div>
       {examLink ? (
         <p className="field-hint">
           {t("qcm.share")}{" "}
@@ -179,6 +192,23 @@ export function MonitorPage() {
       <p className="field-hint">
         {t("qcm.questionsCount", { count: data?.questions.length ?? 0 })}
       </p>
+      {camera === "need" ? <p className="field-hint">{t("qcm.cameraWait")}</p> : null}
+      {camera === "denied" ? <p className="mt-3 text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
+      {camera === "off" ? <p className="field-hint">{t("qcm.callEnded")}</p> : null}
+
+      <div className="call-self mt-4">
+        {local ? <VideoTile stream={local} muted mirror label={t("qcm.you")} /> : null}
+        {camera === "ready" ? (
+          <button type="button" className="btn-hangup" onClick={hangUp}>
+            {t("qcm.endCall")}
+          </button>
+        ) : null}
+        {camera === "off" || camera === "denied" ? (
+          <button type="button" className="btn-primary" onClick={() => void startCall()}>
+            {t("qcm.startCall")}
+          </button>
+        ) : null}
+      </div>
 
       <dl className="stat-list mt-4">
         <div className="fact">
@@ -218,7 +248,7 @@ export function MonitorPage() {
           <h2 className="mt-8">{t("qcm.cameras")}</h2>
           <div className="call-grid mt-4">
             {waitingCameras.map((peer) => (
-              <CandidateVideo key={peer.peerId} stream={peer.stream} name={peer.name} />
+              <CandidateVideo key={peer.peerId} stream={peer.stream} screen={peer.screen} name={peer.name} />
             ))}
           </div>
         </>
@@ -233,7 +263,7 @@ export function MonitorPage() {
           const peer = remotes.find((remote) => remote.memberId === item.memberId);
           return (
             <article key={item.id} className={`qcm-card ${item.status === "in_progress" ? "is-live" : ""}${awayIds.has(item.memberId) ? " is-away" : ""}`}>
-              {peer ? <CandidateVideo stream={peer.stream} name={item.memberName} /> : null}
+              {peer ? <CandidateVideo stream={peer.stream} screen={peer.screen} name={item.memberName} /> : null}
               <div className="qcm-card-top">
                 <strong>{item.memberName}</strong>
                 <span

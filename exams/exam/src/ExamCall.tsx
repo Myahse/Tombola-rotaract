@@ -5,9 +5,9 @@ import { useRealtime } from "./useRealtime";
 import { DraggableCallDock } from "./components/DraggableCallDock";
 import { VideoTile } from "./components/VideoTile";
 import { useStay } from "./stay";
-import { attachLocalStream, getCallStream, iceConfig, parseIce, remoteStreamFromEvent, stopStream } from "./webrtc";
+import { getCallStream, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
 
-export type CallStatus = "off" | "need" | "ready" | "denied";
+export type CallStatus = "off" | "need" | "ready" | "denied" | "screen";
 
 type Remote = {
   id: string;
@@ -16,16 +16,17 @@ type Remote = {
 
 type ExamCallProps = {
   active: boolean;
+  recapture?: number;
   onStatus: (status: CallStatus) => void;
   onSession?: () => void;
 };
 
-export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
+export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCallProps) {
   const { t } = useTranslation();
   const [local, setLocal] = useState<MediaStream | null>(null);
   const [remotes, setRemotes] = useState<Remote[]>([]);
-  const [listen, setListen] = useState(false);
   const localRef = useRef<MediaStream | null>(null);
+  const screenRef = useRef<MediaStream | null>(null);
   const pcs = useRef(new Map<string, RTCPeerConnection>());
   const pendingIce = useRef(new Map<string, RTCIceCandidateInit[]>());
   const waitingMonitors = useRef(new Set<string>());
@@ -33,6 +34,7 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
   const onStatusRef = useRef(onStatus);
   const onSessionRef = useRef(onSession);
   const deniedRef = useRef(false);
+  const { reportAway, setAwayReporter } = useStay();
   onStatusRef.current = onStatus;
   onSessionRef.current = onSession;
 
@@ -51,7 +53,7 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
       return;
     }
     if (message.type === "qcm.call.ready" && message.monitorId) {
-      void offerTo(message.monitorId, true);
+      void offerTo(message.monitorId);
       return;
     }
     if (message.type === "qcm.call.answer" && message.from) {
@@ -67,7 +69,6 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
     }
   });
   sendRef.current = send;
-  const { setAwayReporter } = useStay();
   useEffect(() => {
     setAwayReporter((away) => send({ type: "qcm.presence", away }));
     return () => setAwayReporter(null);
@@ -76,7 +77,7 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
   connectedRef.current = connected;
 
   useEffect(() => {
-    if (!active || deniedRef.current || !localRef.current) return;
+    if (!active || deniedRef.current || !localRef.current || !screenRef.current) return;
     if (connected) onStatusRef.current("ready");
   }, [active, connected]);
 
@@ -92,6 +93,14 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
   function closeAll() {
     for (const id of [...pcs.current.keys()]) closePeer(id);
     waitingMonitors.current.clear();
+  }
+
+  function markReady() {
+    if (deniedRef.current) return;
+    if (localRef.current && screenRef.current) {
+      onStatusRef.current(connectedRef.current ? "ready" : "need");
+      if (connectedRef.current) onStatusRef.current("ready");
+    }
   }
 
   async function flushIce(id: string, pc: RTCPeerConnection) {
@@ -130,19 +139,56 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
     await flushIce(id, pc);
   }
 
-  async function offerTo(monitorId: string, restart = false) {
-    const stream = localRef.current;
-    if (!stream) {
+  async function attachScreen(stream: MediaStream) {
+    const track = stream.getVideoTracks()[0];
+    if (!track) return;
+    track.contentHint = "detail";
+    track.onended = () => {
+      stopStream(screenRef.current);
+      screenRef.current = null;
+      reportAway(true);
+      onStatusRef.current("screen");
+    };
+    const previous = screenRef.current;
+    screenRef.current = stream;
+    const cameraTrack = localRef.current?.getVideoTracks()[0] ?? null;
+    for (const [monitorId, pc] of pcs.current.entries()) {
+      const sender = pc.getSenders().find((item) => item.track?.kind === "video" && item.track !== cameraTrack);
+      if (sender) {
+        await sender.replaceTrack(track);
+      } else {
+        pc.addTrack(track, stream);
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        sendRef.current({
+          type: "qcm.call.offer",
+          to: monitorId,
+          sdp: offer.sdp ?? "",
+          screenStreamId: stream.id,
+        });
+      }
+    }
+    if (previous && previous !== stream) stopStream(previous);
+    reportAway(false);
+    markReady();
+    for (const id of [...waitingMonitors.current]) {
+      waitingMonitors.current.delete(id);
+      await offerTo(id);
+    }
+  }
+
+  async function offerTo(monitorId: string) {
+    const camera = localRef.current;
+    const screen = screenRef.current;
+    if (!camera || !screen) {
       waitingMonitors.current.add(monitorId);
       return;
     }
-    if (pcs.current.has(monitorId)) {
-      if (!restart) return;
-      closePeer(monitorId);
-    }
+    if (pcs.current.has(monitorId)) return;
     const pc = new RTCPeerConnection(iceConfig);
     pcs.current.set(monitorId, pc);
-    await attachLocalStream(pc, stream);
+    camera.getTracks().forEach((track) => pc.addTrack(track, camera));
+    screen.getTracks().forEach((track) => pc.addTrack(track, screen));
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       sendRef.current({
@@ -152,7 +198,8 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
       });
     };
     pc.ontrack = (event) => {
-      const media = remoteStreamFromEvent(event);
+      const media = event.streams[0];
+      if (!media) return;
       setRemotes((prev) => {
         const rest = prev.filter((item) => item.id !== monitorId);
         return [...rest, { id: monitorId, stream: media }];
@@ -166,7 +213,12 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
     };
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-    sendRef.current({ type: "qcm.call.offer", to: monitorId, sdp: offer.sdp ?? "" });
+    sendRef.current({
+      type: "qcm.call.offer",
+      to: monitorId,
+      sdp: offer.sdp ?? "",
+      screenStreamId: screen.id,
+    });
   }
 
   useEffect(() => {
@@ -186,10 +238,16 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
         }
         localRef.current = stream;
         setLocal(stream);
-        if (connectedRef.current && !deniedRef.current) onStatusRef.current("ready");
-        for (const id of [...waitingMonitors.current]) {
-          waitingMonitors.current.delete(id);
-          await offerTo(id);
+        onStatusRef.current("screen");
+        try {
+          const screen = await getScreenStream();
+          if (cancelled) {
+            stopStream(screen);
+            return;
+          }
+          await attachScreen(screen);
+        } catch {
+          if (!cancelled) onStatusRef.current("screen");
         }
       } catch {
         if (!cancelled) onStatusRef.current("denied");
@@ -200,29 +258,33 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
       sendRef.current({ type: "qcm.call.hangup" });
       closeAll();
       stopStream(localRef.current);
+      stopStream(screenRef.current);
       localRef.current = null;
+      screenRef.current = null;
       setLocal(null);
       setRemotes([]);
     };
   }, [active]);
 
-  if (!active) return null;
+  useEffect(() => {
+    if (!active || recapture < 1 || !localRef.current) return;
+    void (async () => {
+      try {
+        const screen = await getScreenStream();
+        await attachScreen(screen);
+      } catch {
+        onStatusRef.current("screen");
+      }
+    })();
+  }, [recapture, active]);
 
-  const proctor = remotes[0] ?? null;
+  if (!active) return null;
 
   return (
     <DraggableCallDock label={t("qcm.callTitle")}>
-      <VideoTile
-        stream={proctor?.stream ?? null}
-        muted={!listen}
-        label={t("qcm.proctor")}
-        className="is-proctor"
-      />
-      {proctor?.stream ? (
-        <button type="button" className="call-listen" onClick={() => setListen((value) => !value)}>
-          {listen ? t("qcm.mute") : t("qcm.listen")}
-        </button>
-      ) : null}
+      {remotes.map((peer) => (
+        <VideoTile key={peer.id} stream={peer.stream} label={t("qcm.proctor")} />
+      ))}
       <VideoTile stream={local} muted mirror label={t("qcm.you")} className="is-self" />
     </DraggableCallDock>
   );

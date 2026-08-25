@@ -21,6 +21,8 @@ export type QcmExam = {
   passScore: number;
   status: QcmExamStatus;
   scoresSent: boolean;
+  examDurationSeconds: number | null;
+  questionDurationSeconds: number | null;
 };
 
 export type QcmChoice = {
@@ -45,6 +47,8 @@ export type QcmAttempt = {
   score: number | null;
   startedAt: string;
   completedAt: string | null;
+  examEndsAt: string | null;
+  questionEndsAt: string | null;
 };
 
 export type QcmState = {

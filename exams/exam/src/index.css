@@ -1277,6 +1277,20 @@ textarea.skeleton {
   font-weight: 700;
   color: var(--muted);
 }
+.qcm-clocks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.qcm-clocks p {
+  margin: 0;
+}
+.qcm-clocks .is-urgent {
+  color: var(--error, #b42318);
+}
 .qcm-bar {
   height: 6px;
   border-radius: 999px;
@@ -1369,20 +1383,6 @@ textarea.skeleton {
 }
 .call-tile.is-self {
   width: 7.25rem;
-}
-.call-tile.is-proctor {
-  width: 13.5rem;
-}
-.call-listen {
-  pointer-events: auto;
-  cursor: pointer;
-  padding: 0.3rem 0.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(20, 20, 22, 0.78);
-  color: #fff;
-  font-size: 0.72rem;
-  font-weight: 650;
 }
 .call-tile video.is-mirror {
   transform: scaleX(-1);

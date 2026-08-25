@@ -33,6 +33,8 @@ const examSchema = z.object({
   titleFr: z.string().trim().min(2).max(120),
   titleEn: z.string().trim().max(120).optional().or(z.literal("")),
   passScore: z.number().int().min(1).max(50),
+  examDurationMinutes: z.number().int().min(0).max(240).optional().nullable(),
+  questionDurationSeconds: z.number().int().min(0).max(900).optional().nullable(),
   questions: z.array(questionSchema).min(1).max(50),
 });
 
@@ -89,6 +91,9 @@ function normalizeExam(data: z.infer<typeof examSchema>) {
     titleFr: data.titleFr,
     titleEn: data.titleEn?.trim() || data.titleFr,
     passScore: data.passScore,
+    examDurationSeconds: data.examDurationMinutes && data.examDurationMinutes > 0 ? data.examDurationMinutes * 60 : null,
+    questionDurationSeconds:
+      data.questionDurationSeconds && data.questionDurationSeconds > 0 ? data.questionDurationSeconds : null,
     questions,
   };
 }

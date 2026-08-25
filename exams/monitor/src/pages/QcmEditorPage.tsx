@@ -37,6 +37,8 @@ export function QcmEditorPage() {
   const { t } = useTranslation();
   const [titleFr, setTitleFr] = useState("");
   const [passScore, setPassScore] = useState(1);
+  const [examMinutes, setExamMinutes] = useState("");
+  const [questionSeconds, setQuestionSeconds] = useState("");
   const [questions, setQuestions] = useState<DraftQuestion[]>([emptyQuestion()]);
   const [locked, setLocked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -48,6 +50,8 @@ export function QcmEditorPage() {
     const data = await api.qcm();
     setTitleFr(data.exam?.titleFr ?? "");
     setPassScore(data.exam?.passScore ?? 1);
+    setExamMinutes(data.exam?.examDurationSeconds ? String(Math.round(data.exam.examDurationSeconds / 60)) : "");
+    setQuestionSeconds(data.exam?.questionDurationSeconds ? String(data.exam.questionDurationSeconds) : "");
     setQuestions(data.questions.length ? data.questions.map(fromApi) : [emptyQuestion()]);
     setLocked(data.exam?.status === "open" || data.attempts.some((item) => item.status === "in_progress"));
     setReady(true);
@@ -73,6 +77,8 @@ export function QcmEditorPage() {
       const payload = {
         titleFr: titleFr.trim(),
         passScore,
+        examDurationMinutes: examMinutes.trim() ? Number(examMinutes) : 0,
+        questionDurationSeconds: questionSeconds.trim() ? Number(questionSeconds) : 0,
         questions: questions.map((question) => {
           const filled = question.choices
             .map((choice, index) => ({ ...choice, index }))
@@ -93,6 +99,8 @@ export function QcmEditorPage() {
       const data = await api.saveQcm(payload);
       setQuestions(data.questions.length ? data.questions.map(fromApi) : [emptyQuestion()]);
       setPassScore(data.exam?.passScore ?? passScore);
+      setExamMinutes(data.exam?.examDurationSeconds ? String(Math.round(data.exam.examDurationSeconds / 60)) : "");
+      setQuestionSeconds(data.exam?.questionDurationSeconds ? String(data.exam.questionDurationSeconds) : "");
       setSaved(true);
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
@@ -135,6 +143,29 @@ export function QcmEditorPage() {
           required
         />
       </label>
+      <label>
+        {t("qcm.examDuration")}
+        <input
+          type="number"
+          min={0}
+          max={240}
+          value={examMinutes}
+          disabled={locked}
+          onChange={(e) => setExamMinutes(e.target.value)}
+        />
+      </label>
+      <label>
+        {t("qcm.questionDuration")}
+        <input
+          type="number"
+          min={0}
+          max={900}
+          value={questionSeconds}
+          disabled={locked}
+          onChange={(e) => setQuestionSeconds(e.target.value)}
+        />
+      </label>
+      <p className="field-hint">{t("qcm.timerHint")}</p>
 
       {questions.map((question, index) => (
         <article key={index} className="qcm-edit-card">

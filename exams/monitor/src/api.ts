@@ -27,6 +27,8 @@ export const api = {
     titleFr: string;
     titleEn?: string;
     passScore: number;
+    examDurationMinutes?: number | null;
+    questionDurationSeconds?: number | null;
     questions: Array<{
       promptFr: string;
       promptEn?: string;

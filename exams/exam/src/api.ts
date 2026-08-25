@@ -25,10 +25,10 @@ export const api = {
   qcm: (slug: string) => request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}`),
   startQcm: (slug: string) =>
     request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/start`, { method: "POST", body: JSON.stringify({}) }),
-  answerQcm: (slug: string, choiceId: string) =>
+  answerQcm: (slug: string, body: { choiceId?: string; timedOut?: boolean }) =>
     request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/answer`, {
       method: "POST",
-      body: JSON.stringify({ choiceId }),
+      body: JSON.stringify(body),
     }),
 };
 

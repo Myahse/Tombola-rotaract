@@ -14,6 +14,7 @@ import {
   publicQuestion,
   publishQcm,
   questionAt,
+  settleAttempt,
 } from "../lib/qcm.js";
 import { clientKey, enforceRateLimit } from "../lib/rateLimit.js";
 import type { QcmExamRow } from "../db/schema.js";
@@ -21,7 +22,8 @@ import type { QcmExamRow } from "../db/schema.js";
 export const qcmRouter = Router();
 
 const answerSchema = z.object({
-  choiceId: z.string().trim().min(1).max(8),
+  choiceId: z.string().trim().min(1).max(8).optional(),
+  timedOut: z.boolean().optional(),
 });
 
 function paramSlug(value: string | string[] | undefined) {
@@ -31,15 +33,28 @@ function paramSlug(value: string | string[] | undefined) {
 
 async function examPayload(memberId: string, exam: QcmExamRow | null) {
   if (!exam) return { exam: null, attempt: null, question: null };
-  const attempt = await memberAttempt(exam.id, memberId);
+  let attempt = await memberAttempt(exam.id, memberId);
+  if (attempt) attempt = await settleAttempt(exam, attempt);
   const question =
     attempt && attempt.status === "in_progress"
       ? await questionAt(exam.id, attempt.currentIndex + 1)
       : null;
   return {
     exam: publicExam(exam),
-    attempt: attempt ? publicAttempt(attempt, exam.questionCount) : null,
+    attempt: attempt ? publicAttempt(attempt, exam.questionCount, exam, { hideScore: true }) : null,
     question: question && attempt ? publicQuestion(question, attempt.id) : null,
+  };
+}
+
+function attemptBody(
+  exam: QcmExamRow,
+  attempt: NonNullable<Awaited<ReturnType<typeof memberAttempt>>>,
+  question: Awaited<ReturnType<typeof questionAt>> | null,
+) {
+  return {
+    exam: publicExam(exam),
+    attempt: publicAttempt(attempt, exam.questionCount, exam, { hideScore: true }),
+    question: question ? publicQuestion(question, attempt.id) : null,
   };
 }
 
@@ -53,21 +68,19 @@ async function startExam(memberId: string, exam: QcmExamRow | null) {
 
   const existing = await memberAttempt(exam.id, memberId);
   if (existing) {
+    const settled = await settleAttempt(exam, existing);
     const question =
-      existing.status === "in_progress" ? await questionAt(exam.id, existing.currentIndex + 1) : null;
+      settled.status === "in_progress" ? await questionAt(exam.id, settled.currentIndex + 1) : null;
     return {
       status: 200 as const,
-      body: {
-        exam: publicExam(exam),
-        attempt: publicAttempt(existing, exam.questionCount),
-        question: question ? publicQuestion(question, existing.id) : null,
-      },
+      body: attemptBody(exam, settled, question),
     };
   }
 
+  const now = new Date();
   const [created] = await db
     .insert(qcmAttempts)
-    .values({ examId: exam.id, memberId })
+    .values({ examId: exam.id, memberId, questionStartedAt: now })
     .returning();
   if (!created) {
     return { status: 500 as const, error: "request_failed" };
@@ -76,21 +89,29 @@ async function startExam(memberId: string, exam: QcmExamRow | null) {
   publishQcm("start");
   return {
     status: 200 as const,
-    body: {
-      exam: publicExam(exam),
-      attempt: publicAttempt(created, exam.questionCount),
-      question: question ? publicQuestion(question, created.id) : null,
-    },
+    body: attemptBody(exam, created, question),
   };
 }
 
-async function answerExam(memberId: string, exam: QcmExamRow | null, choiceId: string) {
+async function answerExam(memberId: string, exam: QcmExamRow | null, choiceId: string | undefined, timedOut: boolean) {
   if (!exam || exam.status !== "open") {
     return { status: 409 as const, error: "qcm_closed" };
   }
-  const attempt = await memberAttempt(exam.id, memberId);
-  if (!attempt || attempt.status !== "in_progress") {
+  const live = await memberAttempt(exam.id, memberId);
+  if (!live || live.status !== "in_progress") {
     return { status: 409 as const, error: "qcm_not_started" };
+  }
+
+  const beforeIndex = live.currentIndex;
+  const attempt = await settleAttempt(exam, live);
+  if (timedOut || attempt.status !== "in_progress" || attempt.currentIndex !== beforeIndex) {
+    const question =
+      attempt.status === "in_progress" ? await questionAt(exam.id, attempt.currentIndex + 1) : null;
+    return { status: 200 as const, body: attemptBody(exam, attempt, question) };
+  }
+
+  if (!choiceId) {
+    return { status: 400 as const, error: "invalid_form" };
   }
 
   const question = await questionAt(exam.id, attempt.currentIndex + 1);
@@ -128,6 +149,7 @@ async function answerExam(memberId: string, exam: QcmExamRow | null, choiceId: s
       .set({
         currentIndex: nextIndex,
         lastAnsweredAt: now,
+        questionStartedAt: done ? attempt.questionStartedAt : now,
         ...(done ? { status: "completed", completedAt: now, score } : {}),
       })
       .where(and(eq(qcmAttempts.id, attempt.id), eq(qcmAttempts.status, "in_progress")))
@@ -144,11 +166,7 @@ async function answerExam(memberId: string, exam: QcmExamRow | null, choiceId: s
     result.status === "in_progress" ? await questionAt(exam.id, result.currentIndex + 1) : null;
   return {
     status: 200 as const,
-    body: {
-      exam: publicExam(exam),
-      attempt: publicAttempt(result, exam.questionCount),
-      question: nextQuestion ? publicQuestion(nextQuestion, result.id) : null,
-    },
+    body: attemptBody(exam, result, nextQuestion),
   };
 }
 
@@ -233,13 +251,13 @@ qcmRouter.post("/qcm/answer", requireMember, async (req, res, next) => {
       return;
     }
     const parsed = answerSchema.safeParse(req.body);
-    if (!parsed.success) {
+    if (!parsed.success || (!parsed.data.timedOut && !parsed.data.choiceId)) {
       res.status(400).json({ error: "invalid_form" });
       return;
     }
     const exam = await getInductionExam();
     try {
-      const result = await answerExam(memberId, exam, parsed.data.choiceId);
+      const result = await answerExam(memberId, exam, parsed.data.choiceId, Boolean(parsed.data.timedOut));
       if (result.status !== 200) {
         res.status(result.status).json({ error: result.error });
         return;
@@ -264,7 +282,7 @@ qcmRouter.post("/qcm/:slug/answer", requireMember, async (req, res, next) => {
       return;
     }
     const parsed = answerSchema.safeParse(req.body);
-    if (!parsed.success) {
+    if (!parsed.success || (!parsed.data.timedOut && !parsed.data.choiceId)) {
       res.status(400).json({ error: "invalid_form" });
       return;
     }
@@ -274,7 +292,7 @@ qcmRouter.post("/qcm/:slug/answer", requireMember, async (req, res, next) => {
       return;
     }
     try {
-      const result = await answerExam(memberId, exam, parsed.data.choiceId);
+      const result = await answerExam(memberId, exam, parsed.data.choiceId, Boolean(parsed.data.timedOut));
       if (result.status !== 200) {
         res.status(result.status).json({ error: result.error });
         return;

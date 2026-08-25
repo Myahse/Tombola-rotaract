@@ -117,6 +117,7 @@ export function attachRealtime(server: Server) {
               name: client.name ?? "",
               memberId: client.memberId,
               sdp: data.sdp,
+              screenStreamId: data.screenStreamId,
             });
             return;
           }

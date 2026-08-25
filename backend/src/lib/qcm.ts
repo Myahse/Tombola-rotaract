@@ -1,5 +1,5 @@
 import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
-import { db } from "../db/index.js";
+import { db, isUniqueViolation } from "../db/index.js";
 import { members, qcmAnswers, qcmAttempts, qcmExams, qcmQuestions } from "../db/schema.js";
 import type { QcmAttemptRow, QcmExamRow, QcmQuestionRow } from "../db/schema.js";
 import { broadcast } from "./realtime.js";
@@ -22,6 +22,8 @@ export type PublicAttempt = {
   score: number | null;
   startedAt: string;
   completedAt: string | null;
+  examEndsAt: string | null;
+  questionEndsAt: string | null;
 };
 
 export type MonitorAttempt = PublicAttempt & {
@@ -74,18 +76,46 @@ export function publicExam(row: QcmExamRow) {
     status: row.status,
     scoresSent: Boolean(row.scoresSentAt),
     slug: row.slug,
+    examDurationSeconds: row.examDurationSeconds && row.examDurationSeconds > 0 ? row.examDurationSeconds : null,
+    questionDurationSeconds:
+      row.questionDurationSeconds && row.questionDurationSeconds > 0 ? row.questionDurationSeconds : null,
   };
 }
 
-export function publicAttempt(row: QcmAttemptRow, questionCount: number): PublicAttempt {
+const TIMEOUT_CHOICE = "-";
+const TIMER_GRACE_MS = 1500;
+
+export function examDeadline(exam: QcmExamRow, attempt: QcmAttemptRow) {
+  const seconds = exam.examDurationSeconds;
+  if (!seconds || seconds < 1) return null;
+  return new Date(attempt.startedAt.getTime() + seconds * 1000);
+}
+
+export function questionDeadline(exam: QcmExamRow, attempt: QcmAttemptRow) {
+  const seconds = exam.questionDurationSeconds;
+  if (!seconds || seconds < 1) return null;
+  const start = attempt.questionStartedAt ?? attempt.lastAnsweredAt ?? attempt.startedAt;
+  return new Date(start.getTime() + seconds * 1000);
+}
+
+export function publicAttempt(
+  row: QcmAttemptRow,
+  questionCount: number,
+  exam?: QcmExamRow | null,
+  options?: { hideScore?: boolean },
+): PublicAttempt {
+  const examEnd = exam ? examDeadline(exam, row) : null;
+  const questionEnd = exam && row.status !== "completed" ? questionDeadline(exam, row) : null;
   return {
     id: row.id,
     status: row.status === "completed" ? "completed" : "in_progress",
     currentIndex: row.currentIndex,
     questionCount,
-    score: row.score,
+    score: options?.hideScore ? null : row.score,
     startedAt: row.startedAt.toISOString(),
     completedAt: row.completedAt ? row.completedAt.toISOString() : null,
+    examEndsAt: examEnd ? examEnd.toISOString() : null,
+    questionEndsAt: questionEnd ? questionEnd.toISOString() : null,
   };
 }
 
@@ -165,7 +195,7 @@ export async function monitorAttempts(examId: string): Promise<MonitorAttempt[]>
   const questionCount = exam?.questionCount ?? 20;
 
   return rows.map((row) => ({
-    ...publicAttempt(row.attempt, questionCount),
+    ...publicAttempt(row.attempt, questionCount, exam),
     memberId: row.attempt.memberId,
     memberName: row.memberName,
     memberEmail: row.memberEmail,
@@ -190,6 +220,79 @@ export async function adminQuestions(examId: string) {
     choices: parseChoices(row.choices),
     correctChoiceId: row.correctChoiceId,
   }));
+}
+
+export async function completeAttempt(attemptId: string, now = new Date()) {
+  const [totals] = await db
+    .select({ value: count() })
+    .from(qcmAnswers)
+    .where(and(eq(qcmAnswers.attemptId, attemptId), eq(qcmAnswers.correct, true)));
+  const [updated] = await db
+    .update(qcmAttempts)
+    .set({
+      status: "completed",
+      completedAt: now,
+      score: Number(totals?.value ?? 0),
+    })
+    .where(and(eq(qcmAttempts.id, attemptId), eq(qcmAttempts.status, "in_progress")))
+    .returning();
+  return updated ?? null;
+}
+
+async function timeoutCurrentQuestion(exam: QcmExamRow, attempt: QcmAttemptRow, now: Date, finish: boolean) {
+  const question = await questionAt(exam.id, attempt.currentIndex + 1);
+  const nextIndex = attempt.currentIndex + 1;
+  const done = finish || nextIndex >= exam.questionCount;
+  try {
+    if (question) {
+      await db.insert(qcmAnswers).values({
+        attemptId: attempt.id,
+        questionId: question.id,
+        choiceId: TIMEOUT_CHOICE,
+        correct: false,
+      });
+    }
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+  }
+  if (done) {
+    return (await completeAttempt(attempt.id, now)) ?? attempt;
+  }
+  const [updated] = await db
+    .update(qcmAttempts)
+    .set({
+      currentIndex: nextIndex,
+      lastAnsweredAt: now,
+      questionStartedAt: now,
+    })
+    .where(and(eq(qcmAttempts.id, attempt.id), eq(qcmAttempts.status, "in_progress")))
+    .returning();
+  return updated ?? attempt;
+}
+
+export async function settleAttempt(exam: QcmExamRow, attempt: QcmAttemptRow) {
+  if (attempt.status !== "in_progress") return attempt;
+  let current = attempt;
+  const now = new Date();
+  for (let step = 0; step < exam.questionCount + 2; step += 1) {
+    if (current.status !== "in_progress") return current;
+    const examEnd = examDeadline(exam, current);
+    if (examEnd && now.getTime() >= examEnd.getTime() + TIMER_GRACE_MS) {
+      current = await timeoutCurrentQuestion(exam, current, now, true);
+      if (current.status === "completed") publishQcm("complete");
+      return current;
+    }
+    const questionEnd = questionDeadline(exam, current);
+    if (questionEnd && now.getTime() >= questionEnd.getTime() + TIMER_GRACE_MS) {
+      const before = current.currentIndex;
+      current = await timeoutCurrentQuestion(exam, current, now, false);
+      publishQcm(current.status === "completed" ? "complete" : "answer");
+      if (current.currentIndex === before && current.status === "in_progress") return current;
+      continue;
+    }
+    return current;
+  }
+  return current;
 }
 
 export function publishQcm(reason: "start" | "answer" | "complete" | "exam") {
@@ -224,6 +327,8 @@ export async function saveInductionExam(input: {
   titleFr: string;
   titleEn: string;
   passScore: number;
+  examDurationSeconds: number | null;
+  questionDurationSeconds: number | null;
   questions: Array<{
     promptFr: string;
     promptEn: string;
@@ -249,6 +354,8 @@ export async function saveInductionExam(input: {
         titleFr: input.titleFr,
         titleEn: input.titleEn,
         passScore: input.passScore,
+        examDurationSeconds: input.examDurationSeconds,
+        questionDurationSeconds: input.questionDurationSeconds,
         questionCount: input.questions.length,
         updatedAt: new Date(),
       })

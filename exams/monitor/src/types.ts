@@ -10,6 +10,8 @@ export type QcmExam = {
   passScore: number;
   status: QcmExamStatus;
   scoresSent: boolean;
+  examDurationSeconds: number | null;
+  questionDurationSeconds: number | null;
 };
 
 export type QcmMonitorAttempt = {

@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RealtimeMessage } from "./protocol";
-import { attachLocalStream, getCallStream, iceConfig, parseIce, remoteStreamFromEvent, stopStream } from "./webrtc";
+import { getCallStream, iceConfig, parseIce, stopStream } from "./webrtc";
 
 export type CallPeer = {
   peerId: string;
   memberId: string;
   name: string;
   stream: MediaStream | null;
+  screen: MediaStream | null;
 };
 
 type RealtimeApi = {
@@ -61,7 +62,7 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
   const pcs = useRef(new Map<string, RTCPeerConnection>());
   const pendingIce = useRef(new Map<string, RTCIceCandidateInit[]>());
   const pendingOffers = useRef<Extract<RealtimeMessage, { type: "qcm.call.offer" }>[]>([]);
-  const meta = useRef(new Map<string, { memberId: string; name: string }>());
+  const meta = useRef(new Map<string, { memberId: string; name: string; screenStreamId?: string }>());
   const mediaSettled = useRef(false);
   const liveRef = useRef(true);
   const sendRef = useRef(send);
@@ -116,8 +117,13 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
     }
     const pc = new RTCPeerConnection(iceConfig);
     pcs.current.set(from, pc);
-    const info = { memberId: message.memberId ?? from, name: message.name || "Candidate" };
+    const info = {
+      memberId: message.memberId ?? from,
+      name: message.name || "Candidate",
+      screenStreamId: message.screenStreamId,
+    };
     meta.current.set(from, info);
+    localRef.current?.getTracks().forEach((track) => pc.addTrack(track, localRef.current as MediaStream));
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       sendRef.current({
@@ -127,11 +133,25 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
       });
     };
     pc.ontrack = (event) => {
-      const media = remoteStreamFromEvent(event);
+      const media = event.streams[0];
+      if (!media) return;
       const current = meta.current.get(from) ?? info;
+      const isScreen =
+        event.track.kind === "video" &&
+        Boolean(current.screenStreamId) &&
+        media.id === current.screenStreamId;
       setRemotes((prev) => {
+        const existing = prev.find((item) => item.peerId === from);
+        const base = existing ?? {
+          peerId: from,
+          memberId: current.memberId,
+          name: current.name,
+          stream: null,
+          screen: null,
+        };
         const rest = prev.filter((item) => item.peerId !== from);
-        return [...rest, { peerId: from, memberId: current.memberId, name: current.name, stream: media }];
+        if (isScreen) return [...rest, { ...base, memberId: current.memberId, name: current.name, screen: media }];
+        return [...rest, { ...base, memberId: current.memberId, name: current.name, stream: media }];
       });
     };
     pc.onconnectionstatechange = () => {
@@ -140,14 +160,13 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
       }
     };
     await pc.setRemoteDescription({ type: "offer", sdp: message.sdp });
-    await attachLocalStream(pc, localRef.current);
     await flushIce(from, pc);
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     sendRef.current({ type: "qcm.call.answer", to: from, sdp: answer.sdp ?? "" });
     setRemotes((prev) => {
       if (prev.some((item) => item.peerId === from)) return prev;
-      return [...prev, { peerId: from, memberId: info.memberId, name: info.name, stream: null }];
+      return [...prev, { peerId: from, memberId: info.memberId, name: info.name, stream: null, screen: null }];
     });
   }, []);
 
