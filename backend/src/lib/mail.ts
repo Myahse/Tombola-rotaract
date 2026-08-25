@@ -5,6 +5,7 @@ import { resetPasswordEmail, type ResetPasswordEmail } from "../emails/reset.js"
 import { verifyEmailMessage, type VerifyEmail } from "../emails/verify.js";
 import { welcomeEmail } from "../emails/welcome.js";
 import { qcmScoreEmail, type QcmScoreEmail } from "../emails/qcmScore.js";
+import { qcmInviteEmail, type QcmInviteEmail } from "../emails/qcmInvite.js";
 import {
   adhesionApplicantAckEmail,
   adhesionNoticeEmail,
@@ -203,6 +204,17 @@ export async function notifyDrawResults(recipients: (DrawResultsEmail & MemberTa
         : null,
       pushPayload,
     );
+  }
+}
+
+export async function notifyQcmInvite(recipients: Array<QcmInviteEmail & { memberId?: string }>) {
+  for (const recipient of recipients) {
+    if (!recipient.email.trim()) continue;
+    try {
+      await send({ email: recipient.email, name: recipient.name }, qcmInviteEmail(recipient));
+    } catch (error) {
+      console.error(`QCM invite email failed for ${recipient.email}`, error);
+    }
   }
 }
 

@@ -29,6 +29,8 @@ services:
         value: https://api.rotaractiugb.com
       - key: CAMPAIGN_SITE_URL
         value: https://campagnes.rotaractiugb.com
+      - key: EXAM_SITE_URL
+        value: https://examen.rotaractiugb.com
       - key: WAVE_PAY_URL
         value: https://pay.wave.com/m/M_ci_pHlyZFYyH1Su/c/ci/
       - key: RATE_LIMIT_REGISTER_PER_IP

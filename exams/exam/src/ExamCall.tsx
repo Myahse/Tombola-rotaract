@@ -4,6 +4,7 @@ import type { RealtimeMessage } from "./protocol";
 import { useRealtime } from "./useRealtime";
 import { DraggableCallDock } from "./components/DraggableCallDock";
 import { VideoTile } from "./components/VideoTile";
+import { useStay } from "./stay";
 import { getCallStream, iceConfig, parseIce, stopStream } from "./webrtc";
 
 export type CallStatus = "off" | "need" | "ready" | "denied";
@@ -65,6 +66,11 @@ export function ExamCall({ active, onStatus, onSession }: ExamCallProps) {
     }
   });
   sendRef.current = send;
+  const { setAwayReporter } = useStay();
+  useEffect(() => {
+    setAwayReporter((away) => send({ type: "qcm.presence", away }));
+    return () => setAwayReporter(null);
+  }, [send, setAwayReporter]);
   const connectedRef = useRef(connected);
   connectedRef.current = connected;
 

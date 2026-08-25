@@ -22,10 +22,14 @@ export const api = {
     request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   memberLogout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   memberMe: () => request<{ member: Member }>("/api/auth/me"),
-  qcm: () => request<QcmState>("/api/qcm"),
-  startQcm: () => request<QcmState>("/api/qcm/start", { method: "POST", body: JSON.stringify({}) }),
-  answerQcm: (choiceId: string) =>
-    request<QcmState>("/api/qcm/answer", { method: "POST", body: JSON.stringify({ choiceId }) }),
+  qcm: (slug: string) => request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}`),
+  startQcm: (slug: string) =>
+    request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/start`, { method: "POST", body: JSON.stringify({}) }),
+  answerQcm: (slug: string, choiceId: string) =>
+    request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/answer`, {
+      method: "POST",
+      body: JSON.stringify({ choiceId }),
+    }),
 };
 
 export function localized<T extends Record<string, unknown>>(item: T, lang: string, field: string) {

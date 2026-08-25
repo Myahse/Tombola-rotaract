@@ -37,6 +37,11 @@ export const api = {
   setQcmStatus: (status: "open" | "closed") =>
     request<QcmAdminState>("/api/admin/qcm/status", { method: "POST", body: JSON.stringify({ status }) }),
   sendQcmScores: () => request<QcmAdminState>("/api/admin/qcm/send-scores", { method: "POST", body: JSON.stringify({}) }),
+  inviteQcm: (body: { emails: string; lang: "fr" | "en" }) =>
+    request<{ sent: number; url: string }>("/api/admin/qcm/invite", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 export function localized<T extends Record<string, unknown>>(item: T, lang: string, field: string) {

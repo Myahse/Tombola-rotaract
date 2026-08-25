@@ -3,10 +3,9 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import type { QcmQuestion } from "../types";
 
-type DraftChoice = { textFr: string; textEn: string };
+type DraftChoice = { textFr: string };
 type DraftQuestion = {
   promptFr: string;
-  promptEn: string;
   choices: DraftChoice[];
   correctIndex: number;
 };
@@ -14,13 +13,7 @@ type DraftQuestion = {
 function emptyQuestion(): DraftQuestion {
   return {
     promptFr: "",
-    promptEn: "",
-    choices: [
-      { textFr: "", textEn: "" },
-      { textFr: "", textEn: "" },
-      { textFr: "", textEn: "" },
-      { textFr: "", textEn: "" },
-    ],
+    choices: [{ textFr: "" }, { textFr: "" }, { textFr: "" }, { textFr: "" }],
     correctIndex: 0,
   };
 }
@@ -28,7 +21,6 @@ function emptyQuestion(): DraftQuestion {
 function fromApi(question: QcmQuestion): DraftQuestion {
   const choices = [0, 1, 2, 3].map((index) => ({
     textFr: question.choices[index]?.textFr ?? "",
-    textEn: question.choices[index]?.textEn ?? "",
   }));
   const correctIndex = Math.max(
     0,
@@ -36,7 +28,6 @@ function fromApi(question: QcmQuestion): DraftQuestion {
   );
   return {
     promptFr: question.promptFr,
-    promptEn: question.promptEn,
     choices,
     correctIndex,
   };
@@ -45,7 +36,6 @@ function fromApi(question: QcmQuestion): DraftQuestion {
 export function QcmEditorPage() {
   const { t } = useTranslation();
   const [titleFr, setTitleFr] = useState("");
-  const [titleEn, setTitleEn] = useState("");
   const [passScore, setPassScore] = useState(1);
   const [questions, setQuestions] = useState<DraftQuestion[]>([emptyQuestion()]);
   const [locked, setLocked] = useState(false);
@@ -57,7 +47,6 @@ export function QcmEditorPage() {
   async function load() {
     const data = await api.qcm();
     setTitleFr(data.exam?.titleFr ?? "");
-    setTitleEn(data.exam?.titleEn ?? "");
     setPassScore(data.exam?.passScore ?? 1);
     setQuestions(data.questions.length ? data.questions.map(fromApi) : [emptyQuestion()]);
     setLocked(data.exam?.status === "open" || data.attempts.some((item) => item.status === "in_progress"));
@@ -83,7 +72,6 @@ export function QcmEditorPage() {
     try {
       const payload = {
         titleFr: titleFr.trim(),
-        titleEn: titleEn.trim(),
         passScore,
         questions: questions.map((question) => {
           const filled = question.choices
@@ -95,10 +83,8 @@ export function QcmEditorPage() {
           );
           return {
             promptFr: question.promptFr.trim(),
-            promptEn: question.promptEn.trim(),
             choices: filled.map((choice) => ({
               textFr: choice.textFr.trim(),
-              textEn: choice.textEn.trim(),
             })),
             correctIndex,
           };
@@ -138,10 +124,6 @@ export function QcmEditorPage() {
         <input value={titleFr} disabled={locked} onChange={(e) => setTitleFr(e.target.value)} required minLength={2} />
       </label>
       <label>
-        {t("qcm.titleEn")}
-        <input value={titleEn} disabled={locked} onChange={(e) => setTitleEn(e.target.value)} />
-      </label>
-      <label>
         {t("qcm.passScore")}
         <input
           type="number"
@@ -178,15 +160,6 @@ export function QcmEditorPage() {
               disabled={locked}
               onChange={(e) => updateQuestion(index, { ...question, promptFr: e.target.value })}
               required
-            />
-          </label>
-          <label>
-            {t("qcm.promptEn")}
-            <textarea
-              rows={2}
-              value={question.promptEn}
-              disabled={locked}
-              onChange={(e) => updateQuestion(index, { ...question, promptEn: e.target.value })}
             />
           </label>
           <fieldset>

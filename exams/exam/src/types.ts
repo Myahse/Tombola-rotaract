@@ -14,6 +14,7 @@ export type QcmAttemptStatus = "in_progress" | "completed";
 
 export type QcmExam = {
   id: string;
+  slug: string;
   titleFr: string;
   titleEn: string;
   questionCount: number;

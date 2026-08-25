@@ -1,21 +1,35 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { memberSiteUrl } from "../config";
 
+function safeNext(raw: string | null, lang: string) {
+  if (!raw) return `/${lang}/induction`;
+  try {
+    const value = decodeURIComponent(raw);
+    const match = value.match(/^\/(fr|en)\/([a-z0-9-]{2,40})$/);
+    if (!match?.[2]) return `/${lang}/induction`;
+    return `/${lang}/${match[2]}`;
+  } catch {
+    return `/${lang}/induction`;
+  }
+}
+
 export function LoginPage() {
   const { t } = useTranslation();
   const { lang } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const { member, loading, refresh } = useAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const next = safeNext(params.get("next"), lang ?? "fr");
   const registerUrl = memberSiteUrl(`/${lang ?? "fr"}/register`);
 
   if (loading) return <p className="lede">…</p>;
-  if (member) return <Navigate to={`/${lang}`} replace />;
+  if (member) return <Navigate to={next} replace />;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,7 +42,7 @@ export function LoginPage() {
         password: String(form.get("password") ?? ""),
       });
       await refresh();
-      navigate(`/${lang}`, { replace: true });
+      navigate(next, { replace: true });
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
       setError(code === "api_down" ? t("errors.apiDown") : t("errors.invalidCredentials"));

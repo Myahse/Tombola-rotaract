@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
+import { examSiteUrl } from "../config";
 import { useCallMedia } from "../call";
 import { VideoTile } from "../components/VideoTile";
-import { useLiveStatus, useLiveTick } from "../live";
+import { useLiveStatus, useLiveTick, useAwayIds } from "../live";
 import type { QcmAdminState } from "../types";
-
-const examSite = import.meta.env.VITE_EXAM_SITE ?? "http://localhost:5177";
 
 function CandidateVideo({ stream, name }: { stream: MediaStream | null; name: string }) {
   const { t } = useTranslation();
@@ -26,9 +25,12 @@ export function MonitorPage() {
   const [data, setData] = useState<QcmAdminState | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [inviteEmails, setInviteEmails] = useState("");
+  const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState("");
   const tick = useLiveTick();
   const live = useLiveStatus();
+  const awayIds = useAwayIds();
   const { local, remotes, camera, hangUp, startCall } = useCallMedia();
 
   async function load() {
@@ -55,6 +57,7 @@ export function MonitorPage() {
   ).length;
   const open = exam?.status === "open";
   const lang = i18n.language === "en" ? "en" : "fr";
+  const examLink = exam ? `${examSiteUrl()}/${lang}/${exam.slug}` : "";
   const attemptIds = new Set(attempts.map((item) => item.memberId));
   const waitingCameras = remotes.filter((peer) => !attemptIds.has(peer.memberId));
 
@@ -78,6 +81,27 @@ export function MonitorPage() {
       );
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function sendInvite() {
+    setInviting(true);
+    setMessage("");
+    try {
+      await api.inviteQcm({ emails: inviteEmails, lang });
+      setInviteEmails("");
+      setMessage(t("qcm.inviteSent"));
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setMessage(
+        code === "no_emails"
+          ? t("qcm.inviteNeedEmails")
+          : code === "not_found"
+            ? t("qcm.inviteNeedExam")
+            : t("errors.generic"),
+      );
+    } finally {
+      setInviting(false);
     }
   }
 
@@ -105,9 +129,36 @@ export function MonitorPage() {
       </p>
       <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
       <p className="lede mt-3">{t("qcm.lead")}</p>
-      <p className="field-hint">
-        {t("qcm.share")} {`${examSite}/${lang}`}
-      </p>
+      {examLink ? (
+        <p className="field-hint">
+          {t("qcm.share")}{" "}
+          <a href={examLink} target="_blank" rel="noreferrer">
+            {examLink}
+          </a>
+        </p>
+      ) : null}
+      {exam ? (
+        <div className="mt-4 grid gap-2">
+          <label>
+            {t("qcm.inviteEmails")}
+            <textarea
+              rows={4}
+              value={inviteEmails}
+              onChange={(event) => setInviteEmails(event.target.value)}
+              placeholder={t("qcm.invitePlaceholder")}
+            />
+          </label>
+          <p className="field-hint">{t("qcm.inviteHint")}</p>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={inviting || !inviteEmails.trim()}
+            onClick={() => void sendInvite()}
+          >
+            {inviting ? t("qcm.inviteSending") : t("qcm.inviteSend")}
+          </button>
+        </div>
+      ) : null}
       <p className="field-hint">
         {t("qcm.questionsCount", { count: data?.questions.length ?? 0 })}
       </p>
@@ -181,24 +232,28 @@ export function MonitorPage() {
           const progress = item.status === "completed" ? item.questionCount : item.currentIndex;
           const peer = remotes.find((remote) => remote.memberId === item.memberId);
           return (
-            <article key={item.id} className={`qcm-card ${item.status === "in_progress" ? "is-live" : ""}`}>
+            <article key={item.id} className={`qcm-card ${item.status === "in_progress" ? "is-live" : ""}${awayIds.has(item.memberId) ? " is-away" : ""}`}>
               {peer ? <CandidateVideo stream={peer.stream} name={item.memberName} /> : null}
               <div className="qcm-card-top">
                 <strong>{item.memberName}</strong>
                 <span
                   className={`badge ${
-                    item.status === "in_progress"
-                      ? "wait"
-                      : exam && item.score !== null && item.score >= exam.passScore
-                        ? "ok"
-                        : ""
+                    awayIds.has(item.memberId)
+                      ? ""
+                      : item.status === "in_progress"
+                        ? "wait"
+                        : exam && item.score !== null && item.score >= exam.passScore
+                          ? "ok"
+                          : ""
                   }`}
                 >
-                  {item.status === "in_progress"
-                    ? t("qcm.inProgress")
-                    : exam && item.score !== null && item.score >= exam.passScore
-                      ? t("qcm.passed")
-                      : t("qcm.failed")}
+                  {awayIds.has(item.memberId)
+                    ? t("qcm.leftScreen")
+                    : item.status === "in_progress"
+                      ? t("qcm.inProgress")
+                      : exam && item.score !== null && item.score >= exam.passScore
+                        ? t("qcm.passed")
+                        : t("qcm.failed")}
                 </span>
               </div>
               <p className="buyer-meta">

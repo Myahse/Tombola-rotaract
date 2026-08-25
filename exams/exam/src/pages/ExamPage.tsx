@@ -4,12 +4,16 @@ import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { useAuth } from "../auth";
 import { ExamCall, type CallStatus } from "../ExamCall";
-import { useStay } from "../stay";
+import { useStay, enterExamFullscreen } from "../stay";
 import type { QcmState } from "../types";
+
+const SLUG_RE = /^[a-z0-9-]{2,40}$/;
 
 export function ExamPage() {
   const { t, i18n } = useTranslation();
-  const { lang } = useParams();
+  const { lang, slug: rawSlug } = useParams();
+  const slug = (rawSlug ?? "").toLowerCase();
+  const validSlug = SLUG_RE.test(slug);
   const { member, loading } = useAuth();
   const [state, setState] = useState<QcmState | null>(null);
   const [ready, setReady] = useState(false);
@@ -24,36 +28,40 @@ export function ExamPage() {
   const showScore = attempt?.status === "completed" && !exam?.scoresSent;
   const screenOff = Boolean(exam?.scoresSent);
   const waitingScores = exam?.status === "closed" && !exam.scoresSent;
+  const loginPath = `/${lang}/login?next=${encodeURIComponent(`/${lang}/${slug}`)}`;
 
   async function load() {
-    const data = await api.qcm();
+    const data = await api.qcm(slug);
     setState(data);
     setReady(true);
   }
 
   useEffect(() => {
-    if (!member) return;
+    if (!member || !validSlug) return;
     load().catch(() => {
       setReady(true);
       setError(t("errors.generic"));
     });
-  }, [member, t]);
+  }, [member, slug, validSlug, t]);
 
   useEffect(() => {
-    if (!member || !(open || waitingScores)) return;
+    if (!member || !validSlug || !(open || waitingScores)) return;
     const timer = window.setInterval(() => {
       load().catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
-  }, [member, open, waitingScores]);
+  }, [member, open, waitingScores, slug, validSlug]);
+
+  const sessionLock = Boolean(inProgress || showScore || waitingScores);
 
   useEffect(() => {
-    setLocked(Boolean(inProgress));
+    setLocked(sessionLock);
     return () => setLocked(false);
-  }, [inProgress, setLocked]);
+  }, [sessionLock, setLocked]);
 
   if (loading) return <p className="lede">…</p>;
-  if (!member) return <Navigate to={`/${lang}/login`} replace />;
+  if (!validSlug) return <p className="lede">{t("qcm.unknown")}</p>;
+  if (!member) return <Navigate to={loginPath} replace />;
   if (!ready) return <p className="lede">…</p>;
 
   const question = state?.question ?? null;
@@ -65,7 +73,8 @@ export function ExamPage() {
     setBusy(true);
     setError("");
     try {
-      setState(await api.startQcm());
+      enterExamFullscreen();
+      setState(await api.startQcm(slug));
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
       setError(code === "qcm_closed" ? t("qcm.closed") : t("errors.generic"));
@@ -78,7 +87,7 @@ export function ExamPage() {
     setBusy(true);
     setError("");
     try {
-      setState(await api.answerQcm(choiceId));
+      setState(await api.answerQcm(slug, choiceId));
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
       if (code === "qcm_closed") {
@@ -105,7 +114,8 @@ export function ExamPage() {
       <p className="eyebrow">{t("qcm.kicker")}</p>
       <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
 
-      {!exam || (!open && !attempt) ? <p className="lede mt-3">{t("qcm.closed")}</p> : null}
+      {!exam ? <p className="lede mt-3">{t("qcm.unknown")}</p> : null}
+      {exam && !open && !attempt ? <p className="lede mt-3">{t("qcm.closed")}</p> : null}
 
       {exam && !attempt && open ? (
         <>

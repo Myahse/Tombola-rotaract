@@ -1249,6 +1249,9 @@ textarea.skeleton {
 .qcm-card.is-live {
   border-color: color-mix(in srgb, var(--primary) 45%, var(--line));
 }
+.qcm-card.is-away {
+  border-color: var(--error, #b42318);
+}
 .qcm-card-top {
   display: flex;
   justify-content: space-between;

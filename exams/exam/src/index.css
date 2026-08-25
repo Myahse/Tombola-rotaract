@@ -1399,6 +1399,32 @@ textarea.skeleton {
   font-weight: 600;
 }
 
+.exam-lockout {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 0.85rem;
+  padding: 2rem;
+  background: rgba(10, 10, 12, 0.94);
+  color: #f3f3f5;
+  text-align: center;
+}
+
+.exam-lockout-title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.exam-lockout p {
+  margin: 0;
+  max-width: 28rem;
+  color: #c9c9cf;
+}
+
 @media print {
   .no-print, .site-header, .bottom-nav, .call-dock { display: none !important; }
   .app-shell { padding-top: 0; }

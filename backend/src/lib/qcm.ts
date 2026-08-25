@@ -73,6 +73,7 @@ export function publicExam(row: QcmExamRow) {
     passScore: row.passScore,
     status: row.status,
     scoresSent: Boolean(row.scoresSentAt),
+    slug: row.slug,
   };
 }
 
@@ -98,9 +99,15 @@ export function publicQuestion(row: QcmQuestionRow, seed: string): PublicQuestio
   };
 }
 
-export async function getInductionExam() {
-  const [exam] = await db.select().from(qcmExams).where(eq(qcmExams.slug, "induction")).limit(1);
+export async function getExamBySlug(slug: string) {
+  const value = slug.trim().toLowerCase();
+  if (!/^[a-z0-9-]{2,40}$/.test(value)) return null;
+  const [exam] = await db.select().from(qcmExams).where(eq(qcmExams.slug, value)).limit(1);
   return exam ?? null;
+}
+
+export async function getInductionExam() {
+  return getExamBySlug("induction");
 }
 
 export async function questionAt(examId: string, position: number) {

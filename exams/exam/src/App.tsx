@@ -4,13 +4,14 @@ import { ExamPage } from "./pages/ExamPage";
 import { LoginPage } from "./pages/LoginPage";
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/fr" replace /> },
+  { path: "/", element: <Navigate to="/fr/induction" replace /> },
   {
     path: "/:lang",
     element: <Layout />,
     children: [
-      { index: true, element: <ExamPage /> },
+      { index: true, element: <Navigate to="induction" replace /> },
       { path: "login", element: <LoginPage /> },
+      { path: ":slug", element: <ExamPage /> },
     ],
   },
 ]);

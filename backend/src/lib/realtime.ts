@@ -157,6 +157,20 @@ export function attachRealtime(server: Server) {
           if (data.type === "qcm.call.hangup") {
             if (client.role !== "candidate" && client.role !== "monitor") return;
             hangupFrom(client, data.to);
+            return;
+          }
+
+          if (data.type === "qcm.presence") {
+            if (client.role !== "candidate") return;
+            for (const monitor of monitors()) {
+              sendJson(monitor, {
+                type: "qcm.presence",
+                away: Boolean(data.away),
+                from: client.id,
+                name: client.name ?? "",
+                memberId: client.memberId,
+              });
+            }
           }
         } catch {
           // ignore malformed frames

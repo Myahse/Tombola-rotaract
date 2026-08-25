@@ -1,8 +1,9 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { qcmExams } from "../db/schema.js";
+import { members, qcmExams } from "../db/schema.js";
+import { examSiteUrl } from "../emails/layout.js";
 import { requireAdmin } from "../lib/auth.js";
 import {
   adminQuestions,
@@ -13,6 +14,8 @@ import {
   saveInductionExam,
   stopLiveAttempts,
 } from "../lib/qcm.js";
+import { clientKey, enforceRateLimit } from "../lib/rateLimit.js";
+import { translateFrToEnMany } from "../lib/translate.js";
 
 const choiceSchema = z.object({
   textFr: z.string().trim().min(1).max(240),
@@ -36,6 +39,28 @@ const examSchema = z.object({
 const statusSchema = z.object({
   status: z.enum(["open", "closed"]),
 });
+
+const inviteSchema = z.object({
+  emails: z.string().trim().min(1).max(20000),
+  lang: z.enum(["fr", "en"]).optional(),
+});
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_INVITE_EMAILS = 80;
+
+function parseInviteEmails(raw: string) {
+  const seen = new Set<string>();
+  const emails: string[] = [];
+  for (const part of raw.split(/[,;\n\r\t ]+/)) {
+    const email = part.trim().toLowerCase();
+    if (!email) continue;
+    if (!EMAIL_RE.test(email) || seen.has(email)) continue;
+    seen.add(email);
+    emails.push(email);
+    if (emails.length >= MAX_INVITE_EMAILS) break;
+  }
+  return emails;
+}
 
 const ids = ["a", "b", "c", "d", "e", "f"];
 
@@ -68,6 +93,24 @@ function normalizeExam(data: z.infer<typeof examSchema>) {
   };
 }
 
+async function withEnglish(data: ReturnType<typeof normalizeExam>) {
+  const source = [
+    data.titleFr,
+    ...data.questions.flatMap((question) => [question.promptFr, ...question.choices.map((choice) => choice.textFr)]),
+  ];
+  const translated = await translateFrToEnMany(source);
+  const en = (value: string) => translated.get(value.trim()) || value;
+  return {
+    ...data,
+    titleEn: en(data.titleFr),
+    questions: data.questions.map((question) => ({
+      ...question,
+      promptEn: en(question.promptFr),
+      choices: question.choices.map((choice) => ({ ...choice, textEn: en(choice.textFr) })),
+    })),
+  };
+}
+
 async function payload() {
   const exam = await getInductionExam();
   if (!exam) return { exam: null, questions: [], attempts: [] };
@@ -93,7 +136,7 @@ export function registerAdminQcmRoutes(router: Router) {
       }
       let normalized;
       try {
-        normalized = normalizeExam(parsed.data);
+        normalized = await withEnglish(normalizeExam(parsed.data));
       } catch (error) {
         const code = error instanceof Error ? error.message : "invalid_form";
         res.status(400).json({ error: code });
@@ -147,6 +190,54 @@ export function registerAdminQcmRoutes(router: Router) {
         questions: await adminQuestions(exam.id),
         attempts: await monitorAttempts(exam.id),
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/qcm/invite", requireAdmin, async (req, res, next) => {
+    try {
+      if (!(await enforceRateLimit(res, `qcm-invite:${clientKey(req)}`, 8, 15 * 60 * 1000))) {
+        return;
+      }
+      const parsed = inviteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "invalid_form" });
+        return;
+      }
+      const emails = parseInviteEmails(parsed.data.emails);
+      if (!emails.length) {
+        res.status(400).json({ error: "no_emails" });
+        return;
+      }
+      const exam = await getInductionExam();
+      if (!exam) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      const lang = parsed.data.lang === "en" ? "en" : "fr";
+      const examUrl = examSiteUrl(`/${lang}/${exam.slug}`);
+      const found = await db
+        .select({ id: members.id, name: members.name, email: members.email })
+        .from(members)
+        .where(inArray(members.email, emails));
+      const byEmail = new Map(found.map((row) => [row.email.trim().toLowerCase(), row]));
+      const { notifyQcmInvite } = await import("../lib/mail.js");
+      await notifyQcmInvite(
+        emails.map((email) => {
+          const member = byEmail.get(email);
+          return {
+            name: member?.name || email.split("@")[0] || email,
+            email,
+            memberId: member?.id,
+            titleFr: exam.titleFr,
+            titleEn: exam.titleEn,
+            examUrl,
+            lang,
+          };
+        }),
+      );
+      res.json({ sent: emails.length, url: examUrl });
     } catch (error) {
       next(error);
     }

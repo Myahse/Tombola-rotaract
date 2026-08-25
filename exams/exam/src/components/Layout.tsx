@@ -2,7 +2,7 @@ import { NavLink, Outlet, useBlocker, useLocation, useNavigate, useParams } from
 import { useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { isLanguage } from "../i18n";
-import { StayProvider, useStay } from "../stay";
+import { StayProvider, useStay, ExamGuard } from "../stay";
 import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
 import { useAuth } from "../auth";
@@ -16,7 +16,7 @@ export function Layout() {
 }
 
 function ExamShell() {
-  const { lang } = useParams();
+  const { lang, slug } = useParams();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,7 +26,7 @@ function ExamShell() {
 
   useEffect(() => {
     if (!isLanguage(lang)) {
-      navigate("/fr", { replace: true });
+      navigate("/fr/induction", { replace: true });
       return;
     }
     void i18n.changeLanguage(lang);
@@ -47,10 +47,12 @@ function ExamShell() {
     return () => window.removeEventListener("beforeunload", onLeave);
   }, [locked]);
 
-  const base = `/${lang ?? "fr"}`;
+  const base = slug ? `/${lang ?? "fr"}/${slug}` : `/${lang ?? "fr"}`;
+  const loginTo = `/${lang ?? "fr"}/login${slug ? `?next=${encodeURIComponent(base)}` : ""}`;
 
   return (
     <div className="app-shell">
+      <ExamGuard />
       <header className="site-header no-print">
         {locked ? (
           <span className="brand-row">
@@ -68,7 +70,7 @@ function ExamShell() {
             </button>
           ) : null}
           {!member ? (
-            <NavLink to={`${base}/login`} className="header-auth">
+            <NavLink to={loginTo} className="header-auth">
               {t("nav.login")}
             </NavLink>
           ) : null}
