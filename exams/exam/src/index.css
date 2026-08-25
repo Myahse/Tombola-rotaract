@@ -1370,6 +1370,20 @@ textarea.skeleton {
 .call-tile.is-self {
   width: 7.25rem;
 }
+.call-tile.is-proctor {
+  width: 13.5rem;
+}
+.call-listen {
+  pointer-events: auto;
+  cursor: pointer;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(20, 20, 22, 0.78);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 650;
+}
 .call-tile video.is-mirror {
   transform: scaleX(-1);
 }

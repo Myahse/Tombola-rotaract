@@ -18,6 +18,33 @@ export async function getCallStream() {
   });
 }
 
+export function remoteStreamFromEvent(event: RTCTrackEvent) {
+  const media = event.streams[0] ?? new MediaStream([event.track]);
+  if (!media.getTracks().includes(event.track)) media.addTrack(event.track);
+  return media;
+}
+
+export async function attachLocalStream(pc: RTCPeerConnection, stream: MediaStream | null) {
+  if (!stream) return;
+  for (const track of stream.getTracks()) {
+    const transceiver =
+      pc.getTransceivers().find((item) => {
+        const kind = item.receiver.track?.kind ?? item.sender.track?.kind;
+        return kind === track.kind && !item.sender.track;
+      }) ??
+      pc.getTransceivers().find((item) => {
+        const kind = item.receiver.track?.kind ?? item.sender.track?.kind;
+        return kind === track.kind;
+      });
+    if (transceiver) {
+      await transceiver.sender.replaceTrack(track);
+      transceiver.direction = "sendrecv";
+    } else {
+      pc.addTrack(track, stream);
+    }
+  }
+}
+
 export function stopStream(stream: MediaStream | null | undefined) {
   stream?.getTracks().forEach((track) => track.stop());
 }

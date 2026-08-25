@@ -42,6 +42,8 @@
     "callTitle": "Appel vidéo",
     "you": "Vous",
     "proctor": "Surveillance",
+    "listen": "Écouter",
+    "mute": "Couper",
     "cameraWait": "Autorisez la caméra et le micro pour continuer.",
     "cameraDenied": "Caméra ou micro refusé. Autorisez-les dans le navigateur, puis rechargez la page.",
     "callEnded": "L’appel vidéo est terminé.",

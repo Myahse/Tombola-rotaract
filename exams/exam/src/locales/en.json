@@ -42,6 +42,8 @@
     "callTitle": "Video call",
     "you": "You",
     "proctor": "Proctor",
+    "listen": "Listen",
+    "mute": "Mute",
     "cameraWait": "Allow the camera and microphone to continue.",
     "cameraDenied": "Camera or microphone was blocked. Allow them in the browser, then reload.",
     "callEnded": "The video call has ended.",

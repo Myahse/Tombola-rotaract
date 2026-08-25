@@ -129,6 +129,23 @@ export function MonitorPage() {
       </p>
       <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
       <p className="lede mt-3">{t("qcm.lead")}</p>
+
+      <div className="call-self mt-4">
+        {local ? <VideoTile stream={local} muted mirror label={t("qcm.you")} /> : <VideoTile stream={null} label={t("qcm.you")} />}
+        {camera === "need" ? <p className="field-hint">{t("qcm.cameraWait")}</p> : null}
+        {camera === "denied" ? <p className="text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
+        {camera === "off" ? <p className="field-hint">{t("qcm.callEnded")}</p> : null}
+        {camera === "ready" ? (
+          <button type="button" className="btn-hangup" onClick={hangUp}>
+            {t("qcm.endCall")}
+          </button>
+        ) : null}
+        {camera === "off" || camera === "denied" ? (
+          <button type="button" className="btn-primary" onClick={() => void startCall()}>
+            {t("qcm.startCall")}
+          </button>
+        ) : null}
+      </div>
       {examLink ? (
         <p className="field-hint">
           {t("qcm.share")}{" "}
@@ -162,23 +179,6 @@ export function MonitorPage() {
       <p className="field-hint">
         {t("qcm.questionsCount", { count: data?.questions.length ?? 0 })}
       </p>
-      {camera === "need" ? <p className="field-hint">{t("qcm.cameraWait")}</p> : null}
-      {camera === "denied" ? <p className="mt-3 text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
-      {camera === "off" ? <p className="field-hint">{t("qcm.callEnded")}</p> : null}
-
-      <div className="call-self mt-4">
-        {local ? <VideoTile stream={local} muted mirror label={t("qcm.you")} /> : null}
-        {camera === "ready" ? (
-          <button type="button" className="btn-hangup" onClick={hangUp}>
-            {t("qcm.endCall")}
-          </button>
-        ) : null}
-        {camera === "off" || camera === "denied" ? (
-          <button type="button" className="btn-primary" onClick={() => void startCall()}>
-            {t("qcm.startCall")}
-          </button>
-        ) : null}
-      </div>
 
       <dl className="stat-list mt-4">
         <div className="fact">

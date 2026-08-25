@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { RealtimeMessage } from "./protocol";
-import { getCallStream, iceConfig, parseIce, stopStream } from "./webrtc";
+import { attachLocalStream, getCallStream, iceConfig, parseIce, remoteStreamFromEvent, stopStream } from "./webrtc";
 
 export type CallPeer = {
   peerId: string;
@@ -118,7 +118,6 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
     pcs.current.set(from, pc);
     const info = { memberId: message.memberId ?? from, name: message.name || "Candidate" };
     meta.current.set(from, info);
-    localRef.current?.getTracks().forEach((track) => pc.addTrack(track, localRef.current as MediaStream));
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       sendRef.current({
@@ -128,8 +127,7 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
       });
     };
     pc.ontrack = (event) => {
-      const media = event.streams[0];
-      if (!media) return;
+      const media = remoteStreamFromEvent(event);
       const current = meta.current.get(from) ?? info;
       setRemotes((prev) => {
         const rest = prev.filter((item) => item.peerId !== from);
@@ -142,6 +140,7 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
       }
     };
     await pc.setRemoteDescription({ type: "offer", sdp: message.sdp });
+    await attachLocalStream(pc, localRef.current);
     await flushIce(from, pc);
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
