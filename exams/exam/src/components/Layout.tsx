@@ -48,7 +48,8 @@ function ExamShell() {
   }, [locked]);
 
   const base = slug ? `/${lang ?? "fr"}/${slug}` : `/${lang ?? "fr"}`;
-  const loginTo = `/${lang ?? "fr"}/login${slug ? `?next=${encodeURIComponent(base)}` : ""}`;
+  const withInvite = slug ? `${base}${location.search}` : base;
+  const loginTo = `/${lang ?? "fr"}/login${slug ? `?next=${encodeURIComponent(withInvite)}` : ""}`;
 
   return (
     <div className="app-shell">
@@ -59,7 +60,7 @@ function ExamShell() {
             <BrandLogo />
           </span>
         ) : (
-          <NavLink to={base} className="brand-row">
+          <NavLink to={withInvite} className="brand-row">
             <BrandLogo />
           </NavLink>
         )}

@@ -55,4 +55,5 @@ export type QcmState = {
   exam: QcmExam | null;
   attempt: QcmAttempt | null;
   question: QcmQuestion | null;
+  inviteError?: string | null;
 };

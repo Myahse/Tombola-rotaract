@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { useAuth } from "../auth";
@@ -75,7 +75,9 @@ function ExamClocks({
 export function ExamPage() {
   const { t, i18n } = useTranslation();
   const { lang, slug: rawSlug } = useParams();
+  const [params] = useSearchParams();
   const slug = (rawSlug ?? "").toLowerCase();
+  const invite = params.get("invite")?.trim() || "";
   const validSlug = SLUG_RE.test(slug);
   const { member, loading } = useAuth();
   const [state, setState] = useState<QcmState | null>(null);
@@ -87,14 +89,16 @@ export function ExamPage() {
   const { setLocked } = useStay();
   const exam = state?.exam ?? null;
   const attempt = state?.attempt ?? null;
+  const inviteError = state?.inviteError ?? null;
   const open = exam?.status === "open";
   const inProgress = open && attempt?.status === "in_progress";
   const waitingScores = Boolean(attempt?.status === "completed" && exam && !exam.scoresSent);
   const screenOff = Boolean(exam?.scoresSent);
-  const loginPath = `/${lang}/login?next=${encodeURIComponent(`/${lang}/${slug}`)}`;
+  const examPath = `/${lang}/${slug}${invite ? `?invite=${encodeURIComponent(invite)}` : ""}`;
+  const loginPath = `/${lang}/login?next=${encodeURIComponent(examPath)}`;
 
   async function load() {
-    const data = await api.qcm(slug);
+    const data = await api.qcm(slug, invite || undefined);
     setState(data);
     setReady(true);
   }
@@ -105,7 +109,7 @@ export function ExamPage() {
       setReady(true);
       setError(t("errors.generic"));
     });
-  }, [member, slug, validSlug, t]);
+  }, [member, slug, invite, validSlug, t]);
 
   useEffect(() => {
     if (!member || !validSlug || !(open || waitingScores)) return;
@@ -113,7 +117,7 @@ export function ExamPage() {
       load().catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
-  }, [member, open, waitingScores, slug, validSlug]);
+  }, [member, open, waitingScores, slug, invite, validSlug]);
 
   const sessionLock = Boolean(inProgress || waitingScores);
 
@@ -128,7 +132,8 @@ export function ExamPage() {
   if (!ready) return <p className="lede">…</p>;
 
   const question = state?.question ?? null;
-  const calling = Boolean(open && (inProgress || !attempt));
+  const invited = !inviteError;
+  const calling = Boolean(open && (inProgress || (!attempt && invited)));
   const canStart = camera === "ready";
 
   async function start() {
@@ -137,10 +142,18 @@ export function ExamPage() {
     setError("");
     try {
       enterExamFullscreen();
-      setState(await api.startQcm(slug));
+      setState(await api.startQcm(slug, invite || undefined));
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
-      setError(code === "qcm_closed" ? t("qcm.closed") : t("errors.generic"));
+      setError(
+        code === "qcm_closed"
+          ? t("qcm.closed")
+          : code === "not_invited"
+            ? t("qcm.notInvited")
+            : code === "invite_mismatch"
+              ? t("qcm.inviteMismatch")
+              : t("errors.generic"),
+      );
     } finally {
       setBusy(false);
     }
@@ -192,9 +205,11 @@ export function ExamPage() {
       <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
 
       {!exam ? <p className="lede mt-3">{t("qcm.unknown")}</p> : null}
-      {exam && !open && !attempt ? <p className="lede mt-3">{t("qcm.closed")}</p> : null}
+      {inviteError === "not_invited" ? <p className="lede mt-3">{t("qcm.notInvited")}</p> : null}
+      {inviteError === "invite_mismatch" ? <p className="lede mt-3">{t("qcm.inviteMismatch")}</p> : null}
+      {exam && !open && !attempt && !inviteError ? <p className="lede mt-3">{t("qcm.closed")}</p> : null}
 
-      {exam && !attempt && open ? (
+      {exam && !attempt && open && invited ? (
         <>
           <p className="lede mt-3">{t("qcm.intro", { count: exam.questionCount, pass: exam.passScore })}</p>
           {exam.examDurationSeconds ? (

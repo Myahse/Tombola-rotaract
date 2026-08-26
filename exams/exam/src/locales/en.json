@@ -35,6 +35,8 @@
     "progress": "Question {{current}} / {{total}}",
     "closed": "The quiz is not open right now.",
     "unknown": "This link does not match any quiz.",
+    "notInvited": "You are not invited to this quiz. Open the personal link from your email, with that same account.",
+    "inviteMismatch": "This link belongs to another email address. Log in with the invited account.",
     "doneTitle": "Quiz complete",
     "score": "Your score: {{score}} / {{total}}",
     "doneLead": "The club will email your mark after the session.",

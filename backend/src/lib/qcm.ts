@@ -1,6 +1,6 @@
-import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, isUniqueViolation } from "../db/index.js";
-import { members, qcmAnswers, qcmAttempts, qcmExams, qcmQuestions } from "../db/schema.js";
+import { members, qcmAnswers, qcmAttempts, qcmExams, qcmInvites, qcmQuestions } from "../db/schema.js";
 import type { QcmAttemptRow, QcmExamRow, QcmQuestionRow } from "../db/schema.js";
 import { broadcast } from "./realtime.js";
 
@@ -153,7 +153,7 @@ export async function memberAttempt(examId: string, memberId: string) {
   const [row] = await db
     .select()
     .from(qcmAttempts)
-    .where(and(eq(qcmAttempts.examId, examId), eq(qcmAttempts.memberId, memberId)))
+    .where(and(eq(qcmAttempts.examId, examId), eq(qcmAttempts.memberId, memberId), isNull(qcmAttempts.archivedAt)))
     .limit(1);
   return row ?? null;
 }
@@ -169,7 +169,7 @@ export async function monitorAttempts(examId: string): Promise<MonitorAttempt[]>
     })
     .from(qcmAttempts)
     .innerJoin(members, eq(members.id, qcmAttempts.memberId))
-    .where(eq(qcmAttempts.examId, examId))
+    .where(and(eq(qcmAttempts.examId, examId), isNull(qcmAttempts.archivedAt)))
     .orderBy(
       sql`case when ${qcmAttempts.status} = 'in_progress' then 0 else 1 end`,
       desc(qcmAttempts.lastAnsweredAt),
@@ -236,6 +236,9 @@ export async function completeAttempt(attemptId: string, now = new Date()) {
     })
     .where(and(eq(qcmAttempts.id, attemptId), eq(qcmAttempts.status, "in_progress")))
     .returning();
+  if (updated?.inviteId) {
+    await db.update(qcmInvites).set({ status: "completed" }).where(eq(qcmInvites.id, updated.inviteId));
+  }
   return updated ?? null;
 }
 
@@ -305,21 +308,10 @@ export async function stopLiveAttempts(examId: string) {
   const live = await db
     .select({ id: qcmAttempts.id })
     .from(qcmAttempts)
-    .where(and(eq(qcmAttempts.examId, examId), eq(qcmAttempts.status, "in_progress")));
+    .where(and(eq(qcmAttempts.examId, examId), eq(qcmAttempts.status, "in_progress"), isNull(qcmAttempts.archivedAt)));
   const now = new Date();
   for (const row of live) {
-    const [totals] = await db
-      .select({ value: count() })
-      .from(qcmAnswers)
-      .where(and(eq(qcmAnswers.attemptId, row.id), eq(qcmAnswers.correct, true)));
-    await db
-      .update(qcmAttempts)
-      .set({
-        status: "completed",
-        completedAt: now,
-        score: Number(totals?.value ?? 0),
-      })
-      .where(eq(qcmAttempts.id, row.id));
+    await completeAttempt(row.id, now);
   }
 }
 
@@ -343,7 +335,7 @@ export async function saveInductionExam(input: {
   const [live] = await db
     .select({ id: qcmAttempts.id })
     .from(qcmAttempts)
-    .where(and(eq(qcmAttempts.examId, exam.id), eq(qcmAttempts.status, "in_progress")))
+    .where(and(eq(qcmAttempts.examId, exam.id), eq(qcmAttempts.status, "in_progress"), isNull(qcmAttempts.archivedAt)))
     .limit(1);
   if (live) return { error: "qcm_locked" as const };
 

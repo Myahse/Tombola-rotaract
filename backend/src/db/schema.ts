@@ -287,26 +287,24 @@ export const qcmQuestions = pgTable(
   (table) => [unique().on(table.examId, table.position)],
 );
 
-export const qcmAttempts = pgTable(
-  "qcm_attempts",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    examId: uuid("exam_id")
-      .notNull()
-      .references(() => qcmExams.id, { onDelete: "cascade" }),
-    memberId: uuid("member_id")
-      .notNull()
-      .references(() => members.id, { onDelete: "cascade" }),
-    status: text("status").notNull().default("in_progress"),
-    currentIndex: integer("current_index").notNull().default(0),
-    score: integer("score"),
-    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
-    questionStartedAt: timestamp("question_started_at", { withTimezone: true }),
-    completedAt: timestamp("completed_at", { withTimezone: true }),
-    lastAnsweredAt: timestamp("last_answered_at", { withTimezone: true }),
-  },
-  (table) => [unique().on(table.examId, table.memberId)],
-);
+export const qcmAttempts = pgTable("qcm_attempts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  examId: uuid("exam_id")
+    .notNull()
+    .references(() => qcmExams.id, { onDelete: "cascade" }),
+  memberId: uuid("member_id")
+    .notNull()
+    .references(() => members.id, { onDelete: "cascade" }),
+  status: text("status").notNull().default("in_progress"),
+  currentIndex: integer("current_index").notNull().default(0),
+  score: integer("score"),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  questionStartedAt: timestamp("question_started_at", { withTimezone: true }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  lastAnsweredAt: timestamp("last_answered_at", { withTimezone: true }),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  inviteId: uuid("invite_id"),
+});
 
 export const qcmAnswers = pgTable(
   "qcm_answers",
@@ -325,6 +323,20 @@ export const qcmAnswers = pgTable(
   (table) => [unique().on(table.attemptId, table.questionId)],
 );
 
+export const qcmInvites = pgTable("qcm_invites", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  examId: uuid("exam_id")
+    .notNull()
+    .references(() => qcmExams.id, { onDelete: "cascade" }),
+  email: text("email").notNull(),
+  memberId: uuid("member_id").references(() => members.id, { onDelete: "set null" }),
+  token: text("token").notNull().unique(),
+  status: text("status").notNull().default("pending"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type MemberRow = typeof members.$inferSelect;
 export type DonationRow = typeof donations.$inferSelect;
 export type EventRow = typeof events.$inferSelect;
@@ -335,3 +347,4 @@ export type CampaignRow = typeof campaigns.$inferSelect;
 export type QcmExamRow = typeof qcmExams.$inferSelect;
 export type QcmQuestionRow = typeof qcmQuestions.$inferSelect;
 export type QcmAttemptRow = typeof qcmAttempts.$inferSelect;
+export type QcmInviteRow = typeof qcmInvites.$inferSelect;

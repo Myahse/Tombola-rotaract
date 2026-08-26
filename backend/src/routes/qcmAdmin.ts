@@ -1,19 +1,18 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { members, qcmExams } from "../db/schema.js";
-import { examSiteUrl } from "../emails/layout.js";
+import { qcmExams } from "../db/schema.js";
 import { requireAdmin } from "../lib/auth.js";
 import {
   adminQuestions,
   getInductionExam,
   monitorAttempts,
-  publicExam,
   publishQcm,
   saveInductionExam,
   stopLiveAttempts,
 } from "../lib/qcm.js";
+import { archiveLiveSession, deleteArchive, parseInviteEmails, payloadForExam, upsertInvites } from "../lib/qcmInvites.js";
 import { clientKey, enforceRateLimit } from "../lib/rateLimit.js";
 import { translateFrToEnMany } from "../lib/translate.js";
 
@@ -43,26 +42,13 @@ const statusSchema = z.object({
 });
 
 const inviteSchema = z.object({
-  emails: z.string().trim().min(1).max(20000),
+  emails: z.array(z.string().trim().min(3).max(120)).min(1).max(80),
   lang: z.enum(["fr", "en"]).optional(),
 });
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MAX_INVITE_EMAILS = 80;
-
-function parseInviteEmails(raw: string) {
-  const seen = new Set<string>();
-  const emails: string[] = [];
-  for (const part of raw.split(/[,;\n\r\t ]+/)) {
-    const email = part.trim().toLowerCase();
-    if (!email) continue;
-    if (!EMAIL_RE.test(email) || seen.has(email)) continue;
-    seen.add(email);
-    emails.push(email);
-    if (emails.length >= MAX_INVITE_EMAILS) break;
-  }
-  return emails;
-}
+const archiveDeleteSchema = z.object({
+  archivedAt: z.string().trim().min(8).max(40),
+});
 
 const ids = ["a", "b", "c", "d", "e", "f"];
 
@@ -116,17 +102,17 @@ async function withEnglish(data: ReturnType<typeof normalizeExam>) {
   };
 }
 
-async function payload() {
+async function payload(lang: "fr" | "en" = "fr") {
   const exam = await getInductionExam();
-  if (!exam) return { exam: null, questions: [], attempts: [] };
-  const [questions, attempts] = await Promise.all([adminQuestions(exam.id), monitorAttempts(exam.id)]);
-  return { exam: publicExam(exam), questions, attempts };
+  if (!exam) return { exam: null, questions: [], attempts: [], invites: [], archives: [] };
+  return payloadForExam(exam.id, lang);
 }
 
 export function registerAdminQcmRoutes(router: Router) {
-  router.get("/qcm", requireAdmin, async (_req, res, next) => {
+  router.get("/qcm", requireAdmin, async (req, res, next) => {
     try {
-      res.json(await payload());
+      const lang = req.query.lang === "en" ? "en" : "fr";
+      res.json(await payload(lang));
     } catch (error) {
       next(error);
     }
@@ -152,7 +138,7 @@ export function registerAdminQcmRoutes(router: Router) {
         res.status(saved.error === "not_found" ? 404 : 409).json({ error: saved.error });
         return;
       }
-      res.json(saved);
+      res.json(await payload());
     } catch (error) {
       next(error);
     }
@@ -180,21 +166,16 @@ export function registerAdminQcmRoutes(router: Router) {
       if (parsed.data.status === "closed") {
         await stopLiveAttempts(exam.id);
       }
-      const [updated] = await db
+      await db
         .update(qcmExams)
         .set({
           status: parsed.data.status,
           updatedAt: new Date(),
           ...(parsed.data.status === "open" ? { scoresSentAt: null } : {}),
         })
-        .where(eq(qcmExams.id, exam.id))
-        .returning();
+        .where(eq(qcmExams.id, exam.id));
       publishQcm("exam");
-      res.json({
-        exam: updated ? publicExam(updated) : publicExam(exam),
-        questions: await adminQuestions(exam.id),
-        attempts: await monitorAttempts(exam.id),
-      });
+      res.json(await payload());
     } catch (error) {
       next(error);
     }
@@ -221,28 +202,11 @@ export function registerAdminQcmRoutes(router: Router) {
         return;
       }
       const lang = parsed.data.lang === "en" ? "en" : "fr";
-      const examUrl = examSiteUrl(`/${lang}/${exam.slug}`);
-      const found = await db
-        .select({ id: members.id, name: members.name, email: members.email })
-        .from(members)
-        .where(inArray(members.email, emails));
-      const byEmail = new Map(found.map((row) => [row.email.trim().toLowerCase(), row]));
+      const recipients = await upsertInvites(exam, emails, lang);
       const { notifyQcmInvite } = await import("../lib/mail.js");
-      await notifyQcmInvite(
-        emails.map((email) => {
-          const member = byEmail.get(email);
-          return {
-            name: member?.name || email.split("@")[0] || email,
-            email,
-            memberId: member?.id,
-            titleFr: exam.titleFr,
-            titleEn: exam.titleEn,
-            examUrl,
-            lang,
-          };
-        }),
-      );
-      res.json({ sent: emails.length, url: examUrl });
+      await notifyQcmInvite(recipients);
+      const next = await payload(lang);
+      res.json({ ...next, sent: recipients.length });
     } catch (error) {
       next(error);
     }
@@ -284,17 +248,53 @@ export function registerAdminQcmRoutes(router: Router) {
           passed: (item.score ?? 0) >= exam.passScore,
         })),
       );
-      const [updated] = await db
+      await db
         .update(qcmExams)
         .set({ scoresSentAt: new Date(), updatedAt: new Date() })
-        .where(eq(qcmExams.id, exam.id))
-        .returning();
+        .where(eq(qcmExams.id, exam.id));
       publishQcm("exam");
-      res.json({
-        exam: updated ? publicExam(updated) : publicExam({ ...exam, scoresSentAt: new Date() }),
-        questions: await adminQuestions(exam.id),
-        attempts,
-      });
+      res.json(await payload());
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/qcm/archive", requireAdmin, async (_req, res, next) => {
+    try {
+      const exam = await getInductionExam();
+      if (!exam) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      const result = await archiveLiveSession(exam.id);
+      if ("error" in result) {
+        res.status(result.error === "no_session" ? 409 : 404).json({ error: result.error });
+        return;
+      }
+      res.json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/qcm/archives/delete", requireAdmin, async (req, res, next) => {
+    try {
+      const parsed = archiveDeleteSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "invalid_form" });
+        return;
+      }
+      const exam = await getInductionExam();
+      if (!exam) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      const result = await deleteArchive(exam.id, parsed.data.archivedAt);
+      if (result && "error" in result) {
+        res.status(400).json({ error: result.error });
+        return;
+      }
+      res.json(result);
     } catch (error) {
       next(error);
     }

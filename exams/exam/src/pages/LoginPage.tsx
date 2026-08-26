@@ -9,9 +9,12 @@ function safeNext(raw: string | null, lang: string) {
   if (!raw) return `/${lang}/induction`;
   try {
     const value = decodeURIComponent(raw);
-    const match = value.match(/^\/(fr|en)\/([a-z0-9-]{2,40})$/);
+    const match = value.match(/^\/(fr|en)\/([a-z0-9-]{2,40})(?:\?(.*))?$/);
     if (!match?.[2]) return `/${lang}/induction`;
-    return `/${lang}/${match[2]}`;
+    const path = `/${lang}/${match[2]}`;
+    const invite = new URLSearchParams(match[3] ?? "").get("invite")?.trim() ?? "";
+    if (!/^[a-zA-Z0-9_-]{8,80}$/.test(invite)) return path;
+    return `${path}?invite=${encodeURIComponent(invite)}`;
   } catch {
     return `/${lang}/induction`;
   }

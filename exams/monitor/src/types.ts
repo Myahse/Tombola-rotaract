@@ -46,8 +46,24 @@ export type QcmQuestion = {
   correctChoiceId: string;
 };
 
+export type QcmInvite = {
+  id: string;
+  email: string;
+  status: "pending" | "started" | "completed" | "archived";
+  sentAt: string | null;
+  examUrl: string;
+};
+
+export type QcmArchive = {
+  archivedAt: string;
+  attempts: number;
+  invites: number;
+};
+
 export type QcmAdminState = {
   exam: QcmExam | null;
   questions: QcmQuestion[];
   attempts: QcmMonitorAttempt[];
+  invites: QcmInvite[];
+  archives: QcmArchive[];
 };

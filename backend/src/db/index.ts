@@ -210,6 +210,30 @@ export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS exam_duration_seconds integer`);
   await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS question_duration_seconds integer`);
   await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS question_started_at timestamptz`);
+  await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS archived_at timestamptz`);
+  await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS invite_id uuid`);
+  await client.unsafe(`ALTER TABLE qcm_attempts DROP CONSTRAINT IF EXISTS qcm_attempts_exam_id_member_id_key`);
+  await client.unsafe(`ALTER TABLE qcm_attempts DROP CONSTRAINT IF EXISTS qcm_attempts_exam_id_member_id_unique`);
+  await client.unsafe(
+    `CREATE UNIQUE INDEX IF NOT EXISTS qcm_attempts_live_member ON qcm_attempts (exam_id, member_id) WHERE archived_at IS NULL`,
+  );
+  await client.unsafe(`
+    CREATE TABLE IF NOT EXISTS qcm_invites (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      exam_id uuid NOT NULL REFERENCES qcm_exams(id) ON DELETE CASCADE,
+      email text NOT NULL,
+      member_id uuid REFERENCES members(id) ON DELETE SET NULL,
+      token text NOT NULL UNIQUE,
+      status text NOT NULL DEFAULT 'pending',
+      sent_at timestamptz,
+      archived_at timestamptz,
+      created_at timestamptz NOT NULL DEFAULT now()
+    )
+  `);
+  await client.unsafe(`CREATE INDEX IF NOT EXISTS qcm_invites_exam_idx ON qcm_invites (exam_id, status)`);
+  await client.unsafe(
+    `CREATE UNIQUE INDEX IF NOT EXISTS qcm_invites_live_email ON qcm_invites (exam_id, email) WHERE archived_at IS NULL`,
+  );
   await client.unsafe(`
     CREATE TABLE IF NOT EXISTS adhesion_applications (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

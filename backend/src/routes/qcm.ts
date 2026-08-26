@@ -16,6 +16,7 @@ import {
   questionAt,
   settleAttempt,
 } from "../lib/qcm.js";
+import { markInviteCompleted, markInviteStarted, resolveInvite } from "../lib/qcmInvites.js";
 import { clientKey, enforceRateLimit } from "../lib/rateLimit.js";
 import type { QcmExamRow } from "../db/schema.js";
 
@@ -26,15 +27,43 @@ const answerSchema = z.object({
   timedOut: z.boolean().optional(),
 });
 
+const startSchema = z.object({
+  invite: z.string().trim().min(8).max(80).optional(),
+});
+
+function queryInvite(value: unknown) {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0].trim();
+  return "";
+}
+
 function paramSlug(value: string | string[] | undefined) {
   const raw = Array.isArray(value) ? value[0] : value;
   return typeof raw === "string" ? raw : "";
 }
 
-async function examPayload(memberId: string, exam: QcmExamRow | null) {
-  if (!exam) return { exam: null, attempt: null, question: null };
+function inviteFromReq(req: { query?: unknown; body?: unknown }) {
+  const parsed = startSchema.safeParse(req.body ?? {});
+  const fromBody = parsed.success ? parsed.data.invite?.trim() : "";
+  if (fromBody) return fromBody;
+  return queryInvite((req.query as { invite?: unknown } | undefined)?.invite) || undefined;
+}
+
+async function examPayload(memberId: string, exam: QcmExamRow | null, token?: string) {
+  if (!exam) return { exam: null, attempt: null, question: null, inviteError: null as string | null };
   let attempt = await memberAttempt(exam.id, memberId);
   if (attempt) attempt = await settleAttempt(exam, attempt);
+  if (!attempt) {
+    const resolved = await resolveInvite(exam.id, memberId, token);
+    if ("error" in resolved) {
+      return {
+        exam: publicExam(exam),
+        attempt: null,
+        question: null,
+        inviteError: resolved.error,
+      };
+    }
+  }
   const question =
     attempt && attempt.status === "in_progress"
       ? await questionAt(exam.id, attempt.currentIndex + 1)
@@ -43,6 +72,7 @@ async function examPayload(memberId: string, exam: QcmExamRow | null) {
     exam: publicExam(exam),
     attempt: attempt ? publicAttempt(attempt, exam.questionCount, exam, { hideScore: true }) : null,
     question: question && attempt ? publicQuestion(question, attempt.id) : null,
+    inviteError: null as string | null,
   };
 }
 
@@ -55,10 +85,11 @@ function attemptBody(
     exam: publicExam(exam),
     attempt: publicAttempt(attempt, exam.questionCount, exam, { hideScore: true }),
     question: question ? publicQuestion(question, attempt.id) : null,
+    inviteError: null as string | null,
   };
 }
 
-async function startExam(memberId: string, exam: QcmExamRow | null) {
+async function startExam(memberId: string, exam: QcmExamRow | null, token?: string) {
   if (!exam || exam.status !== "open") {
     return { status: 409 as const, error: "qcm_closed" };
   }
@@ -77,14 +108,20 @@ async function startExam(memberId: string, exam: QcmExamRow | null) {
     };
   }
 
+  const resolved = await resolveInvite(exam.id, memberId, token);
+  if ("error" in resolved) {
+    return { status: 403 as const, error: resolved.error };
+  }
+
   const now = new Date();
   const [created] = await db
     .insert(qcmAttempts)
-    .values({ examId: exam.id, memberId, questionStartedAt: now })
+    .values({ examId: exam.id, memberId, questionStartedAt: now, inviteId: resolved.invite.id })
     .returning();
   if (!created) {
     return { status: 500 as const, error: "request_failed" };
   }
+  await markInviteStarted(resolved.invite, memberId);
   const question = await questionAt(exam.id, 1);
   publishQcm("start");
   return {
@@ -162,6 +199,7 @@ async function answerExam(memberId: string, exam: QcmExamRow | null, choiceId: s
   }
 
   publishQcm(result.status === "completed" ? "complete" : "answer");
+  if (result.status === "completed") await markInviteCompleted(result.inviteId);
   const nextQuestion =
     result.status === "in_progress" ? await questionAt(exam.id, result.currentIndex + 1) : null;
   return {
@@ -173,7 +211,7 @@ async function answerExam(memberId: string, exam: QcmExamRow | null, choiceId: s
 qcmRouter.get("/qcm", requireMember, async (req, res, next) => {
   try {
     const memberId = (req as MemberRequest).memberId;
-    res.json(await examPayload(memberId, await getInductionExam()));
+    res.json(await examPayload(memberId, await getInductionExam(), queryInvite(req.query.invite)));
   } catch (error) {
     next(error);
   }
@@ -182,7 +220,9 @@ qcmRouter.get("/qcm", requireMember, async (req, res, next) => {
 qcmRouter.get("/qcm/:slug", requireMember, async (req, res, next) => {
   try {
     const memberId = (req as MemberRequest).memberId;
-    res.json(await examPayload(memberId, await getExamBySlug(paramSlug(req.params.slug))));
+    res.json(
+      await examPayload(memberId, await getExamBySlug(paramSlug(req.params.slug)), queryInvite(req.query.invite)),
+    );
   } catch (error) {
     next(error);
   }
@@ -196,7 +236,7 @@ qcmRouter.post("/qcm/start", requireMember, async (req, res, next) => {
     }
     const exam = await getInductionExam();
     try {
-      const result = await startExam(memberId, exam);
+      const result = await startExam(memberId, exam, inviteFromReq(req));
       if (result.status !== 200) {
         res.status(result.status).json({ error: result.error });
         return;
@@ -204,7 +244,7 @@ qcmRouter.post("/qcm/start", requireMember, async (req, res, next) => {
       res.json(result.body);
     } catch (error) {
       if (isUniqueViolation(error)) {
-        res.json(await examPayload(memberId, exam));
+        res.json(await examPayload(memberId, exam, inviteFromReq(req)));
         return;
       }
       throw error;
@@ -226,7 +266,7 @@ qcmRouter.post("/qcm/:slug/start", requireMember, async (req, res, next) => {
       return;
     }
     try {
-      const result = await startExam(memberId, exam);
+      const result = await startExam(memberId, exam, inviteFromReq(req));
       if (result.status !== 200) {
         res.status(result.status).json({ error: result.error });
         return;
@@ -234,7 +274,7 @@ qcmRouter.post("/qcm/:slug/start", requireMember, async (req, res, next) => {
       res.json(result.body);
     } catch (error) {
       if (isUniqueViolation(error)) {
-        res.json(await examPayload(memberId, exam));
+        res.json(await examPayload(memberId, exam, inviteFromReq(req)));
         return;
       }
       throw error;

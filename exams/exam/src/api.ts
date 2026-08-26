@@ -22,9 +22,15 @@ export const api = {
     request<{ member: Member }>("/api/auth/login", { method: "POST", body: JSON.stringify(body) }),
   memberLogout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   memberMe: () => request<{ member: Member }>("/api/auth/me"),
-  qcm: (slug: string) => request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}`),
-  startQcm: (slug: string) =>
-    request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/start`, { method: "POST", body: JSON.stringify({}) }),
+  qcm: (slug: string, invite?: string) => {
+    const query = invite ? `?invite=${encodeURIComponent(invite)}` : "";
+    return request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}${query}`);
+  },
+  startQcm: (slug: string, invite?: string) =>
+    request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/start`, {
+      method: "POST",
+      body: JSON.stringify(invite ? { invite } : {}),
+    }),
   answerQcm: (slug: string, body: { choiceId?: string; timedOut?: boolean }) =>
     request<QcmState>(`/api/qcm/${encodeURIComponent(slug)}/answer`, {
       method: "POST",

@@ -35,6 +35,8 @@
     "progress": "Question {{current}} / {{total}}",
     "closed": "Le QCM n’est pas ouvert pour le moment.",
     "unknown": "Ce lien ne correspond à aucun QCM.",
+    "notInvited": "Vous n’êtes pas convoqué(e) à ce QCM. Utilisez le lien personnel reçu par e-mail, avec le même compte.",
+    "inviteMismatch": "Ce lien appartient à une autre adresse e-mail. Connectez-vous avec le compte convoqué.",
     "doneTitle": "QCM terminé",
     "score": "Votre note : {{score}} / {{total}}",
     "doneLead": "Le club vous enverra la note par e-mail après la session.",

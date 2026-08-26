@@ -1277,6 +1277,51 @@ textarea.skeleton {
   align-items: center;
   margin-top: 0.45rem;
 }
+.qcm-session-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem;
+  background: var(--card);
+}
+.qcm-session-card h2 {
+  font-size: 1.15rem;
+  margin: 0.15rem 0 0;
+}
+.invite-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: end;
+}
+.invite-row label {
+  min-width: 0;
+}
+.invite-list,
+.archive-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+.invite-list li,
+.archive-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 0.7rem 0.85rem;
+}
+.invite-list li div,
+.archive-list li div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.65rem;
+  min-width: 0;
+}
 .qcm-choice-row input[type="radio"] {
   width: 1.1rem;
   height: 1.1rem;

@@ -22,7 +22,7 @@ export const api = {
     request<{ ok: boolean }>("/api/admin/login", { method: "POST", body: JSON.stringify(body) }),
   logout: () => request<{ ok: boolean }>("/api/admin/logout", { method: "POST" }),
   me: () => request<{ ok: boolean }>("/api/admin/me"),
-  qcm: () => request<QcmAdminState>("/api/admin/qcm"),
+  qcm: (lang: "fr" | "en" = "fr") => request<QcmAdminState>(`/api/admin/qcm?lang=${lang}`),
   saveQcm: (body: {
     titleFr: string;
     titleEn?: string;
@@ -39,8 +39,14 @@ export const api = {
   setQcmStatus: (status: "open" | "closed") =>
     request<QcmAdminState>("/api/admin/qcm/status", { method: "POST", body: JSON.stringify({ status }) }),
   sendQcmScores: () => request<QcmAdminState>("/api/admin/qcm/send-scores", { method: "POST", body: JSON.stringify({}) }),
-  inviteQcm: (body: { emails: string; lang: "fr" | "en" }) =>
-    request<{ sent: number; url: string }>("/api/admin/qcm/invite", {
+  inviteQcm: (body: { emails: string[]; lang: "fr" | "en" }) =>
+    request<QcmAdminState & { sent: number }>("/api/admin/qcm/invite", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  archiveQcm: () => request<QcmAdminState>("/api/admin/qcm/archive", { method: "POST", body: JSON.stringify({}) }),
+  deleteArchive: (body: { archivedAt: string }) =>
+    request<QcmAdminState>("/api/admin/qcm/archives/delete", {
       method: "POST",
       body: JSON.stringify(body),
     }),

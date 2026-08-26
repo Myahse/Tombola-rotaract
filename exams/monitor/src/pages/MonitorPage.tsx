@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
-import { examSiteUrl } from "../config";
 import { useCallMedia } from "../call";
 import { VideoTile } from "../components/VideoTile";
 import { useLiveStatus, useLiveTick, useAwayIds } from "../live";
@@ -55,16 +54,17 @@ export function MonitorPage() {
   const [data, setData] = useState<QcmAdminState | null>(null);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [inviteEmails, setInviteEmails] = useState("");
+  const [inviteEmails, setInviteEmails] = useState<string[]>([""]);
   const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState("");
   const tick = useLiveTick();
   const live = useLiveStatus();
   const awayIds = useAwayIds();
   const { local, remotes, camera, hangUp, startCall } = useCallMedia();
+  const lang = i18n.language === "en" ? "en" : "fr";
 
   async function load() {
-    const next = await api.qcm();
+    const next = await api.qcm(lang);
     setData(next);
     setReady(true);
   }
@@ -74,22 +74,24 @@ export function MonitorPage() {
       setReady(true);
       setMessage(t("errors.generic"));
     });
-  }, [t, tick]);
+  }, [t, tick, lang]);
 
   if (!ready) return <p className="lede">…</p>;
 
   const exam = data?.exam ?? null;
   const attempts = data?.attempts ?? [];
+  const invites = data?.invites ?? [];
+  const archives = data?.archives ?? [];
   const liveCount = attempts.filter((item) => item.status === "in_progress").length;
   const doneCount = attempts.filter((item) => item.status === "completed").length;
   const passedCount = attempts.filter(
     (item) => item.status === "completed" && exam && item.score !== null && item.score >= exam.passScore,
   ).length;
   const open = exam?.status === "open";
-  const lang = i18n.language === "en" ? "en" : "fr";
-  const examLink = exam ? `${examSiteUrl()}/${lang}/${exam.slug}` : "";
+  const examTitle = exam ? localized(exam, i18n.language, "title") : "";
   const attemptIds = new Set(attempts.map((item) => item.memberId));
   const waitingCameras = remotes.filter((peer) => !attemptIds.has(peer.memberId));
+  const canInvite = inviteEmails.some((value) => value.trim());
 
   async function sendScores() {
     setBusy(true);
@@ -115,12 +117,15 @@ export function MonitorPage() {
   }
 
   async function sendInvite() {
+    const emails = inviteEmails.map((value) => value.trim()).filter(Boolean);
+    if (!emails.length) return;
     setInviting(true);
     setMessage("");
     try {
-      await api.inviteQcm({ emails: inviteEmails, lang });
-      setInviteEmails("");
-      setMessage(t("qcm.inviteSent"));
+      const next = await api.inviteQcm({ emails, lang });
+      setData(next);
+      setInviteEmails([""]);
+      setMessage(t("qcm.inviteSent", { title: examTitle, count: next.sent }));
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
       setMessage(
@@ -132,6 +137,45 @@ export function MonitorPage() {
       );
     } finally {
       setInviting(false);
+    }
+  }
+
+  async function copyLink(url: string) {
+    try {
+      await navigator.clipboard.writeText(url);
+      setMessage(t("qcm.linkCopied"));
+    } catch {
+      setMessage(t("errors.generic"));
+    }
+  }
+
+  async function archiveSession() {
+    if (!window.confirm(t("qcm.archiveConfirm"))) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      setData(await api.archiveQcm());
+      hangUp();
+      setMessage(t("qcm.archiveDone"));
+    } catch (err) {
+      const code = err instanceof Error ? err.message : "";
+      setMessage(code === "no_session" ? t("qcm.archiveEmpty") : t("errors.generic"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeArchive(archivedAt: string) {
+    if (!window.confirm(t("qcm.deleteArchiveConfirm"))) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      setData(await api.deleteArchive({ archivedAt }));
+      setMessage(t("qcm.deleteArchiveDone"));
+    } catch {
+      setMessage(t("errors.generic"));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -157,41 +201,73 @@ export function MonitorPage() {
         {" · "}
         {open ? t("qcm.statusOpen") : t("qcm.statusClosed")}
       </p>
-      <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
+      <h1>{examTitle || t("qcm.title")}</h1>
       <p className="lede mt-3">{t("qcm.lead")}</p>
-      {examLink ? (
-        <p className="field-hint">
-          {t("qcm.share")}{" "}
-          <a href={examLink} target="_blank" rel="noreferrer">
-            {examLink}
-          </a>
-        </p>
-      ) : null}
       {exam ? (
-        <div className="mt-4 grid gap-2">
-          <label>
-            {t("qcm.inviteEmails")}
-            <textarea
-              rows={4}
-              value={inviteEmails}
-              onChange={(event) => setInviteEmails(event.target.value)}
-              placeholder={t("qcm.invitePlaceholder")}
-            />
-          </label>
-          <p className="field-hint">{t("qcm.inviteHint")}</p>
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={inviting || !inviteEmails.trim()}
-            onClick={() => void sendInvite()}
-          >
-            {inviting ? t("qcm.inviteSending") : t("qcm.inviteSend")}
-          </button>
-        </div>
+        <article className="qcm-session-card mt-4">
+          <p className="eyebrow">{t("qcm.thisExam")}</p>
+          <h2>{examTitle}</h2>
+          <p className="field-hint">
+            {t("qcm.examSlug", { slug: exam.slug })} · {t("qcm.questionsCount", { count: data?.questions.length ?? 0 })}
+          </p>
+          <p className="lede mt-3">{t("qcm.inviteLead", { title: examTitle })}</p>
+          <div className="mt-4 grid gap-2">
+            {inviteEmails.map((value, index) => (
+              <div className="invite-row" key={index}>
+                <label>
+                  {t("qcm.takerEmail", { n: index + 1 })}
+                  <input
+                    type="email"
+                    autoComplete="off"
+                    value={value}
+                    onChange={(event) =>
+                      setInviteEmails((rows) => rows.map((item, i) => (i === index ? event.target.value : item)))
+                    }
+                    placeholder={t("qcm.invitePlaceholder")}
+                  />
+                </label>
+                {inviteEmails.length > 1 ? (
+                  <button type="button" className="btn-ghost" onClick={() => setInviteEmails((rows) => rows.filter((_, i) => i !== index))}>
+                    {t("qcm.remove")}
+                  </button>
+                ) : null}
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn-outline"
+              disabled={inviteEmails.length >= 80}
+              onClick={() => setInviteEmails((rows) => [...rows, ""])}
+            >
+              {t("qcm.addTaker")}
+            </button>
+            <p className="field-hint">{t("qcm.inviteHint", { title: examTitle })}</p>
+            <button type="button" className="btn-primary" disabled={inviting || !canInvite} onClick={() => void sendInvite()}>
+              {inviting ? t("qcm.inviteSending") : t("qcm.inviteSend", { title: examTitle })}
+            </button>
+          </div>
+          {invites.length ? (
+            <>
+              <h3 className="mt-6">{t("qcm.liveInvites")}</h3>
+              <ul className="invite-list mt-3">
+                {invites.map((invite) => (
+                  <li key={invite.id}>
+                    <div>
+                      <strong>{invite.email}</strong>
+                      <span className="badge">{t(`qcm.inviteStatus.${invite.status}`)}</span>
+                    </div>
+                    <button type="button" className="btn-outline" onClick={() => void copyLink(invite.examUrl)}>
+                      {t("qcm.copyLink")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="field-hint mt-3">{t("qcm.noInvites")}</p>
+          )}
+        </article>
       ) : null}
-      <p className="field-hint">
-        {t("qcm.questionsCount", { count: data?.questions.length ?? 0 })}
-      </p>
       {camera === "need" ? <p className="field-hint">{t("qcm.cameraWait")}</p> : null}
       {camera === "denied" ? <p className="mt-3 text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
       {camera === "off" ? <p className="field-hint">{t("qcm.callEnded")}</p> : null}
@@ -241,7 +317,34 @@ export function MonitorPage() {
           </button>
         ) : null}
         {exam?.scoresSent ? <p className="field-hint">{t("qcm.scoresSent")}</p> : null}
+        {exam && (attempts.length || invites.length) ? (
+          <button type="button" className="btn-outline btn-block" disabled={busy} onClick={() => void archiveSession()}>
+            {t("qcm.archive")}
+          </button>
+        ) : null}
       </div>
+
+      {archives.length ? (
+        <>
+          <h2 className="mt-8">{t("qcm.archives")}</h2>
+          <p className="field-hint">{t("qcm.archivesHint")}</p>
+          <ul className="archive-list mt-3">
+            {archives.map((item) => (
+              <li key={item.archivedAt}>
+                <div>
+                  <strong>{new Date(item.archivedAt).toLocaleString(lang === "en" ? "en-GB" : "fr-FR")}</strong>
+                  <p className="field-hint">
+                    {t("qcm.archiveMeta", { attempts: item.attempts, invites: item.invites })}
+                  </p>
+                </div>
+                <button type="button" className="btn-danger" disabled={busy} onClick={() => void removeArchive(item.archivedAt)}>
+                  {t("qcm.deleteArchive")}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
 
       {waitingCameras.length ? (
         <>
