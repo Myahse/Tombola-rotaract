@@ -6,6 +6,7 @@ import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
 import { LoginModal } from "./LoginModal";
+import { PwaPrompts } from "./PwaPrompts";
 import { LiveProvider } from "../live";
 
 export function MonitorLayout() {
@@ -66,6 +67,7 @@ export function MonitorLayout() {
           <LangSwitcher />
         </div>
       </header>
+      <PwaPrompts authed={loggedIn} />
       <main className="page">
         {loggedIn ? (
           <LiveProvider>

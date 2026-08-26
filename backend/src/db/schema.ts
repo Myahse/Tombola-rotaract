@@ -265,6 +265,7 @@ export const qcmExams = pgTable("qcm_exams", {
   passScore: integer("pass_score").notNull().default(14),
   examDurationSeconds: integer("exam_duration_seconds"),
   questionDurationSeconds: integer("question_duration_seconds"),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
   status: text("status").notNull().default("draft"),
   scoresSentAt: timestamp("scores_sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

@@ -5,6 +5,7 @@ import { isLanguage } from "../i18n";
 import { StayProvider, useStay, ExamGuard } from "../stay";
 import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
+import { PwaPrompts } from "./PwaPrompts";
 import { useAuth } from "../auth";
 
 export function Layout() {
@@ -78,6 +79,7 @@ function ExamShell() {
           <LangSwitcher disabled={locked} />
         </div>
       </header>
+      <PwaPrompts visible={!locked} />
       <main className="page">
         <div key={location.pathname} className="page-appear">
           <Outlet />

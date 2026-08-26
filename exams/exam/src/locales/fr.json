@@ -34,6 +34,10 @@
     "starting": "Ouverture…",
     "progress": "Question {{current}} / {{total}}",
     "closed": "Le QCM n’est pas ouvert pour le moment.",
+    "appointmentTitle": "Votre convocation",
+    "appointmentWhen": "Date : {{date}}.",
+    "appointmentLink": "Ce lien personnel reste valable jusqu’à la fin de l’examen. Vous pouvez le garder. La surveillance vous laissera commencer quand la session sera ouverte.",
+    "appointmentOpen": "Convoqué(e) le {{date}}. Ce lien reste valable jusqu’à la fin.",
     "unknown": "Ce lien ne correspond à aucun QCM.",
     "notInvited": "Vous n’êtes pas convoqué(e) à ce QCM. Utilisez le lien personnel reçu par e-mail, avec le même compte.",
     "inviteMismatch": "Ce lien appartient à une autre adresse e-mail. Connectez-vous avec le compte convoqué.",
@@ -62,5 +66,12 @@
     "generic": "Une erreur s’est produite.",
     "invalidCredentials": "E-mail ou mot de passe incorrect.",
     "apiDown": "L’API n’est pas joignable. Relancez le serveur backend, puis réessayez."
+  },
+  "pwa": {
+    "installTitle": "Installer l’app",
+    "installText": "Ajoutez le QCM à l’écran d’accueil pour l’ouvrir comme une application sur téléphone.",
+    "installIos": "Sur iPhone, appuyez sur Partager, puis Sur l’écran d’accueil.",
+    "installCta": "Installer",
+    "later": "Plus tard"
   }
 }

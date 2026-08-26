@@ -6,6 +6,40 @@ import { VideoTile } from "../components/VideoTile";
 import { useLiveStatus, useLiveTick, useAwayIds } from "../live";
 import type { QcmAdminState } from "../types";
 
+function pad(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function nextHour() {
+  const date = new Date();
+  date.setMinutes(0, 0, 0);
+  date.setHours(date.getHours() + 1);
+  return date;
+}
+
+function toLocalInput(iso?: string | null) {
+  const date = iso ? new Date(iso) : nextHour();
+  if (Number.isNaN(date.getTime())) return toLocalInput(null);
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function fromLocalInput(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : date.toISOString();
+}
+
+function formatWhen(iso: string | null | undefined, lang: string) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function CandidateVideo({
   stream,
   screen,
@@ -55,6 +89,7 @@ export function MonitorPage() {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [inviteEmails, setInviteEmails] = useState<string[]>([""]);
+  const [appointment, setAppointment] = useState("");
   const [inviting, setInviting] = useState(false);
   const [message, setMessage] = useState("");
   const tick = useLiveTick();
@@ -66,6 +101,7 @@ export function MonitorPage() {
   async function load() {
     const next = await api.qcm(lang);
     setData(next);
+    setAppointment((current) => current || toLocalInput(next.exam?.scheduledAt));
     setReady(true);
   }
 
@@ -99,7 +135,8 @@ export function MonitorPage() {
   const examTitle = exam ? localized(exam, i18n.language, "title") : "";
   const attemptIds = new Set(attempts.map((item) => item.memberId));
   const waitingCameras = remotes.filter((peer) => !attemptIds.has(peer.memberId));
-  const canInvite = inviteEmails.some((value) => value.trim());
+  const canInvite = inviteEmails.some((value) => value.trim()) && Boolean(appointment.trim());
+  const appointmentLabel = exam?.scheduledAt ? formatWhen(exam.scheduledAt, lang) : "";
 
   async function sendScores() {
     setBusy(true);
@@ -126,11 +163,16 @@ export function MonitorPage() {
 
   async function sendInvite() {
     const emails = inviteEmails.map((value) => value.trim()).filter(Boolean);
+    const scheduledAt = fromLocalInput(appointment);
     if (!emails.length) return;
+    if (!scheduledAt) {
+      setMessage(t("qcm.inviteNeedDate"));
+      return;
+    }
     setInviting(true);
     setMessage("");
     try {
-      const next = await api.inviteQcm({ emails, lang });
+      const next = await api.inviteQcm({ emails, lang, scheduledAt });
       setData(next);
       setInviteEmails([""]);
       setMessage(t("qcm.inviteSent", { title: examTitle, count: next.sent }));
@@ -139,9 +181,11 @@ export function MonitorPage() {
       setMessage(
         code === "no_emails"
           ? t("qcm.inviteNeedEmails")
-          : code === "not_found"
-            ? t("qcm.inviteNeedExam")
-            : t("errors.generic"),
+          : code === "need_appointment" || code === "invalid_form"
+            ? t("qcm.inviteNeedDate")
+            : code === "not_found"
+              ? t("qcm.inviteNeedExam")
+              : t("errors.generic"),
       );
     } finally {
       setInviting(false);
@@ -218,8 +262,19 @@ export function MonitorPage() {
           <p className="field-hint">
             {t("qcm.examSlug", { slug: exam.slug })} · {t("qcm.questionsCount", { count: data?.questions.length ?? 0 })}
           </p>
+          {appointmentLabel ? <p className="lede mt-3">{t("qcm.appointmentShown", { date: appointmentLabel })}</p> : null}
           <p className="lede mt-3">{t("qcm.inviteLead", { title: examTitle })}</p>
           <div className="mt-4 grid gap-2">
+            <label>
+              {t("qcm.appointment")}
+              <input
+                type="datetime-local"
+                required
+                value={appointment}
+                onChange={(event) => setAppointment(event.target.value)}
+              />
+            </label>
+            <p className="field-hint">{t("qcm.appointmentHint")}</p>
             {inviteEmails.map((value, index) => (
               <div className="invite-row" key={index}>
                 <label>

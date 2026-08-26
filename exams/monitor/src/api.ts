@@ -39,7 +39,7 @@ export const api = {
   setQcmStatus: (status: "open" | "closed") =>
     request<QcmAdminState>("/api/admin/qcm/status", { method: "POST", body: JSON.stringify({ status }) }),
   sendQcmScores: () => request<QcmAdminState>("/api/admin/qcm/send-scores", { method: "POST", body: JSON.stringify({}) }),
-  inviteQcm: (body: { emails: string[]; lang: "fr" | "en" }) =>
+  inviteQcm: (body: { emails: string[]; lang: "fr" | "en"; scheduledAt: string }) =>
     request<QcmAdminState & { sent: number }>("/api/admin/qcm/invite", {
       method: "POST",
       body: JSON.stringify(body),

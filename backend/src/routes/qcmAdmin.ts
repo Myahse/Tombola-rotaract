@@ -12,7 +12,14 @@ import {
   saveInductionExam,
   stopLiveAttempts,
 } from "../lib/qcm.js";
-import { archiveLiveSession, deleteArchive, parseInviteEmails, payloadForExam, upsertInvites } from "../lib/qcmInvites.js";
+import {
+  archiveLiveSession,
+  deleteArchive,
+  parseInviteEmails,
+  parseScheduledAt,
+  payloadForExam,
+  upsertInvites,
+} from "../lib/qcmInvites.js";
 import { clientKey, enforceRateLimit } from "../lib/rateLimit.js";
 import { translateFrToEnMany } from "../lib/translate.js";
 
@@ -44,6 +51,7 @@ const statusSchema = z.object({
 const inviteSchema = z.object({
   emails: z.array(z.string().trim().min(3).max(120)).min(1).max(80),
   lang: z.enum(["fr", "en"]).optional(),
+  scheduledAt: z.string().trim().min(10).max(40),
 });
 
 const archiveDeleteSchema = z.object({
@@ -196,15 +204,25 @@ export function registerAdminQcmRoutes(router: Router) {
         res.status(400).json({ error: "no_emails" });
         return;
       }
+      const when = parseScheduledAt(parsed.data.scheduledAt);
+      if ("error" in when) {
+        res.status(400).json({ error: when.error });
+        return;
+      }
       const exam = await getInductionExam();
       if (!exam) {
         res.status(404).json({ error: "not_found" });
         return;
       }
       const lang = parsed.data.lang === "en" ? "en" : "fr";
-      const recipients = await upsertInvites(exam, emails, lang);
+      await db
+        .update(qcmExams)
+        .set({ scheduledAt: when.date, updatedAt: new Date() })
+        .where(eq(qcmExams.id, exam.id));
+      const recipients = await upsertInvites({ ...exam, scheduledAt: when.date }, emails, lang, when.date);
       const { notifyQcmInvite } = await import("../lib/mail.js");
       await notifyQcmInvite(recipients);
+      publishQcm("exam");
       const next = await payload(lang);
       res.json({ ...next, sent: recipients.length });
     } catch (error) {

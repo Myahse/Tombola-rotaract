@@ -23,6 +23,7 @@ export type QcmExam = {
   scoresSent: boolean;
   examDurationSeconds: number | null;
   questionDurationSeconds: number | null;
+  scheduledAt: string | null;
 };
 
 export type QcmChoice = {

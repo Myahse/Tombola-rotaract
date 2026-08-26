@@ -79,6 +79,7 @@ export function publicExam(row: QcmExamRow) {
     examDurationSeconds: row.examDurationSeconds && row.examDurationSeconds > 0 ? row.examDurationSeconds : null,
     questionDurationSeconds:
       row.questionDurationSeconds && row.questionDurationSeconds > 0 ? row.questionDurationSeconds : null,
+    scheduledAt: row.scheduledAt ? row.scheduledAt.toISOString() : null,
   };
 }
 

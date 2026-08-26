@@ -34,6 +34,10 @@
     "starting": "Opening…",
     "progress": "Question {{current}} / {{total}}",
     "closed": "The quiz is not open right now.",
+    "appointmentTitle": "Your exam appointment",
+    "appointmentWhen": "Date: {{date}}.",
+    "appointmentLink": "This personal link stays valid until you finish the exam. You can keep it open. The proctor will let you start when the session opens.",
+    "appointmentOpen": "Convened for {{date}}. This link stays valid until you finish.",
     "unknown": "This link does not match any quiz.",
     "notInvited": "You are not invited to this quiz. Open the personal link from your email, with that same account.",
     "inviteMismatch": "This link belongs to another email address. Log in with the invited account.",
@@ -62,5 +66,12 @@
     "generic": "Something went wrong.",
     "invalidCredentials": "Incorrect email or password.",
     "apiDown": "The API is not reachable. Restart the backend server, then try again."
+  },
+  "pwa": {
+    "installTitle": "Install the app",
+    "installText": "Add the quiz to your home screen so it fits like an app on your phone.",
+    "installIos": "On iPhone, tap Share, then Add to Home Screen.",
+    "installCta": "Install",
+    "later": "Later"
   }
 }

@@ -30,6 +30,15 @@ export function inviteUrl(lang: "fr" | "en", slug: string, token: string) {
   return examSiteUrl(`/${lang}/${slug}?invite=${encodeURIComponent(token)}`);
 }
 
+export function parseScheduledAt(value: string | null | undefined) {
+  if (!value?.trim()) return { error: "need_appointment" as const };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { error: "invalid_form" as const };
+  const max = Date.now() + 2 * 365 * 24 * 60 * 60 * 1000;
+  if (date.getTime() > max) return { error: "invalid_form" as const };
+  return { date };
+}
+
 export function publicInvite(row: QcmInviteRow, exam: QcmExamRow, lang: "fr" | "en") {
   return {
     id: row.id,
@@ -116,7 +125,7 @@ export async function markInviteCompleted(inviteId: string | null | undefined) {
   await db.update(qcmInvites).set({ status: "completed" }).where(eq(qcmInvites.id, inviteId));
 }
 
-export async function upsertInvites(exam: QcmExamRow, emails: string[], lang: "fr" | "en") {
+export async function upsertInvites(exam: QcmExamRow, emails: string[], lang: "fr" | "en", scheduledAt: Date) {
   const found = emails.length
     ? await db
         .select({ id: members.id, name: members.name, email: members.email })
@@ -170,6 +179,9 @@ export async function upsertInvites(exam: QcmExamRow, emails: string[], lang: "f
       slug: exam.slug,
       examUrl: inviteUrl(lang, exam.slug, row.token),
       lang,
+      scheduledAt: scheduledAt.toISOString(),
+      durationSeconds: exam.examDurationSeconds && exam.examDurationSeconds > 0 ? exam.examDurationSeconds : null,
+      inviteId: row.id,
     };
   });
 }

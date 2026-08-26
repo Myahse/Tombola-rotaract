@@ -209,6 +209,7 @@ export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS scores_sent_at timestamptz`);
   await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS exam_duration_seconds integer`);
   await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS question_duration_seconds integer`);
+  await client.unsafe(`ALTER TABLE qcm_exams ADD COLUMN IF NOT EXISTS scheduled_at timestamptz`);
   await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS question_started_at timestamptz`);
   await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS archived_at timestamptz`);
   await client.unsafe(`ALTER TABLE qcm_attempts ADD COLUMN IF NOT EXISTS invite_id uuid`);

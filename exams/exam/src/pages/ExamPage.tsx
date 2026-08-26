@@ -72,6 +72,18 @@ function ExamClocks({
   );
 }
 
+function formatWhen(iso: string | null | undefined, lang: string) {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString(lang === "en" ? "en-GB" : "fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function ExamPage() {
   const { t, i18n } = useTranslation();
   const { lang, slug: rawSlug } = useParams();
@@ -93,7 +105,10 @@ export function ExamPage() {
   const open = exam?.status === "open";
   const inProgress = open && attempt?.status === "in_progress";
   const waitingScores = Boolean(attempt?.status === "completed" && exam && !exam.scoresSent);
+  const invited = !inviteError;
+  const waitingOpen = Boolean(exam && !open && !attempt && invited);
   const screenOff = Boolean(exam?.scoresSent);
+  const appointmentWhen = exam?.scheduledAt ? formatWhen(exam.scheduledAt, i18n.language) : "";
   const examPath = `/${lang}/${slug}${invite ? `?invite=${encodeURIComponent(invite)}` : ""}`;
   const loginPath = `/${lang}/login?next=${encodeURIComponent(examPath)}`;
 
@@ -112,12 +127,12 @@ export function ExamPage() {
   }, [member, slug, invite, validSlug, t]);
 
   useEffect(() => {
-    if (!member || !validSlug || !(open || waitingScores)) return;
+    if (!member || !validSlug || !(open || waitingScores || waitingOpen)) return;
     const timer = window.setInterval(() => {
       load().catch(() => undefined);
     }, 4000);
     return () => window.clearInterval(timer);
-  }, [member, open, waitingScores, slug, invite, validSlug]);
+  }, [member, open, waitingScores, waitingOpen, slug, invite, validSlug]);
 
   const sessionLock = Boolean(inProgress || waitingScores);
 
@@ -132,7 +147,6 @@ export function ExamPage() {
   if (!ready) return <p className="lede">…</p>;
 
   const question = state?.question ?? null;
-  const invited = !inviteError;
   const calling = Boolean(open && (inProgress || (!attempt && invited)));
   const canStart = camera === "ready";
 
@@ -207,10 +221,17 @@ export function ExamPage() {
       {!exam ? <p className="lede mt-3">{t("qcm.unknown")}</p> : null}
       {inviteError === "not_invited" ? <p className="lede mt-3">{t("qcm.notInvited")}</p> : null}
       {inviteError === "invite_mismatch" ? <p className="lede mt-3">{t("qcm.inviteMismatch")}</p> : null}
-      {exam && !open && !attempt && !inviteError ? <p className="lede mt-3">{t("qcm.closed")}</p> : null}
+      {waitingOpen ? (
+        <article className="account-card mt-4">
+          <h2>{t("qcm.appointmentTitle")}</h2>
+          {appointmentWhen ? <p className="lede">{t("qcm.appointmentWhen", { date: appointmentWhen })}</p> : <p className="lede">{t("qcm.closed")}</p>}
+          <p className="field-hint">{t("qcm.appointmentLink")}</p>
+        </article>
+      ) : null}
 
       {exam && !attempt && open && invited ? (
         <>
+          {appointmentWhen ? <p className="field-hint mt-3">{t("qcm.appointmentOpen", { date: appointmentWhen })}</p> : null}
           <p className="lede mt-3">{t("qcm.intro", { count: exam.questionCount, pass: exam.passScore })}</p>
           {exam.examDurationSeconds ? (
             <p className="field-hint">{t("qcm.examTimerRule", { minutes: Math.round(exam.examDurationSeconds / 60) })}</p>

@@ -1,0 +1,45 @@
+{
+  "id": "/",
+  "name": "Surveillance QCM",
+  "short_name": "Surveillance",
+  "description": "Salle de surveillance du QCM d’intronisation du Rotaract IUGB Club, utilisable sur téléphone.",
+  "start_url": "/fr",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#121214",
+  "theme_color": "#be034d",
+  "lang": "fr",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Direct",
+      "short_name": "Direct",
+      "url": "/fr"
+    },
+    {
+      "name": "Questions",
+      "short_name": "Questions",
+      "url": "/fr/questions"
+    }
+  ]
+}

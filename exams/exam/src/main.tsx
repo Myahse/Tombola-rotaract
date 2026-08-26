@@ -5,6 +5,9 @@ import { router } from "./App";
 import { AuthProvider } from "./auth";
 import "./i18n";
 import "./index.css";
+import { initPwa } from "./pwa";
+
+initPwa();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
