@@ -14,6 +14,6 @@ export function examSiteUrl() {
   if (fromEnv) return fromEnv;
   const host = window.location.hostname;
   if (host === "localhost" || host === "127.0.0.1") return "http://localhost:5177";
-  return "https://examen.rotaractiugb.com";
+  return "https://exam.rotaractiugb.com";
 }
 

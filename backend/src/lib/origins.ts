@@ -11,6 +11,10 @@ const extraHosts = new Set([
   "rotaract-campagnes.vercel.app",
   "rotaract-examen.vercel.app",
   "rotaract-surveillance.vercel.app",
+  "exam.rotaractiugb.com",
+  "monitor.rotaractiugb.com",
+  "examen.rotaractiugb.com",
+  "surveillance.rotaractiugb.com",
 ]);
 
 export function isAllowedOrigin(origin: string | undefined) {
@@ -20,6 +24,7 @@ export function isAllowedOrigin(origin: string | undefined) {
     const url = new URL(origin);
     if (url.protocol !== "https:" && url.protocol !== "http:") return false;
     if (extraHosts.has(url.hostname)) return true;
+    if (url.protocol === "https:" && url.hostname.endsWith(".rotaractiugb.com")) return true;
     if (!isProd && (url.hostname === "localhost" || url.hostname === "127.0.0.1")) return true;
   } catch {
     return false;

@@ -154,12 +154,13 @@ export function campaignSiteUrl(path = "") {
 export function examSiteUrl(path = "") {
   return publicOrigin(path, {
     env: process.env.EXAM_SITE_URL ?? process.env.PUBLIC_EXAM_URL,
-    production: "https://examen.rotaractiugb.com",
+    production: "https://exam.rotaractiugb.com",
     local: "http://localhost:5177",
     allowed: (host) =>
       host === "localhost" ||
       host === "127.0.0.1" ||
       host === "rotaract-examen.vercel.app" ||
+      host === "exam.rotaractiugb.com" ||
       host === "examen.rotaractiugb.com" ||
       host.endsWith(".rotaractiugb.com"),
   });
