@@ -76,6 +76,14 @@ export function MonitorPage() {
     });
   }, [t, tick, lang]);
 
+  useEffect(() => {
+    if (live) return;
+    const timer = window.setInterval(() => {
+      load().catch(() => undefined);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [live, lang]);
+
   if (!ready) return <p className="lede">…</p>;
 
   const exam = data?.exam ?? null;

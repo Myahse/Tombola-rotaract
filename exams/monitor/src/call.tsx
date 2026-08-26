@@ -123,7 +123,6 @@ export function MonitorCallProvider({ children }: { children: ReactNode }) {
       screenStreamId: message.screenStreamId,
     };
     meta.current.set(from, info);
-    localRef.current?.getTracks().forEach((track) => pc.addTrack(track, localRef.current as MediaStream));
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       sendRef.current({

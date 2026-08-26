@@ -1,5 +1,9 @@
 export const iceConfig: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+  ],
+  iceCandidatePoolSize: 4,
 };
 
 export function parseIce(candidate: string): RTCIceCandidateInit | null {
@@ -14,7 +18,7 @@ export function parseIce(candidate: string): RTCIceCandidateInit | null {
 export async function getCallStream() {
   return navigator.mediaDevices.getUserMedia({
     audio: true,
-    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+    video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24, max: 30 } },
   });
 }
 

@@ -60,7 +60,7 @@ function hangupFrom(client: Client, toId?: string) {
 }
 
 export function attachRealtime(server: Server) {
-  const wss = new WebSocketServer({ server, path: "/ws" });
+  const wss = new WebSocketServer({ server, path: "/ws", perMessageDeflate: false });
 
   wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
     if (!req.headers.origin || !isAllowedOrigin(req.headers.origin)) {
@@ -69,6 +69,17 @@ export function attachRealtime(server: Server) {
     }
     const client: Client = { id: randomUUID(), socket, role: "public" };
     clients.add(client);
+    const heartbeat = setInterval(() => {
+      if (socket.readyState !== WebSocket.OPEN) {
+        clearInterval(heartbeat);
+        return;
+      }
+      try {
+        socket.ping();
+      } catch {
+        clearInterval(heartbeat);
+      }
+    }, 15000);
 
     socket.on("message", (raw) => {
       void (async () => {
@@ -180,8 +191,12 @@ export function attachRealtime(server: Server) {
     });
 
     socket.on("close", () => {
+      clearInterval(heartbeat);
       hangupFrom(client);
       clients.delete(client);
+    });
+    socket.on("error", () => {
+      clearInterval(heartbeat);
     });
   });
 }

@@ -1382,7 +1382,7 @@ textarea.skeleton {
   background: #141416;
 }
 .call-tile.is-self {
-  width: 7.25rem;
+  width: 10.5rem;
 }
 .call-tile video.is-mirror {
   transform: scaleX(-1);

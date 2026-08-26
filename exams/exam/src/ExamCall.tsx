@@ -9,11 +9,6 @@ import { getCallStream, getScreenStream, iceConfig, parseIce, stopStream } from 
 
 export type CallStatus = "off" | "need" | "ready" | "denied" | "screen";
 
-type Remote = {
-  id: string;
-  stream: MediaStream | null;
-};
-
 type ExamCallProps = {
   active: boolean;
   recapture?: number;
@@ -24,7 +19,6 @@ type ExamCallProps = {
 export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCallProps) {
   const { t } = useTranslation();
   const [local, setLocal] = useState<MediaStream | null>(null);
-  const [remotes, setRemotes] = useState<Remote[]>([]);
   const localRef = useRef<MediaStream | null>(null);
   const screenRef = useRef<MediaStream | null>(null);
   const pcs = useRef(new Map<string, RTCPeerConnection>());
@@ -87,7 +81,6 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
     pcs.current.delete(id);
     pendingIce.current.delete(id);
     waitingMonitors.current.delete(id);
-    setRemotes((prev) => prev.filter((item) => item.id !== id));
   }
 
   function closeAll() {
@@ -197,17 +190,8 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
         candidate: JSON.stringify(event.candidate.toJSON()),
       });
     };
-    pc.ontrack = (event) => {
-      const media = event.streams[0];
-      if (!media) return;
-      setRemotes((prev) => {
-        const rest = prev.filter((item) => item.id !== monitorId);
-        return [...rest, { id: monitorId, stream: media }];
-      });
-    };
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "failed" || pc.connectionState === "closed" || pc.connectionState === "disconnected") {
-        if (pc.connectionState === "disconnected") return;
+      if (pc.connectionState === "failed" || pc.connectionState === "closed") {
         closePeer(monitorId);
       }
     };
@@ -262,7 +246,6 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
       localRef.current = null;
       screenRef.current = null;
       setLocal(null);
-      setRemotes([]);
     };
   }, [active]);
 
@@ -282,9 +265,6 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
 
   return (
     <DraggableCallDock label={t("qcm.callTitle")}>
-      {remotes.map((peer) => (
-        <VideoTile key={peer.id} stream={peer.stream} label={t("qcm.proctor")} />
-      ))}
       <VideoTile stream={local} muted mirror label={t("qcm.you")} className="is-self" />
     </DraggableCallDock>
   );

@@ -19,12 +19,14 @@ export function useRealtime(role: RealtimeRole, onMessage: (message: RealtimeMes
     let socket: WebSocket | undefined;
     let timer: number | undefined;
     let closed = false;
+    let delay = 400;
 
     const connect = () => {
       if (closed) return;
       socket = new WebSocket(websocketUrl());
       socketRef.current = socket;
       socket.onopen = () => {
+        delay = 400;
         setConnected(true);
         socket?.send(JSON.stringify({ type: "hello", role }));
       };
@@ -38,7 +40,10 @@ export function useRealtime(role: RealtimeRole, onMessage: (message: RealtimeMes
       socket.onclose = () => {
         setConnected(false);
         if (socketRef.current === socket) socketRef.current = undefined;
-        if (!closed) timer = window.setTimeout(connect, 2500);
+        if (!closed) {
+          timer = window.setTimeout(connect, delay);
+          delay = Math.min(Math.round(delay * 1.6), 4000);
+        }
       };
     };
 
