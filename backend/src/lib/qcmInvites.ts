@@ -128,7 +128,7 @@ export async function markInviteCompleted(inviteId: string | null | undefined) {
 export async function upsertInvites(exam: QcmExamRow, emails: string[], lang: "fr" | "en", scheduledAt: Date) {
   const found = emails.length
     ? await db
-        .select({ id: members.id, name: members.name, email: members.email })
+        .select({ id: members.id, name: members.name, email: members.email, gender: members.gender })
         .from(members)
         .where(inArray(members.email, emails))
     : [];
@@ -182,6 +182,7 @@ export async function upsertInvites(exam: QcmExamRow, emails: string[], lang: "f
       scheduledAt: scheduledAt.toISOString(),
       durationSeconds: exam.examDurationSeconds && exam.examDurationSeconds > 0 ? exam.examDurationSeconds : null,
       inviteId: row.id,
+      gender: member?.gender,
     };
   });
 }

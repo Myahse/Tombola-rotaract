@@ -19,6 +19,7 @@ export const members = pgTable("members", {
   emailsAcceptedAt: timestamp("emails_accepted_at", { withTimezone: true }),
   clubName: text("club_name"),
   clubRole: text("club_role"),
+  gender: text("gender"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   tokenVersion: integer("token_version").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

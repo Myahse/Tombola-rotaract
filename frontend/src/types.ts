@@ -85,6 +85,7 @@ export type Member = {
   avatarUrl?: string | null;
   clubName?: string | null;
   clubRole?: string | null;
+  gender?: "female" | "male" | "other" | null;
   emailVerified?: boolean;
 };
 

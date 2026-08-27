@@ -26,6 +26,7 @@ export function AccountPage() {
   const [phone, setPhone] = useState("");
   const [clubName, setClubName] = useState("");
   const [clubRole, setClubRole] = useState("");
+  const [gender, setGender] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -47,6 +48,7 @@ export function AccountPage() {
     setPhone(member.phone ?? "");
     setClubName(member.clubName ?? "");
     setClubRole(member.clubRole ?? "");
+    setGender(member.gender ?? "");
     api
       .myTombolas()
       .then((data) => setTombolas(data.tombolas))
@@ -97,6 +99,7 @@ export function AccountPage() {
         avatarUrl,
         clubName,
         clubRole,
+        ...(gender === "female" || gender === "male" || gender === "other" ? { gender } : {}),
         ...(password ? { currentPassword, password } : {}),
       });
       setCurrentPassword("");
@@ -252,6 +255,15 @@ export function AccountPage() {
           <label>
             {t("auth.name")}
             <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} autoComplete="name" />
+          </label>
+          <label>
+            {t("auth.gender")}
+            <select value={gender} onChange={(e) => setGender(e.target.value)} autoComplete="sex">
+              <option value="">{t("auth.genderChoose")}</option>
+              <option value="female">{t("auth.genderFemale")}</option>
+              <option value="male">{t("auth.genderMale")}</option>
+              <option value="other">{t("auth.genderOther")}</option>
+            </select>
           </label>
           <label>
             {t("auth.email")}

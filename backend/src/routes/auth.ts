@@ -23,6 +23,7 @@ import { drawModeOf, maskScratchPrizes } from "../lib/tickets.js";
 import { publishChange } from "../lib/publicSnapshot.js";
 import { siteUrl } from "../emails/layout.js";
 import { notifyOrganizerOrderCancelled } from "../lib/organizerNotify.js";
+import { GENDERS } from "../lib/gender.js";
 
 export const authRouter = Router();
 
@@ -39,6 +40,7 @@ const registerSchema = z.object({
   avatarUrl: z.string().max(120_000).optional().or(z.literal("")),
   clubName: z.string().trim().min(2).max(120),
   clubRole: z.string().trim().min(2).max(80),
+  gender: z.enum(GENDERS),
   acceptTerms: z.literal(true),
   acceptEmails: z.literal(true),
 });
@@ -69,6 +71,7 @@ const profileSchema = z.object({
   avatarUrl: z.string().max(120_000).optional(),
   clubName: z.string().trim().max(120).optional(),
   clubRole: z.string().trim().max(80).optional(),
+  gender: z.enum(GENDERS).optional(),
   currentPassword: z.string().min(1).max(100).optional(),
   password: z.string().min(8).max(100).optional(),
 });
@@ -82,6 +85,7 @@ function publicMember(row: typeof members.$inferSelect) {
     avatarUrl: row.avatarUrl,
     clubName: row.clubName,
     clubRole: row.clubRole,
+    gender: row.gender === "female" || row.gender === "male" || row.gender === "other" ? row.gender : null,
     emailVerified: Boolean(row.emailVerifiedAt),
   };
 }
@@ -160,6 +164,7 @@ authRouter.post("/auth/register", async (req, res) => {
         avatarUrl: parseAvatar(parsed.data.avatarUrl),
         clubName: parsed.data.clubName,
         clubRole: parsed.data.clubRole,
+        gender: parsed.data.gender,
         passwordHash: await hashPassword(parsed.data.password),
         termsAcceptedAt: new Date(),
         emailsAcceptedAt: new Date(),
@@ -323,6 +328,7 @@ authRouter.patch("/auth/me", requireMember, async (req, res) => {
     avatarUrl: parsed.data.avatarUrl === undefined ? member.avatarUrl : parseAvatar(parsed.data.avatarUrl),
     clubName: parsed.data.clubName === undefined ? member.clubName : parsed.data.clubName || null,
     clubRole: parsed.data.clubRole === undefined ? member.clubRole : parsed.data.clubRole || null,
+    gender: parsed.data.gender ?? member.gender,
     passwordHash: parsed.data.password ? await hashPassword(parsed.data.password) : member.passwordHash,
   };
 

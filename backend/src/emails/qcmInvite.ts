@@ -1,5 +1,6 @@
 import { emailEnglishBlock, emailHighlightBox, escapeHtml, firstName, siteUrl, wrapEmail } from "./layout.js";
 import { examAppointmentIcs } from "../lib/ics.js";
+import { convenedWord } from "../lib/gender.js";
 
 export type QcmInviteEmail = {
   name: string;
@@ -12,6 +13,7 @@ export type QcmInviteEmail = {
   scheduledAt: string;
   durationSeconds: number | null;
   inviteId: string;
+  gender?: string | null;
 };
 
 const TZ = "Africa/Abidjan";
@@ -36,8 +38,9 @@ export function qcmInviteEmail(data: QcmInviteEmail) {
   const title = data.lang === "en" ? data.titleEn : data.titleFr;
   const when = formatAppointment(data.scheduledAt, data.lang);
   const whenEn = formatAppointment(data.scheduledAt, "en");
+  const convened = convenedWord(data.gender);
   const html = wrapEmail({
-    preheader: `${name}, vous êtes convoqué(e) au QCM « ${data.titleFr} » le ${when}.`,
+    preheader: `${name}, vous êtes ${convened} au QCM « ${data.titleFr} » le ${when}.`,
     heading: `${name}, c’est votre convocation`,
     ctaLabel: "Ouvrir ce QCM",
     ctaUrl: data.examUrl,

@@ -32,6 +32,7 @@ export function RegisterPage() {
   const [busy, setBusy] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [name, setName] = useState("");
+  const [gender, setGender] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
@@ -62,6 +63,10 @@ export function RegisterPage() {
       setError(t("errors.passwordMismatch"));
       return;
     }
+    if (gender !== "female" && gender !== "male" && gender !== "other") {
+      setError(t("errors.invalidRegister"));
+      return;
+    }
     setError("");
     setStep(2);
   }
@@ -84,6 +89,7 @@ export function RegisterPage() {
         avatarUrl: avatarUrl || undefined,
         clubName,
         clubRole,
+        gender: gender as "female" | "male" | "other",
         acceptTerms: true,
         acceptEmails: true,
       });
@@ -125,6 +131,17 @@ export function RegisterPage() {
           <label>
             {t("auth.name")}
             <input value={name} onChange={(e) => setName(e.target.value)} required minLength={2} autoComplete="name" />
+          </label>
+          <label>
+            {t("auth.gender")}
+            <select value={gender} onChange={(e) => setGender(e.target.value)} required autoComplete="sex">
+              <option value="" disabled>
+                {t("auth.genderChoose")}
+              </option>
+              <option value="female">{t("auth.genderFemale")}</option>
+              <option value="male">{t("auth.genderMale")}</option>
+              <option value="other">{t("auth.genderOther")}</option>
+            </select>
           </label>
           <label>
             {t("auth.email")}

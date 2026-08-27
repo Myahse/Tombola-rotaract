@@ -264,6 +264,7 @@ export function registerAdminQcmRoutes(router: Router) {
           total: item.questionCount,
           passScore: exam.passScore,
           passed: (item.score ?? 0) >= exam.passScore,
+          gender: item.memberGender,
         })),
       );
       await db

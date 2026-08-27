@@ -30,6 +30,7 @@ export type MonitorAttempt = PublicAttempt & {
   memberId: string;
   memberName: string;
   memberEmail: string;
+  memberGender: string | null;
   clubName: string | null;
   clubRole: string | null;
   lastCorrect: boolean | null;
@@ -165,6 +166,7 @@ export async function monitorAttempts(examId: string): Promise<MonitorAttempt[]>
       attempt: qcmAttempts,
       memberName: members.name,
       memberEmail: members.email,
+      memberGender: members.gender,
       clubName: members.clubName,
       clubRole: members.clubRole,
     })
@@ -200,6 +202,7 @@ export async function monitorAttempts(examId: string): Promise<MonitorAttempt[]>
     memberId: row.attempt.memberId,
     memberName: row.memberName,
     memberEmail: row.memberEmail,
+    memberGender: row.memberGender,
     clubName: row.clubName,
     clubRole: row.clubRole,
     lastCorrect: lastByAttempt.get(row.attempt.id) ?? null,

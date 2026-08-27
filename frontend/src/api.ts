@@ -109,6 +109,7 @@ export const api = {
     avatarUrl?: string;
     clubName: string;
     clubRole: string;
+    gender: "female" | "male" | "other";
     acceptTerms: true;
     acceptEmails: true;
   }) =>
@@ -134,6 +135,7 @@ export const api = {
     avatarUrl?: string;
     clubName?: string;
     clubRole?: string;
+    gender?: "female" | "male" | "other";
     currentPassword?: string;
     password?: string;
   }) => request<{ member: Member }>("/api/auth/me", { method: "PATCH", body: JSON.stringify(body) }),

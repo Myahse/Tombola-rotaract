@@ -13,6 +13,7 @@ import {
   type AdhesionNotice,
 } from "../emails/adhesionNotice.js";
 import { siteUrl } from "../emails/layout.js";
+import { admitCopy } from "./gender.js";
 import { optionalTemplateId, sendBrevoEmail } from "./brevo.js";
 import { buildPurchaseReceiptPdf, purchaseReceiptPdfFilename } from "./purchaseReceiptPdf.js";
 import { sendPushToMemberOrEmail, type PushPayload } from "./push.js";
@@ -221,7 +222,7 @@ export async function notifyQcmInvite(recipients: Array<QcmInviteEmail & { membe
 export async function notifyQcmScore(recipients: Array<QcmScoreEmail & { memberId?: string }>) {
   for (const recipient of recipients) {
     if (!recipient.email.trim()) continue;
-    const resultFr = recipient.passed ? "Admis" : "Non admis";
+    const copy = admitCopy(recipient.passed, recipient.gender);
     await deliverEmailAndPush(
       { memberId: recipient.memberId, email: recipient.email, name: recipient.name },
       async () => {
@@ -231,11 +232,17 @@ export async function notifyQcmScore(recipients: Array<QcmScoreEmail & { memberI
           console.error(`QCM score email failed for ${recipient.email}`, error);
         }
       },
-      {
-        title: "Note du QCM",
-        body: `${recipient.score}/${recipient.total} · ${resultFr}`,
-        url: "/",
-      },
+      recipient.passed
+        ? {
+            title: `${copy.youAre.charAt(0).toUpperCase()}${copy.youAre.slice(1)}`,
+            body: `Bravo : ${recipient.score}/${recipient.total} au QCM. Le club est fier de vous.`,
+            url: "/",
+          }
+        : {
+            title: "Résultat du QCM",
+            body: `${recipient.score}/${recipient.total} · ${copy.resultFr}. Une nouvelle session pourra vous être proposée.`,
+            url: "/",
+          },
     );
   }
 }
