@@ -42,6 +42,9 @@
     "noInvites": "Aucun candidat n’a encore reçu de lien pour ce QCM.",
     "copyLink": "Copier le lien personnel",
     "linkCopied": "Lien personnel copié.",
+    "removeParticipant": "Retirer",
+    "removeParticipantConfirm": "Retirer {{email}} de ce QCM ? Cette personne ne pourra plus passer cette session.",
+    "removeParticipantDone": "{{email}} a été retiré(e) de la session.",
     "inviteStatus": {
       "pending": "Convoqué",
       "started": "Commencé",

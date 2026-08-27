@@ -1353,7 +1353,7 @@ textarea.skeleton {
 }
 
 .section.has-call {
-  padding-bottom: 2rem;
+  padding-bottom: calc(9rem + env(safe-area-inset-bottom, 0px));
 }
 .call-dock {
   position: fixed;

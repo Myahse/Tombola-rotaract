@@ -1332,6 +1332,12 @@ textarea.skeleton {
   min-width: 0;
   overflow-wrap: anywhere;
 }
+.invite-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
 .qcm-monitor,
 .qcm-editor,
 .qcm-session-card {

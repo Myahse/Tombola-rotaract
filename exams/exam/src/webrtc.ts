@@ -22,19 +22,34 @@ export async function getCallStream() {
   });
 }
 
-export async function getScreenStream() {
-  const stream = await navigator.mediaDevices.getDisplayMedia({
-    video: {
-      frameRate: { ideal: 15, max: 24 },
-      width: { ideal: 1920 },
-      height: { ideal: 1080 },
-      displaySurface: "monitor",
-    } as MediaTrackConstraints,
-    audio: false,
-  });
+export function canShareScreen() {
+  return typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+}
+
+function hintScreen(stream: MediaStream) {
   const track = stream.getVideoTracks()[0];
   if (track) track.contentHint = "detail";
   return stream;
+}
+
+export async function getScreenStream() {
+  if (!canShareScreen()) {
+    throw new Error("screen_unsupported");
+  }
+  try {
+    return hintScreen(
+      await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 15, max: 24 } },
+        audio: false,
+      }),
+    );
+  } catch (error) {
+    const name = error instanceof DOMException ? error.name : "";
+    if (name === "NotAllowedError" || name === "AbortError" || (error instanceof Error && error.message === "screen_unsupported")) {
+      throw error;
+    }
+    return hintScreen(await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }));
+  }
 }
 
 export function stopStream(stream: MediaStream | null | undefined) {

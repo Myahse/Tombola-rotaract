@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { and, count, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { db } from "../db/index.js";
 import { members, qcmAttempts, qcmExams, qcmInvites } from "../db/schema.js";
 import type { QcmExamRow, QcmInviteRow } from "../db/schema.js";
@@ -185,6 +185,26 @@ export async function upsertInvites(exam: QcmExamRow, emails: string[], lang: "f
       gender: member?.gender,
     };
   });
+}
+
+export async function removeLiveParticipant(examId: string, inviteId: string) {
+  const id = inviteId.trim();
+  if (!id) return { error: "not_found" as const };
+  const [invite] = await db
+    .select()
+    .from(qcmInvites)
+    .where(and(eq(qcmInvites.id, id), eq(qcmInvites.examId, examId), isNull(qcmInvites.archivedAt)))
+    .limit(1);
+  if (!invite) return { error: "not_found" as const };
+
+  const liveAttempt = and(eq(qcmAttempts.examId, examId), isNull(qcmAttempts.archivedAt));
+  const who = invite.memberId
+    ? or(eq(qcmAttempts.inviteId, invite.id), eq(qcmAttempts.memberId, invite.memberId))
+    : eq(qcmAttempts.inviteId, invite.id);
+  await db.delete(qcmAttempts).where(and(liveAttempt, who));
+  await db.delete(qcmInvites).where(eq(qcmInvites.id, invite.id));
+  publishQcm("exam");
+  return payloadForExam(examId);
 }
 
 export async function archiveLiveSession(examId: string) {

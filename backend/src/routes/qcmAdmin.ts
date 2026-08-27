@@ -17,6 +17,7 @@ import {
   archiveLiveSession,
   deleteArchive,
   parseInviteEmails,
+  removeLiveParticipant,
   parseScheduledAt,
   payloadForExam,
   upsertInvites,
@@ -57,6 +58,10 @@ const inviteSchema = z.object({
 
 const archiveDeleteSchema = z.object({
   archivedAt: z.string().trim().min(8).max(40),
+});
+
+const inviteRemoveSchema = z.object({
+  inviteId: z.string().uuid(),
 });
 
 const ids = ["a", "b", "c", "d", "e", "f"];
@@ -248,6 +253,29 @@ export function registerAdminQcmRoutes(router: Router) {
       publishQcm("exam");
       const next = await payload(lang);
       res.json({ ...next, sent: recipients.length });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post("/qcm/invite/remove", requireAdmin, async (req, res, next) => {
+    try {
+      const parsed = inviteRemoveSchema.safeParse(req.body);
+      if (!parsed.success) {
+        res.status(400).json({ error: "invalid_form" });
+        return;
+      }
+      const exam = await getInductionExam();
+      if (!exam) {
+        res.status(404).json({ error: "not_found" });
+        return;
+      }
+      const result = await removeLiveParticipant(exam.id, parsed.data.inviteId);
+      if ("error" in result) {
+        res.status(404).json({ error: result.error });
+        return;
+      }
+      res.json(result);
     } catch (error) {
       next(error);
     }

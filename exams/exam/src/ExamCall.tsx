@@ -1,22 +1,35 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { RealtimeMessage } from "./protocol";
 import { useRealtime } from "./useRealtime";
 import { DraggableCallDock } from "./components/DraggableCallDock";
 import { VideoTile } from "./components/VideoTile";
 import { useStay } from "./stay";
-import { getCallStream, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
+import { canShareScreen, getCallStream, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
 
 export type CallStatus = "off" | "need" | "ready" | "denied" | "screen";
 
+export type ExamCallHandle = {
+  shareScreen: () => Promise<void>;
+};
+
 type ExamCallProps = {
   active: boolean;
-  recapture?: number;
   onStatus: (status: CallStatus) => void;
   onSession?: () => void;
 };
 
-export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCallProps) {
+function preferAutoScreenShare() {
+  if (typeof window === "undefined" || !canShareScreen()) return false;
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+  const touch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  return !coarse && !touch;
+}
+
+export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamCall(
+  { active, onStatus, onSession },
+  ref,
+) {
   const { t } = useTranslation();
   const [local, setLocal] = useState<MediaStream | null>(null);
   const localRef = useRef<MediaStream | null>(null);
@@ -223,6 +236,7 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
         localRef.current = stream;
         setLocal(stream);
         onStatusRef.current("screen");
+        if (!preferAutoScreenShare()) return;
         try {
           const screen = await getScreenStream();
           if (cancelled) {
@@ -249,17 +263,17 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
     };
   }, [active]);
 
-  useEffect(() => {
-    if (!active || recapture < 1 || !localRef.current) return;
-    void (async () => {
-      try {
-        const screen = await getScreenStream();
-        await attachScreen(screen);
-      } catch {
-        onStatusRef.current("screen");
-      }
-    })();
-  }, [recapture, active]);
+  async function shareScreen() {
+    if (!active || deniedRef.current || !localRef.current) return;
+    try {
+      const screen = await getScreenStream();
+      await attachScreen(screen);
+    } catch {
+      onStatusRef.current("screen");
+    }
+  }
+
+  useImperativeHandle(ref, () => ({ shareScreen }));
 
   if (!active) return null;
 
@@ -268,4 +282,4 @@ export function ExamCall({ active, recapture = 0, onStatus, onSession }: ExamCal
       <VideoTile stream={local} muted mirror label={t("qcm.you")} className="is-self" />
     </DraggableCallDock>
   );
-}
+});

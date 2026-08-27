@@ -45,6 +45,11 @@ export const api = {
       body: JSON.stringify(body),
     }),
   archiveQcm: () => request<QcmAdminState>("/api/admin/qcm/archive", { method: "POST", body: JSON.stringify({}) }),
+  removeInvite: (body: { inviteId: string }) =>
+    request<QcmAdminState>("/api/admin/qcm/invite/remove", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   deleteArchive: (body: { archivedAt: string }) =>
     request<QcmAdminState>("/api/admin/qcm/archives/delete", {
       method: "POST",

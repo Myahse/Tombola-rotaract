@@ -42,6 +42,9 @@
     "noInvites": "Nobody has received a link for this quiz yet.",
     "copyLink": "Copy personal link",
     "linkCopied": "Personal link copied.",
+    "removeParticipant": "Remove",
+    "removeParticipantConfirm": "Remove {{email}} from this quiz? They will not be able to sit this session.",
+    "removeParticipantDone": "{{email}} was removed from the session.",
     "inviteStatus": {
       "pending": "Invited",
       "started": "Started",

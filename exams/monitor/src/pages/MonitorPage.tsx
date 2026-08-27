@@ -201,6 +201,20 @@ export function MonitorPage() {
     }
   }
 
+  async function removeParticipant(inviteId: string, email: string) {
+    if (!window.confirm(t("qcm.removeParticipantConfirm", { email }))) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      setData(await api.removeInvite({ inviteId }));
+      setMessage(t("qcm.removeParticipantDone", { email }));
+    } catch {
+      setMessage(t("errors.generic"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function archiveSession() {
     if (!window.confirm(t("qcm.archiveConfirm"))) return;
     setBusy(true);
@@ -319,9 +333,19 @@ export function MonitorPage() {
                       <strong>{invite.email}</strong>
                       <span className="badge">{t(`qcm.inviteStatus.${invite.status}`)}</span>
                     </div>
-                    <button type="button" className="btn-outline" onClick={() => void copyLink(invite.examUrl)}>
-                      {t("qcm.copyLink")}
-                    </button>
+                    <div className="invite-actions">
+                      <button type="button" className="btn-outline" onClick={() => void copyLink(invite.examUrl)}>
+                        {t("qcm.copyLink")}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger"
+                        disabled={busy}
+                        onClick={() => void removeParticipant(invite.id, invite.email)}
+                      >
+                        {t("qcm.removeParticipant")}
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -475,6 +499,19 @@ export function MonitorPage() {
                   <dd>{item.score === null ? "—" : `${item.score}/${item.questionCount}`}</dd>
                 </div>
               </dl>
+              {invites.find((invite) => invite.email === item.memberEmail.trim().toLowerCase()) ? (
+                <button
+                  type="button"
+                  className="btn-danger mt-3"
+                  disabled={busy}
+                  onClick={() => {
+                    const invite = invites.find((row) => row.email === item.memberEmail.trim().toLowerCase());
+                    if (invite) void removeParticipant(invite.id, item.memberEmail);
+                  }}
+                >
+                  {t("qcm.removeParticipant")}
+                </button>
+              ) : null}
             </article>
           );
         })}

@@ -3,9 +3,10 @@ import { Navigate, useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { api, localized } from "../api";
 import { useAuth } from "../auth";
-import { ExamCall, type CallStatus } from "../ExamCall";
+import { ExamCall, type CallStatus, type ExamCallHandle } from "../ExamCall";
 import { useStay, enterExamFullscreen } from "../stay";
 import type { QcmState } from "../types";
+import { canShareScreen } from "../webrtc";
 
 const SLUG_RE = /^[a-z0-9-]{2,40}$/;
 
@@ -97,7 +98,7 @@ export function ExamPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [camera, setCamera] = useState<CallStatus>("off");
-  const [shareTick, setShareTick] = useState(0);
+  const callRef = useRef<ExamCallHandle>(null);
   const { setLocked } = useStay();
   const exam = state?.exam ?? null;
   const attempt = state?.attempt ?? null;
@@ -213,7 +214,7 @@ export function ExamPage() {
   return (
     <section className={`section${calling ? " has-call" : ""}`} style={{ borderBottom: 0 }}>
       {calling ? (
-        <ExamCall active recapture={shareTick} onStatus={setCamera} onSession={() => void load()} />
+        <ExamCall ref={callRef} active onStatus={setCamera} onSession={() => void load()} />
       ) : null}
       <p className="eyebrow">{t("qcm.kicker")}</p>
       <h1>{exam ? localized(exam, i18n.language, "title") : t("qcm.title")}</h1>
@@ -251,10 +252,14 @@ export function ExamPage() {
           {camera === "need" ? <p className="field-hint mt-3">{t("qcm.cameraWait")}</p> : null}
           {camera === "screen" ? (
             <>
-              <p className="field-hint mt-3">{t("qcm.screenWait")}</p>
-              <button type="button" className="btn-outline mt-3" onClick={() => setShareTick((value) => value + 1)}>
-                {t("qcm.shareScreen")}
-              </button>
+              <p className="field-hint mt-3">
+                {canShareScreen() ? t("qcm.screenWait") : t("qcm.screenUnsupported")}
+              </p>
+              {canShareScreen() ? (
+                <button type="button" className="btn-outline mt-3" onClick={() => void callRef.current?.shareScreen()}>
+                  {t("qcm.shareScreen")}
+                </button>
+              ) : null}
             </>
           ) : null}
           {camera === "denied" ? <p className="mt-3 text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
@@ -274,10 +279,14 @@ export function ExamPage() {
           {camera === "denied" ? <p className="mt-3 text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
           {camera === "screen" ? (
             <>
-              <p className="mt-3 text-sm text-ticket">{t("qcm.screenLost")}</p>
-              <button type="button" className="btn-outline mt-3" onClick={() => setShareTick((value) => value + 1)}>
-                {t("qcm.shareScreen")}
-              </button>
+              <p className="mt-3 text-sm text-ticket">
+                {canShareScreen() ? t("qcm.screenLost") : t("qcm.screenUnsupported")}
+              </p>
+              {canShareScreen() ? (
+                <button type="button" className="btn-outline mt-3" onClick={() => void callRef.current?.shareScreen()}>
+                  {t("qcm.shareScreen")}
+                </button>
+              ) : null}
             </>
           ) : null}
           <p className="field-hint mt-3">{t("qcm.stayHint")}</p>
