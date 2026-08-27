@@ -22,8 +22,51 @@ export async function getCallStream() {
   });
 }
 
-export function canShareScreen() {
-  return typeof navigator !== "undefined" && typeof navigator.mediaDevices?.getDisplayMedia === "function";
+type DisplayCapture = (constraints?: DisplayMediaStreamOptions) => Promise<MediaStream>;
+
+type NavigatorCapture = Navigator & {
+  getDisplayMedia?: DisplayCapture;
+  webkitGetDisplayMedia?: DisplayCapture;
+};
+
+type MediaCapture = MediaDevices & {
+  getDisplayMedia?: DisplayCapture;
+  webkitGetDisplayMedia?: DisplayCapture;
+};
+
+export function getDisplayMediaFn(): DisplayCapture | null {
+  if (typeof navigator === "undefined") return null;
+  const nav = navigator as NavigatorCapture;
+  const media = nav.mediaDevices as MediaCapture | undefined;
+  const impl = media?.getDisplayMedia ?? media?.webkitGetDisplayMedia ?? nav.getDisplayMedia ?? nav.webkitGetDisplayMedia;
+  if (typeof impl !== "function") return null;
+  return impl.bind(media ?? nav);
+}
+
+export function isIosDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+export function isIosSafari() {
+  if (!isIosDevice()) return false;
+  const ua = navigator.userAgent;
+  if (/CriOS|FxiOS|EdgiOS|OPiOS|OPT\/|DuckDuckGo|Instagram|FBAN|FBAV|Line\//i.test(ua)) return false;
+  return /Safari/i.test(ua);
+}
+
+export function isStandaloneApp() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as { standalone?: boolean }).standalone);
+}
+
+export type ScreenShareAdvice = "ok" | "ios-safari" | "ios-app" | "insecure";
+
+export function screenShareAdvice(): ScreenShareAdvice {
+  if (typeof window !== "undefined" && !window.isSecureContext) return "insecure";
+  if (isIosDevice() && isStandaloneApp()) return "ios-app";
+  if (isIosDevice() && !isIosSafari()) return "ios-safari";
+  return "ok";
 }
 
 function hintScreen(stream: MediaStream) {
@@ -33,22 +76,25 @@ function hintScreen(stream: MediaStream) {
 }
 
 export async function getScreenStream() {
-  if (!canShareScreen()) {
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    throw new Error("screen_insecure");
+  }
+  const capture = getDisplayMediaFn();
+  if (!capture) {
     throw new Error("screen_unsupported");
   }
   try {
-    return hintScreen(
-      await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 15, max: 24 } },
-        audio: false,
-      }),
-    );
+    return hintScreen(await capture({ video: { frameRate: { ideal: 15, max: 24 } }, audio: false }));
   } catch (error) {
     const name = error instanceof DOMException ? error.name : "";
-    if (name === "NotAllowedError" || name === "AbortError" || (error instanceof Error && error.message === "screen_unsupported")) {
+    if (
+      name === "NotAllowedError" ||
+      name === "AbortError" ||
+      (error instanceof Error && (error.message === "screen_unsupported" || error.message === "screen_insecure"))
+    ) {
       throw error;
     }
-    return hintScreen(await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }));
+    return hintScreen(await capture({ video: true, audio: false }));
   }
 }
 

@@ -5,7 +5,7 @@ import { useRealtime } from "./useRealtime";
 import { DraggableCallDock } from "./components/DraggableCallDock";
 import { VideoTile } from "./components/VideoTile";
 import { useStay } from "./stay";
-import { canShareScreen, getCallStream, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
+import { getCallStream, getDisplayMediaFn, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
 
 export type CallStatus = "off" | "need" | "ready" | "denied" | "screen";
 
@@ -20,7 +20,7 @@ type ExamCallProps = {
 };
 
 function preferAutoScreenShare() {
-  if (typeof window === "undefined" || !canShareScreen()) return false;
+  if (typeof window === "undefined" || !getDisplayMediaFn()) return false;
   const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
   const touch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
   return !coarse && !touch;
@@ -264,12 +264,15 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
   }, [active]);
 
   async function shareScreen() {
-    if (!active || deniedRef.current || !localRef.current) return;
+    if (!active || deniedRef.current || !localRef.current) {
+      throw new Error("screen_not_ready");
+    }
     try {
       const screen = await getScreenStream();
       await attachScreen(screen);
-    } catch {
+    } catch (error) {
       onStatusRef.current("screen");
+      throw error;
     }
   }
 
