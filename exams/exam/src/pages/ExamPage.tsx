@@ -6,7 +6,7 @@ import { useAuth } from "../auth";
 import { ExamCall, type CallStatus, type ExamCallHandle } from "../ExamCall";
 import { useStay, enterExamFullscreen } from "../stay";
 import type { QcmState } from "../types";
-import { screenShareAdvice, type ScreenShareAdvice } from "../webrtc";
+import { allowCameraOnlyProctoring, screenShareAdvice, type ScreenShareAdvice } from "../webrtc";
 
 const SLUG_RE = /^[a-z0-9-]{2,40}$/;
 
@@ -86,6 +86,7 @@ function formatWhen(iso: string | null | undefined, lang: string) {
 }
 
 function shareHintKey(advice: ScreenShareAdvice) {
+  if (allowCameraOnlyProctoring()) return "qcm.screenPhoneLead";
   if (advice === "ios-safari") return "qcm.screenIosSafari";
   if (advice === "ios-app") return "qcm.screenIosApp";
   if (advice === "insecure") return "qcm.screenInsecure";
@@ -158,11 +159,13 @@ export function ExamPage() {
   const question = state?.question ?? null;
   const calling = Boolean(open && (inProgress || (!attempt && invited)));
   const canStart = camera === "ready";
+  const phoneProctor = allowCameraOnlyProctoring();
+  const showShare = camera === "screen" || (camera === "ready" && phoneProctor);
 
   async function requestShare() {
-    setShareHelp("");
     try {
       await callRef.current?.shareScreen();
+      setShareHelp("");
     } catch (err) {
       const name = err instanceof DOMException ? err.name : "";
       const code = err instanceof Error ? err.message : "";
@@ -281,9 +284,11 @@ export function ExamPage() {
             <li>{t("qcm.ruleScore")}</li>
           </ul>
           {camera === "need" ? <p className="field-hint mt-3">{t("qcm.cameraWait")}</p> : null}
-          {camera === "screen" ? (
+          {showShare ? (
             <>
-              <p className="field-hint mt-3">{shareHelp || t(shareHintKey(screenShareAdvice()))}</p>
+              <p className="field-hint mt-3">
+                {shareHelp || (camera === "ready" ? t("qcm.screenOptional") : t(shareHintKey(screenShareAdvice())))}
+              </p>
               <button type="button" className="btn-outline mt-3" onClick={() => void requestShare()}>
                 {t("qcm.shareScreen")}
               </button>
@@ -304,9 +309,11 @@ export function ExamPage() {
       {inProgress && question && attempt ? (
         <>
           {camera === "denied" ? <p className="mt-3 text-sm text-ticket">{t("qcm.cameraDenied")}</p> : null}
-          {camera === "screen" ? (
+          {showShare ? (
             <>
-              <p className="mt-3 text-sm text-ticket">{shareHelp || t(shareHintKey(screenShareAdvice()))}</p>
+              <p className="mt-3 text-sm text-ticket">
+                {shareHelp || (camera === "ready" ? t("qcm.screenOptional") : t(shareHintKey(screenShareAdvice())))}
+              </p>
               <button type="button" className="btn-outline mt-3" onClick={() => void requestShare()}>
                 {t("qcm.shareScreen")}
               </button>
@@ -327,7 +334,7 @@ export function ExamPage() {
                 key={choice.id}
                 type="button"
                 className="qcm-choice"
-                disabled={busy || camera === "screen"}
+                disabled={busy || (camera === "screen" && !phoneProctor)}
                 onClick={() => void answer(choice.id)}
               >
                 {localized(choice, i18n.language, "text")}

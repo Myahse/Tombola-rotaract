@@ -38,9 +38,11 @@ export function getDisplayMediaFn(): DisplayCapture | null {
   if (typeof navigator === "undefined") return null;
   const nav = navigator as NavigatorCapture;
   const media = nav.mediaDevices as MediaCapture | undefined;
-  const impl = media?.getDisplayMedia ?? media?.webkitGetDisplayMedia ?? nav.getDisplayMedia ?? nav.webkitGetDisplayMedia;
-  if (typeof impl !== "function") return null;
-  return impl.bind(media ?? nav);
+  if (typeof media?.getDisplayMedia === "function") return media.getDisplayMedia.bind(media);
+  if (typeof media?.webkitGetDisplayMedia === "function") return media.webkitGetDisplayMedia.bind(media);
+  if (typeof nav.getDisplayMedia === "function") return nav.getDisplayMedia.bind(nav);
+  if (typeof nav.webkitGetDisplayMedia === "function") return nav.webkitGetDisplayMedia.bind(nav);
+  return null;
 }
 
 export function isIosDevice() {
@@ -69,11 +71,27 @@ export function screenShareAdvice(): ScreenShareAdvice {
   return "ok";
 }
 
+export function allowCameraOnlyProctoring() {
+  if (typeof window === "undefined") return false;
+  if (isIosDevice()) return true;
+  if (!getDisplayMediaFn()) return true;
+  const coarse = window.matchMedia?.("(pointer: coarse)")?.matches;
+  const touch = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+  return Boolean(coarse || touch);
+}
+
 function hintScreen(stream: MediaStream) {
   const track = stream.getVideoTracks()[0];
   if (track) track.contentHint = "detail";
   return stream;
 }
+
+type ShareOpts = DisplayMediaStreamOptions & {
+  preferCurrentTab?: boolean;
+  selfBrowserSurface?: "include" | "exclude";
+  surfaceSwitching?: "include" | "exclude";
+  systemAudio?: "include" | "exclude";
+};
 
 export async function getScreenStream() {
   if (typeof window !== "undefined" && !window.isSecureContext) {
@@ -83,19 +101,21 @@ export async function getScreenStream() {
   if (!capture) {
     throw new Error("screen_unsupported");
   }
-  try {
-    return hintScreen(await capture({ video: { frameRate: { ideal: 15, max: 24 } }, audio: false }));
-  } catch (error) {
-    const name = error instanceof DOMException ? error.name : "";
-    if (
-      name === "NotAllowedError" ||
-      name === "AbortError" ||
-      (error instanceof Error && (error.message === "screen_unsupported" || error.message === "screen_insecure"))
-    ) {
-      throw error;
+  const tries: ShareOpts[] = [
+    { video: true, audio: false, preferCurrentTab: true, selfBrowserSurface: "include", systemAudio: "exclude" },
+    { video: true, audio: false },
+  ];
+  let lastError: unknown;
+  for (const options of tries) {
+    try {
+      return hintScreen(await capture(options));
+    } catch (error) {
+      lastError = error;
+      const name = error instanceof DOMException ? error.name : "";
+      if (name === "NotAllowedError" || name === "AbortError") throw error;
     }
-    return hintScreen(await capture({ video: true, audio: false }));
   }
+  throw lastError instanceof Error ? lastError : new Error("screen_unsupported");
 }
 
 export function stopStream(stream: MediaStream | null | undefined) {

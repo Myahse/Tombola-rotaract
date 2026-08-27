@@ -5,7 +5,7 @@ import { useRealtime } from "./useRealtime";
 import { DraggableCallDock } from "./components/DraggableCallDock";
 import { VideoTile } from "./components/VideoTile";
 import { useStay } from "./stay";
-import { getCallStream, getDisplayMediaFn, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
+import { allowCameraOnlyProctoring, getCallStream, getDisplayMediaFn, getScreenStream, iceConfig, parseIce, stopStream } from "./webrtc";
 
 export type CallStatus = "off" | "need" | "ready" | "denied" | "screen";
 
@@ -41,6 +41,7 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
   const onStatusRef = useRef(onStatus);
   const onSessionRef = useRef(onSession);
   const deniedRef = useRef(false);
+  const cameraOnlyRef = useRef(false);
   const { reportAway, setAwayReporter } = useStay();
   onStatusRef.current = onStatus;
   onSessionRef.current = onSession;
@@ -84,7 +85,8 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
   connectedRef.current = connected;
 
   useEffect(() => {
-    if (!active || deniedRef.current || !localRef.current || !screenRef.current) return;
+    if (!active || deniedRef.current || !localRef.current) return;
+    if (!screenRef.current && !cameraOnlyRef.current) return;
     if (connected) onStatusRef.current("ready");
   }, [active, connected]);
 
@@ -102,11 +104,9 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
   }
 
   function markReady() {
-    if (deniedRef.current) return;
-    if (localRef.current && screenRef.current) {
-      onStatusRef.current(connectedRef.current ? "ready" : "need");
-      if (connectedRef.current) onStatusRef.current("ready");
-    }
+    if (deniedRef.current || !localRef.current) return;
+    if (!screenRef.current && !cameraOnlyRef.current) return;
+    onStatusRef.current(connectedRef.current ? "ready" : "need");
   }
 
   async function flushIce(id: string, pc: RTCPeerConnection) {
@@ -152,6 +152,10 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
     track.onended = () => {
       stopStream(screenRef.current);
       screenRef.current = null;
+      if (cameraOnlyRef.current) {
+        markReady();
+        return;
+      }
       reportAway(true);
       onStatusRef.current("screen");
     };
@@ -186,7 +190,7 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
   async function offerTo(monitorId: string) {
     const camera = localRef.current;
     const screen = screenRef.current;
-    if (!camera || !screen) {
+    if (!camera || (!screen && !cameraOnlyRef.current)) {
       waitingMonitors.current.add(monitorId);
       return;
     }
@@ -194,7 +198,7 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
     const pc = new RTCPeerConnection(iceConfig);
     pcs.current.set(monitorId, pc);
     camera.getTracks().forEach((track) => pc.addTrack(track, camera));
-    screen.getTracks().forEach((track) => pc.addTrack(track, screen));
+    screen?.getTracks().forEach((track) => pc.addTrack(track, screen));
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       sendRef.current({
@@ -214,7 +218,7 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
       type: "qcm.call.offer",
       to: monitorId,
       sdp: offer.sdp ?? "",
-      screenStreamId: screen.id,
+      screenStreamId: screen?.id,
     });
   }
 
@@ -235,7 +239,9 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
         }
         localRef.current = stream;
         setLocal(stream);
+        cameraOnlyRef.current = allowCameraOnlyProctoring();
         onStatusRef.current("screen");
+        if (cameraOnlyRef.current) markReady();
         if (!preferAutoScreenShare()) return;
         try {
           const screen = await getScreenStream();
@@ -259,6 +265,7 @@ export const ExamCall = forwardRef<ExamCallHandle, ExamCallProps>(function ExamC
       stopStream(screenRef.current);
       localRef.current = null;
       screenRef.current = null;
+      cameraOnlyRef.current = false;
       setLocal(null);
     };
   }, [active]);
