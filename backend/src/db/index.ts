@@ -8,10 +8,13 @@ if (!url) {
   throw new Error("DATABASE_URL is not set");
 }
 
+const pooled = /[-.]pooler\./i.test(url);
+
 export const client = postgres(url, {
-  max: process.env.VERCEL ? 1 : 10,
+  max: process.env.VERCEL ? 1 : pooled ? 3 : 10,
   idle_timeout: 20,
-  connect_timeout: 10,
+  connect_timeout: 30,
+  prepare: !pooled,
 });
 export const db = drizzle(client, { schema });
 

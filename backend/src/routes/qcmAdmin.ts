@@ -11,6 +11,7 @@ import {
   publishQcm,
   saveInductionExam,
   stopLiveAttempts,
+  updateExamEnglish,
 } from "../lib/qcm.js";
 import {
   archiveLiveSession,
@@ -110,6 +111,27 @@ async function withEnglish(data: ReturnType<typeof normalizeExam>) {
   };
 }
 
+async function enrichSavedExamEnglish(
+  examId: string,
+  questions: Array<{ id: string }>,
+  data: ReturnType<typeof normalizeExam>,
+) {
+  try {
+    const translated = await withEnglish(data);
+    await updateExamEnglish(
+      examId,
+      translated.titleEn,
+      questions.flatMap((row, index) => {
+        const next = translated.questions[index];
+        if (!next) return [];
+        return [{ id: row.id, promptEn: next.promptEn, choices: next.choices }];
+      }),
+    );
+  } catch (error) {
+    console.error("QCM English translation failed", error);
+  }
+}
+
 async function payload(lang: "fr" | "en" = "fr") {
   const exam = await getInductionExam();
   if (!exam) return { exam: null, questions: [], attempts: [], invites: [], archives: [] };
@@ -135,7 +157,7 @@ export function registerAdminQcmRoutes(router: Router) {
       }
       let normalized;
       try {
-        normalized = await withEnglish(normalizeExam(parsed.data));
+        normalized = normalizeExam(parsed.data);
       } catch (error) {
         const code = error instanceof Error ? error.message : "invalid_form";
         res.status(400).json({ error: code });
@@ -147,6 +169,7 @@ export function registerAdminQcmRoutes(router: Router) {
         return;
       }
       res.json(await payload());
+      void enrichSavedExamEnglish(saved.exam.id, saved.questions, normalized);
     } catch (error) {
       next(error);
     }

@@ -382,6 +382,23 @@ export async function saveInductionExam(input: {
   };
 }
 
+export async function updateExamEnglish(
+  examId: string,
+  titleEn: string,
+  questions: Array<{ id: string; promptEn: string; choices: QcmChoice[] }>,
+) {
+  await db.update(qcmExams).set({ titleEn, updatedAt: new Date() }).where(eq(qcmExams.id, examId));
+  for (const question of questions) {
+    await db
+      .update(qcmQuestions)
+      .set({
+        promptEn: question.promptEn,
+        choices: JSON.stringify(question.choices),
+      })
+      .where(and(eq(qcmQuestions.id, question.id), eq(qcmQuestions.examId, examId)));
+  }
+}
+
 export async function seedInductionQcm() {
   const existing = await getInductionExam();
   if (existing) return existing;

@@ -58,11 +58,18 @@ export function QcmEditorPage() {
   }
 
   useEffect(() => {
+    let cancelled = false;
     load().catch(() => {
+      if (cancelled) return;
       setReady(true);
       setMessage(t("errors.generic"));
     });
-  }, [t]);
+    return () => {
+      cancelled = true;
+    };
+    // Reload only on mount. Depending on `t` would wipe unsaved edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function updateQuestion(index: number, next: DraftQuestion) {
     setQuestions((current) => current.map((item, i) => (i === index ? next : item)));
@@ -97,10 +104,12 @@ export function QcmEditorPage() {
         }),
       };
       const data = await api.saveQcm(payload);
+      setTitleFr(data.exam?.titleFr ?? titleFr);
       setQuestions(data.questions.length ? data.questions.map(fromApi) : [emptyQuestion()]);
       setPassScore(data.exam?.passScore ?? passScore);
       setExamMinutes(data.exam?.examDurationSeconds ? String(Math.round(data.exam.examDurationSeconds / 60)) : "");
       setQuestionSeconds(data.exam?.questionDurationSeconds ? String(data.exam.questionDurationSeconds) : "");
+      setLocked(data.exam?.status === "open" || data.attempts.some((item) => item.status === "in_progress"));
       setSaved(true);
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
