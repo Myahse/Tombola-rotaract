@@ -5,6 +5,7 @@ import { api } from "../api";
 import { formatApiError, isRetryableError } from "../formatApiError";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PasswordField } from "../components/PasswordField";
 import { safeNextPath } from "../safeNext";
 
 export function LoginPage() {
@@ -54,10 +55,12 @@ export function LoginPage() {
           {t("auth.email")}
           <input name="email" type="email" required autoComplete="email" />
         </label>
-        <label>
-          {t("auth.password")}
-          <input name="password" type="password" required autoComplete="current-password" />
-        </label>
+        <PasswordField
+          label={t("auth.password")}
+          name="password"
+          required
+          autoComplete="current-password"
+        />
         <p className="auth-forgot">
           <Link to={`/${lang}/forgot`}>{t("auth.forgotLink")}</Link>
         </p>

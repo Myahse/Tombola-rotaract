@@ -6,8 +6,10 @@ import { formatApiError, isRetryableError } from "../formatApiError";
 import { useAuth } from "../auth";
 import type { PublicEvent } from "../types";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PhoneField } from "../components/PhoneField";
 import { SalesCountdown } from "../components/SalesCountdown";
 import { WaveLogo } from "../components/WaveLogo";
+import { isValidPhone, normalizePhone } from "../lib/phone";
 
 export function BuyPage() {
   const { t, i18n } = useTranslation();
@@ -20,6 +22,7 @@ export function BuyPage() {
   const [error, setError] = useState("");
   const [retryable, setRetryable] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [phone, setPhone] = useState(member?.phone ?? "");
 
   useEffect(() => {
     api
@@ -27,6 +30,10 @@ export function BuyPage() {
       .then((data) => setEvent(data.event))
       .catch(() => setEvent(null));
   }, []);
+
+  useEffect(() => {
+    if (member?.phone) setPhone(member.phone);
+  }, [member?.phone]);
 
   if (loading) {
     return (
@@ -92,14 +99,18 @@ export function BuyPage() {
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const form = new FormData(e.currentTarget);
+    const serialized = normalizePhone(phone);
+    if (phone && !isValidPhone(serialized)) {
+      setError(t("errors.invalidPhone"));
+      return;
+    }
     setBusy(true);
     setError("");
     setRetryable(false);
     try {
       const order = await api.buy({
         quantity,
-        phone: String(form.get("phone") ?? ""),
+        phone: serialized,
         paymentMethod,
       });
       const destination = order.eventId
@@ -122,10 +133,7 @@ export function BuyPage() {
       <p>{event.drawMode === "roulette" ? t("buy.introRoulette") : t("buy.introScratch")}</p>
       <p className="buy-as">{t("buy.loggedInAs", { name: member.name, email: member.email })}</p>
       <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
-        <label>
-          {t("buy.phone")}
-          <input name="phone" defaultValue={member.phone ?? ""} />
-        </label>
+        <PhoneField label={t("buy.phone")} value={phone} onChange={setPhone} />
         <label>
           {t("buy.quantity")}
           <input

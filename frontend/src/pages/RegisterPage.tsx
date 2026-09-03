@@ -5,6 +5,9 @@ import { api } from "../api";
 import { formatApiError, isRetryableError } from "../formatApiError";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PasswordField } from "../components/PasswordField";
+import { PhoneField } from "../components/PhoneField";
+import { isValidPhone, normalizePhone } from "../lib/phone";
 import { resizeImage } from "../resizeImage";
 import { safeNextPath } from "../safeNext";
 
@@ -59,6 +62,10 @@ export function RegisterPage() {
 
   function goStep2(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (!isValidPhone(phone)) {
+      setError(t("errors.invalidPhone"));
+      return;
+    }
     if (password !== confirm) {
       setError(t("errors.passwordMismatch"));
       return;
@@ -84,7 +91,7 @@ export function RegisterPage() {
       await api.register({
         name,
         email,
-        phone,
+        phone: normalizePhone(phone),
         password,
         avatarUrl: avatarUrl || undefined,
         clubName,
@@ -153,40 +160,23 @@ export function RegisterPage() {
               autoComplete="email"
             />
           </label>
-          <label>
-            {t("auth.phone")}
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              type="tel"
-              required
-              minLength={8}
-              autoComplete="tel"
-              inputMode="tel"
-            />
-          </label>
-          <label>
-            {t("auth.password")}
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </label>
-          <label>
-            {t("auth.confirmPassword")}
-            <input
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              type="password"
-              required
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </label>
+          <PhoneField label={t("auth.phone")} value={phone} onChange={setPhone} required />
+          <PasswordField
+            label={t("auth.password")}
+            value={password}
+            onChange={setPassword}
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <PasswordField
+            label={t("auth.confirmPassword")}
+            value={confirm}
+            onChange={setConfirm}
+            required
+            minLength={8}
+            autoComplete="new-password"
+          />
           {error ? <p className="text-sm text-ticket">{error}</p> : null}
           <button className="btn-primary btn-block">{t("auth.nextStep")}</button>
         </form>

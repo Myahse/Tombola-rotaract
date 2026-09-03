@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PasswordField } from "../components/PasswordField";
 
 export function ResetPasswordPage() {
   const { t } = useTranslation();
@@ -65,14 +66,20 @@ export function ResetPasswordPage() {
       <h1>{t("auth.resetTitle")}</h1>
       <p>{t("auth.resetLead")}</p>
       <form className="mt-6 grid gap-4" onSubmit={onSubmit}>
-        <label>
-          {t("auth.password")}
-          <input name="password" type="password" required minLength={8} autoComplete="new-password" />
-        </label>
-        <label>
-          {t("auth.confirmPassword")}
-          <input name="confirm" type="password" required minLength={8} autoComplete="new-password" />
-        </label>
+        <PasswordField
+          label={t("auth.password")}
+          name="password"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
+        <PasswordField
+          label={t("auth.confirmPassword")}
+          name="confirm"
+          required
+          minLength={8}
+          autoComplete="new-password"
+        />
         {error ? <p className="text-sm text-ticket">{error}</p> : null}
         <button disabled={busy} className="btn-primary btn-block">
           {busy ? t("auth.submitting") : t("auth.resetSubmit")}

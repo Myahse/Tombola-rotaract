@@ -6,6 +6,9 @@ import { useAuth } from "../auth";
 import { Avatar } from "../components/Avatar";
 import { StatusPill } from "../components/ScratchTicket";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { PasswordField } from "../components/PasswordField";
+import { PhoneField } from "../components/PhoneField";
+import { isValidPhone, normalizePhone } from "../lib/phone";
 import { resizeImage } from "../resizeImage";
 import type { MemberTombola } from "../types";
 import {
@@ -80,6 +83,10 @@ export function AccountPage() {
   async function onSaveProfile(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setProfileSaved(false);
+    if (!isValidPhone(phone)) {
+      setProfileError(t("errors.invalidPhone"));
+      return;
+    }
     if (password || confirm) {
       if (password !== confirm) {
         setProfileError(t("errors.passwordMismatch"));
@@ -95,7 +102,7 @@ export function AccountPage() {
     try {
       await api.updateProfile({
         name,
-        phone,
+        phone: normalizePhone(phone),
         avatarUrl,
         clubName,
         clubRole,
@@ -270,18 +277,7 @@ export function AccountPage() {
             <input value={member.email} type="email" disabled autoComplete="email" />
             <em className="field-hint">{t("account.emailLocked")}</em>
           </label>
-          <label>
-            {t("auth.phone")}
-            <input
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              type="tel"
-              required
-              minLength={8}
-              autoComplete="tel"
-              inputMode="tel"
-            />
-          </label>
+          <PhoneField label={t("auth.phone")} value={phone} onChange={setPhone} required />
           <label>
             {t("auth.clubName")}
             <input
@@ -313,35 +309,26 @@ export function AccountPage() {
               <option value="Ami du club" />
             </datalist>
           </label>
-          <label>
-            {t("account.currentPassword")}
-            <input
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              type="password"
-              autoComplete="current-password"
-            />
-          </label>
-          <label>
-            {t("account.newPassword")}
-            <input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              type="password"
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </label>
-          <label>
-            {t("auth.confirmPassword")}
-            <input
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              type="password"
-              minLength={8}
-              autoComplete="new-password"
-            />
-          </label>
+          <PasswordField
+            label={t("account.currentPassword")}
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            autoComplete="current-password"
+          />
+          <PasswordField
+            label={t("account.newPassword")}
+            value={password}
+            onChange={setPassword}
+            minLength={8}
+            autoComplete="new-password"
+          />
+          <PasswordField
+            label={t("auth.confirmPassword")}
+            value={confirm}
+            onChange={setConfirm}
+            minLength={8}
+            autoComplete="new-password"
+          />
           {profileError ? <p className="text-sm text-ticket">{profileError}</p> : null}
           {profileSaved ? <p className="field-ok">{t("account.saved")}</p> : null}
           <button disabled={profileBusy} className="btn-primary">

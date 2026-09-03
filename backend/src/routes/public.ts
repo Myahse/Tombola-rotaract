@@ -17,6 +17,7 @@ import {
   notifyOrganizerOrderCancelled,
   notifyOrganizerPaymentRef,
 } from "../lib/organizerNotify.js";
+import { optionalE164Phone } from "../lib/phone.js";
 
 export const publicRouter = Router();
 
@@ -41,7 +42,7 @@ async function ownedOrder(token: string, memberId: string, exec: QueryDb = db) {
 
 const buySchema = z.object({
   quantity: z.number().int().min(1).max(20),
-  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  phone: optionalE164Phone,
   paymentMethod: z.enum(["cash", "wave"]).default("cash"),
 });
 
@@ -626,13 +627,7 @@ publicRouter.post("/orders/:token/tickets/:number/scratch", requireMember, async
 const donateSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(120).optional().or(z.literal("")),
-  phone: z
-    .string()
-    .trim()
-    .max(40)
-    .regex(/^[0-9+().\s-]*$/)
-    .optional()
-    .or(z.literal("")),
+  phone: optionalE164Phone,
   amount: z.number().int().min(100).max(10_000_000),
   paymentRef: z
     .string()

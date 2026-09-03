@@ -44,7 +44,7 @@
   --card-shadow: 0 16px 40px rgba(20, 20, 22, 0.1);
   --font: "Manrope", "Segoe UI", system-ui, sans-serif;
   --header-h: calc(4.75rem + env(safe-area-inset-top, 0px));
-  --nav-h: 52px;
+  --nav-h: 62px;
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 
@@ -419,6 +419,47 @@ a:hover { color: var(--primary); }
   font-size: 0.82rem;
   font-style: normal;
   font-weight: 500;
+}
+.phone-field {
+  display: flex;
+  gap: 0.45rem;
+  min-width: 0;
+}
+.phone-field select {
+  width: auto;
+  flex: 0 1 11.5rem;
+  max-width: 46%;
+  min-width: 7.25rem;
+}
+.phone-field input {
+  flex: 1;
+  min-width: 0;
+}
+.password-field {
+  position: relative;
+  display: block;
+}
+.password-field input {
+  padding-right: 2.75rem;
+}
+.password-toggle {
+  position: absolute;
+  right: 0.28rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.password-toggle:hover,
+.password-toggle:focus-visible {
+  color: var(--ink);
 }
 .field-ok {
   margin: 0;
@@ -1182,14 +1223,22 @@ body.modal-open {
 }
 .bottom-nav.nav-4 { grid-template-columns: repeat(4, 1fr); }
 .bottom-nav a {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
   color: var(--muted);
   font-weight: 600;
-  font-size: 0.72rem;
+  font-size: 0.6rem;
   text-align: center;
-  padding: 0 0.2rem;
-  line-height: 1.15;
+  padding: 0.28rem 0.12rem;
+  line-height: 1.1;
+}
+.bottom-nav .nav-icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
 }
 .bottom-nav a.active { color: var(--ink); background: transparent; }
 .bottom-nav a:hover { color: var(--ink); }

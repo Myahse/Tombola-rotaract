@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { isLanguage } from "../i18n";
 import { LangSwitcher } from "./LangSwitcher";
 import { BrandLogo } from "./BrandLogo";
+import { NavIcon, type IconName } from "./NavIcon";
 import { PwaPrompts } from "./PwaPrompts";
 import { useAuth } from "../auth";
 
@@ -25,21 +26,22 @@ export function Layout() {
 
   const navClass = ({ isActive }: { isActive: boolean }) => (isActive ? "active" : "");
   const base = `/${lang ?? "fr"}`;
-  const items = [
-    { to: base, end: true, label: t("nav.home") },
-    { to: `${base}/tombola`, end: false, label: t("nav.tombola") },
-    { to: `${base}/buy`, end: false, label: t("nav.buyShort") },
-    { to: `${base}/donate`, end: false, label: t("nav.donate") },
-    { to: `${base}/results`, end: false, label: t("nav.results") },
+  const items: { to: string; end: boolean; label: string; icon: IconName }[] = [
+    { to: base, end: true, label: t("nav.home"), icon: "home" },
+    { to: `${base}/tombola`, end: false, label: t("nav.tombola"), icon: "tombola" },
+    { to: `${base}/buy`, end: false, label: t("nav.buyShort"), icon: "buy" },
+    { to: `${base}/donate`, end: false, label: t("nav.donate"), icon: "donate" },
+    { to: `${base}/results`, end: false, label: t("nav.results"), icon: "results" },
     member
-      ? { to: `${base}/account`, end: false, label: t("nav.accountShort") }
-      : { to: `${base}/login`, end: false, label: t("nav.login") },
+      ? { to: `${base}/account`, end: false, label: t("nav.accountShort"), icon: "account" }
+      : { to: `${base}/login`, end: false, label: t("nav.login"), icon: "login" },
   ];
 
-  const navLinks = (id: string) =>
+  const navLinks = (id: string, withIcons = false) =>
     items.map((item) => (
       <NavLink key={`${id}-${item.to}`} to={item.to} end={item.end} className={navClass}>
-        {item.label}
+        {withIcons ? <NavIcon name={item.icon} /> : null}
+        <span>{item.label}</span>
       </NavLink>
     ));
 
@@ -72,7 +74,7 @@ export function Layout() {
         </div>
       </main>
       <nav className="bottom-nav show-mobile no-print" aria-label="Mobile">
-        {navLinks("bottom")}
+        {navLinks("bottom", true)}
       </nav>
     </div>
   );

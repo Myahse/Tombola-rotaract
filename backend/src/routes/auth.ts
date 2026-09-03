@@ -24,18 +24,14 @@ import { publishChange } from "../lib/publicSnapshot.js";
 import { siteUrl } from "../emails/layout.js";
 import { notifyOrganizerOrderCancelled } from "../lib/organizerNotify.js";
 import { GENDERS } from "../lib/gender.js";
+import { e164Phone } from "../lib/phone.js";
 
 export const authRouter = Router();
 
 const registerSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().trim().email().max(120),
-  phone: z
-    .string()
-    .trim()
-    .min(8)
-    .max(40)
-    .regex(/^[0-9+().\s-]{8,40}$/),
+  phone: e164Phone,
   password: z.string().min(8).max(100),
   avatarUrl: z.string().max(120_000).optional().or(z.literal("")),
   clubName: z.string().trim().min(2).max(120),
@@ -61,13 +57,7 @@ const resetSchema = z.object({
 
 const profileSchema = z.object({
   name: z.string().trim().min(2).max(80).optional(),
-  phone: z
-    .string()
-    .trim()
-    .min(8)
-    .max(40)
-    .regex(/^[0-9+().\s-]{8,40}$/)
-    .optional(),
+  phone: e164Phone.optional(),
   avatarUrl: z.string().max(120_000).optional(),
   clubName: z.string().trim().max(120).optional(),
   clubRole: z.string().trim().max(80).optional(),
