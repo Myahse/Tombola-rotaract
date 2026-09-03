@@ -61,9 +61,6 @@ export function PhoneField({ label, value, onChange, required, autoComplete = "t
         <input
           value={national}
           onChange={(e) => emit(iso, digitsOnly(e.target.value))}
-          onBeforeInput={(e) => {
-            if (e.data && e.inputType === "insertText" && /\D/.test(e.data)) e.preventDefault();
-          }}
           type="tel"
           inputMode="numeric"
           autoComplete={autoComplete}
