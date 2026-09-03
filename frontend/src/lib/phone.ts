@@ -104,7 +104,7 @@ export function isValidPhone(value: string): boolean {
   return national.length >= country.min && national.length <= country.max;
 }
 
-export function countryOptionLabel(country: PhoneCountry, lang: string): string {
+export function countryAriaLabel(country: PhoneCountry, lang: string): string {
   const name = lang.startsWith("en") ? country.nameEn : country.nameFr;
-  return `${country.flag} +${country.dial} ${name}`;
+  return `${name} (+${country.dial})`;
 }

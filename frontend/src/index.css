@@ -425,11 +425,15 @@ a:hover { color: var(--primary); }
   gap: 0.45rem;
   min-width: 0;
 }
-.phone-field select {
-  width: auto;
-  flex: 0 1 11.5rem;
-  max-width: 46%;
-  min-width: 7.25rem;
+.phone-field select.phone-country {
+  width: 3.35rem;
+  flex: 0 0 3.35rem;
+  max-width: none;
+  min-width: 3.35rem;
+  padding: 0.7rem 0.35rem;
+  text-align: center;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 .phone-field input {
   flex: 1;

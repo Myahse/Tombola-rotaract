@@ -2,8 +2,8 @@ import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   PHONE_COUNTRIES,
+  countryAriaLabel,
   countryByIso,
-  countryOptionLabel,
   digitsOnly,
   parsePhone,
   serializePhone,
@@ -48,13 +48,14 @@ export function PhoneField({ label, value, onChange, required, autoComplete = "t
       <span className="phone-field">
         <select
           id={selectId}
-          aria-label={t("auth.countryCode")}
+          className="phone-country"
+          aria-label={`${t("auth.countryCode")}: ${countryAriaLabel(country, i18n.language)}`}
           value={iso}
           onChange={(e) => emit(e.target.value, national)}
         >
           {PHONE_COUNTRIES.map((item) => (
-            <option key={item.iso} value={item.iso}>
-              {countryOptionLabel(item, i18n.language)}
+            <option key={item.iso} value={item.iso} title={countryAriaLabel(item, i18n.language)}>
+              {item.flag}
             </option>
           ))}
         </select>
