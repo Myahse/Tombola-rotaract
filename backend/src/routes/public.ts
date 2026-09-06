@@ -15,9 +15,18 @@ import {
   notifyOrganizerDonation,
   notifyOrganizerNewOrder,
   notifyOrganizerOrderCancelled,
-  notifyOrganizerPaymentRef,
+  notifyOrganizerReceipt,
 } from "../lib/organizerNotify.js";
 import { optionalE164Phone } from "../lib/phone.js";
+import {
+  createReceiptKey,
+  isValidReceiptKey,
+  maxReceiptBytes,
+  presignReceiptUpload,
+  r2Configured,
+  receiptObjectExists,
+  RECEIPT_MIMES,
+} from "../lib/r2.js";
 
 export const publicRouter = Router();
 
@@ -191,6 +200,8 @@ publicRouter.post("/orders", requireMember, async (req, res) => {
       quantity: created.order.quantity,
       paymentMethod: created.order.paymentMethod,
       paymentRef: created.order.paymentRef,
+      receiptKey: created.order.receiptKey,
+      receiptMime: created.order.receiptMime,
       wavePayUrl: wavePayUrl(),
       status: created.order.status,
       ticketPriceCents: created.event.ticketPriceCents,
@@ -263,6 +274,8 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
     quantity: order.quantity,
     paymentMethod: order.paymentMethod,
     paymentRef: order.paymentRef,
+    receiptKey: order.receiptKey,
+    receiptMime: order.receiptMime,
     wavePayUrl: wavePayUrl(),
     status: order.status,
     createdAt: order.createdAt,
@@ -279,17 +292,47 @@ publicRouter.get("/orders/:token", requireMember, async (req, res) => {
   });
 });
 
-const paymentRefSchema = z.object({
-  paymentRef: z
-    .string()
-    .trim()
-    .min(4)
-    .max(80)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9 .#/_-]*$/),
+const presignReceiptSchema = z.object({
+  purpose: z.enum(["orders", "donations"]),
+  mimeType: z.enum(RECEIPT_MIMES),
+  size: z.number().int().min(1),
+  filename: z.string().trim().min(1).max(120).optional(),
 });
 
-publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) => {
-  if (!(await allowRequest(`payref:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
+const attachReceiptSchema = z.object({
+  receiptKey: z.string().trim().regex(/^[a-zA-Z0-9/._-]+$/).max(240),
+  receiptMime: z.enum(RECEIPT_MIMES),
+});
+
+publicRouter.post("/receipts/presign", async (req, res) => {
+  if (!r2Configured()) {
+    res.status(503).json({ error: "storage_unavailable" });
+    return;
+  }
+  if (!(await allowRequest(`receipt-presign:${clientKey(req)}`, 30, 15 * 60 * 1000))) {
+    res.status(429).json({ error: "too_many_requests" });
+    return;
+  }
+  const parsed = presignReceiptSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  if (parsed.data.size > maxReceiptBytes(parsed.data.mimeType)) {
+    res.status(400).json({ error: "file_too_large" });
+    return;
+  }
+  const key = createReceiptKey(parsed.data.purpose, parsed.data.filename ?? "receipt");
+  const uploadUrl = await presignReceiptUpload(key, parsed.data.mimeType, parsed.data.size);
+  res.json({ key, uploadUrl });
+});
+
+publicRouter.post("/orders/:token/receipt", requireMember, async (req, res) => {
+  if (!r2Configured()) {
+    res.status(503).json({ error: "storage_unavailable" });
+    return;
+  }
+  if (!(await allowRequest(`receipt:${clientKey(req)}`, 20, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
@@ -298,8 +341,8 @@ publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) 
     res.status(400).json({ error: "missing_token" });
     return;
   }
-  const parsed = paymentRefSchema.safeParse(req.body);
-  if (!parsed.success) {
+  const parsed = attachReceiptSchema.safeParse(req.body);
+  if (!parsed.success || !isValidReceiptKey(parsed.data.receiptKey, "orders")) {
     res.status(400).json({ error: "invalid_form" });
     return;
   }
@@ -325,14 +368,25 @@ publicRouter.post("/orders/:token/payment-ref", requireMember, async (req, res) 
     return;
   }
 
+  if (!(await receiptObjectExists(parsed.data.receiptKey))) {
+    res.status(400).json({ error: "receipt_missing" });
+    return;
+  }
+
   const [updated] = await db
     .update(orders)
-    .set({ paymentRef: parsed.data.paymentRef.trim() })
+    .set({
+      receiptKey: parsed.data.receiptKey,
+      receiptMime: parsed.data.receiptMime,
+    })
     .where(eq(orders.id, order.id))
     .returning();
-  res.json({ paymentRef: updated?.paymentRef ?? parsed.data.paymentRef });
+  res.json({
+    receiptKey: updated?.receiptKey ?? parsed.data.receiptKey,
+    receiptMime: updated?.receiptMime ?? parsed.data.receiptMime,
+  });
   void publishChange("order");
-  notifyOrganizerPaymentRef(order.buyerName, parsed.data.paymentRef.trim());
+  notifyOrganizerReceipt(order.buyerName, "order");
 });
 
 publicRouter.post("/orders/:token/cancel", requireMember, async (req, res) => {
@@ -629,22 +683,26 @@ const donateSchema = z.object({
   email: z.string().trim().email().max(120).optional().or(z.literal("")),
   phone: optionalE164Phone,
   amount: z.number().int().min(100).max(10_000_000),
-  paymentRef: z
-    .string()
-    .trim()
-    .min(4)
-    .max(80)
-    .regex(/^[A-Za-z0-9][A-Za-z0-9 .#/_-]*$/),
+  receiptKey: z.string().trim().regex(/^[a-zA-Z0-9/._-]+$/).max(240),
+  receiptMime: z.enum(RECEIPT_MIMES),
 });
 
 publicRouter.post("/donations", async (req, res) => {
+  if (!r2Configured()) {
+    res.status(503).json({ error: "storage_unavailable" });
+    return;
+  }
   if (!(await allowRequest(`donate:${clientKey(req)}`, 10, 15 * 60 * 1000))) {
     res.status(429).json({ error: "too_many_requests" });
     return;
   }
   const parsed = donateSchema.safeParse(req.body);
-  if (!parsed.success) {
+  if (!parsed.success || !isValidReceiptKey(parsed.data.receiptKey, "donations")) {
     res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  if (!(await receiptObjectExists(parsed.data.receiptKey))) {
+    res.status(400).json({ error: "receipt_missing" });
     return;
   }
 
@@ -669,7 +727,8 @@ publicRouter.post("/donations", async (req, res) => {
       donorPhone: phone,
       amountCents: parsed.data.amount,
       paymentMethod: "wave",
-      paymentRef: parsed.data.paymentRef.trim(),
+      receiptKey: parsed.data.receiptKey,
+      receiptMime: parsed.data.receiptMime,
       status: "pending",
     })
     .returning();
@@ -678,7 +737,8 @@ publicRouter.post("/donations", async (req, res) => {
     id: created?.id,
     donorName: created?.donorName,
     amountCents: created?.amountCents,
-    paymentRef: created?.paymentRef,
+    receiptKey: created?.receiptKey,
+    receiptMime: created?.receiptMime,
     status: created?.status,
   });
   void publishChange("order");

@@ -7,6 +7,7 @@ import type { AdminEvent, AdminOrder } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
 import { PageSkeleton } from "../../components/PageSkeleton";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { ReceiptLink } from "../../components/ReceiptLink";
 import { ExportActions } from "../../components/ExportActions";
 import { PhysicalTicketsForm } from "../../components/PhysicalTicketsForm";
 import { exportOrdersExcel, exportOrdersPdf } from "../../lib/exportOrders";
@@ -43,8 +44,8 @@ export function BuyersPage() {
     if (a.status === "reserved" && b.status !== "reserved") return -1;
     if (b.status === "reserved" && a.status !== "reserved") return 1;
     if (a.status === "reserved" && b.status === "reserved") {
-      if (a.paymentRef && !b.paymentRef) return -1;
-      if (b.paymentRef && !a.paymentRef) return 1;
+      if (a.receiptKey && !b.receiptKey) return -1;
+      if (b.receiptKey && !a.receiptKey) return 1;
     }
     return 0;
   });
@@ -203,8 +204,16 @@ export function BuyersPage() {
                   </div>
                   {order.paymentMethod === "wave" ? (
                     <div>
-                      <dt>{t("admin.waveId")}</dt>
-                      <dd className="wave-ref">{order.paymentRef || t("admin.waveIdWaiting")}</dd>
+                      <dt>{t("admin.receipt")}</dt>
+                      <dd>
+                        {order.receiptKey ? (
+                          <ReceiptLink receiptKey={order.receiptKey} />
+                        ) : order.paymentRef ? (
+                          <span className="wave-ref">{order.paymentRef}</span>
+                        ) : (
+                          t("admin.receiptWaiting")
+                        )}
+                      </dd>
                     </div>
                   ) : null}
                 </dl>
@@ -223,7 +232,7 @@ export function BuyersPage() {
                   <th>{t("confirm.yourTickets")}</th>
                   <th>{t("admin.amount")}</th>
                   <th>{t("admin.payment")}</th>
-                  <th>{t("admin.waveId")}</th>
+                  <th>{t("admin.receipt")}</th>
                   <th>{t("admin.reserved")}</th>
                   <th />
                 </tr>
@@ -240,7 +249,17 @@ export function BuyersPage() {
                     <td>{amount(order)}</td>
                     <td>{payment(order)}</td>
                     <td className="wave-ref">
-                      {order.paymentMethod === "wave" ? order.paymentRef || t("admin.waveIdWaiting") : "—"}
+                      {order.paymentMethod === "wave" ? (
+                        order.receiptKey ? (
+                          <ReceiptLink receiptKey={order.receiptKey} />
+                        ) : order.paymentRef ? (
+                          order.paymentRef
+                        ) : (
+                          t("admin.receiptWaiting")
+                        )
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td>{statusBadge(order.status)}</td>
                     <td>{actions(order)}</td>
@@ -263,11 +282,10 @@ export function BuyersPage() {
           }
           body={
             pending.type === "paid"
-              ? pending.order.paymentRef
-                ? t("admin.markPaidBodyRef", {
+              ? pending.order.receiptKey || pending.order.paymentRef
+                ? t("admin.markPaidBodyReceipt", {
                     name: pending.order.buyerName,
                     amount: amount(pending.order),
-                    ref: pending.order.paymentRef,
                   })
                 : t("admin.markPaidBody", { name: pending.order.buyerName, amount: amount(pending.order) })
               : pending.type === "unpaid"

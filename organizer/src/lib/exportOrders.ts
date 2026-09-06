@@ -37,7 +37,7 @@ function orderHeaders(t: TFunction) {
     t("confirm.yourTickets"),
     t("admin.amount"),
     t("admin.payment"),
-    t("admin.waveId"),
+    t("admin.receipt"),
     t("admin.reserved"),
     t("admin.exportCreatedAt"),
     t("admin.exportPaidAt"),
@@ -52,7 +52,11 @@ function orderRows({ orders, lang, formatAmount, t }: OrderExportContext) {
     ticketLabel(order, t),
     formatAmount(order),
     paymentLabel(order, t),
-    order.paymentMethod === "wave" ? order.paymentRef || t("admin.waveIdWaiting") : "—",
+    order.paymentMethod === "wave"
+      ? order.receiptKey
+        ? t("admin.receiptSent")
+        : order.paymentRef || t("admin.receiptWaiting")
+      : "—",
     statusLabel(order.status, t),
     formatExportDate(order.createdAt, lang),
     formatExportDate(order.paidAt, lang),

@@ -22,6 +22,7 @@ import { siteUrl } from "../emails/layout.js";
 import { allowRequest, clientKey } from "../lib/rateLimit.js";
 import { registerAdminPushRoutes } from "./adminPush.js";
 import { registerAdminQcmRoutes } from "./qcmAdmin.js";
+import { isValidReceiptKey, presignReceiptDownload, r2Configured } from "../lib/r2.js";
 
 export const adminRouter = Router();
 registerAdminPushRoutes(adminRouter);
@@ -488,6 +489,8 @@ adminRouter.get("/orders", requireAdmin, async (req, res) => {
       quantity: orders.quantity,
       paymentMethod: orders.paymentMethod,
       paymentRef: orders.paymentRef,
+      receiptKey: orders.receiptKey,
+      receiptMime: orders.receiptMime,
       status: orders.status,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,
@@ -1140,6 +1143,20 @@ adminRouter.get("/scratches", requireAdmin, async (req, res) => {
   });
 });
 
+adminRouter.get("/receipts/url", requireAdmin, async (req, res) => {
+  if (!r2Configured()) {
+    res.status(503).json({ error: "storage_unavailable" });
+    return;
+  }
+  const key = typeof req.query.key === "string" ? req.query.key.trim() : "";
+  if (!key || !isValidReceiptKey(key)) {
+    res.status(400).json({ error: "invalid_form" });
+    return;
+  }
+  const url = await presignReceiptDownload(key);
+  res.json({ url });
+});
+
 adminRouter.get("/donations", requireAdmin, async (_req, res) => {
   const rows = await db.select().from(donations).orderBy(desc(donations.createdAt));
   res.json({
@@ -1151,6 +1168,8 @@ adminRouter.get("/donations", requireAdmin, async (_req, res) => {
       amountCents: row.amountCents,
       paymentMethod: row.paymentMethod,
       paymentRef: row.paymentRef,
+      receiptKey: row.receiptKey,
+      receiptMime: row.receiptMime,
       status: row.status,
       createdAt: row.createdAt.toISOString(),
       receivedAt: row.receivedAt?.toISOString() ?? null,

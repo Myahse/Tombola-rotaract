@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { DonateReceiptSheet } from "../components/DonateReceiptSheet";
+import { uploadReceipt } from "../lib/receiptUpload";
 import { api } from "../api";
 import { useAuth } from "../auth";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
 import { BrandLogo } from "../components/BrandLogo";
 import { NoticeModal } from "../components/NoticeModal";
-import { DonateRefSheet } from "../components/DonateRefSheet";
+import { Link, useParams } from "react-router-dom";
 
 export function DonatePage() {
   const { t } = useTranslation();
@@ -17,11 +18,10 @@ export function DonatePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [amount, setAmount] = useState("");
-  const [paymentRef, setPaymentRef] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [showRefSheet, setShowRefSheet] = useState(false);
+  const [showSheet, setShowSheet] = useState(false);
 
   useEffect(() => {
     api
@@ -36,24 +36,27 @@ export function DonatePage() {
     setEmail((current) => current || member.email);
   }, [member]);
 
-  async function submitDonationRef() {
+  async function submitDonation(file: File) {
     setBusy(true);
     setError("");
     try {
+      const uploaded = await uploadReceipt("donations", file);
       await api.donate({
         name,
         email,
         amount: Number(amount),
-        paymentRef,
+        receiptKey: uploaded.key,
+        receiptMime: uploaded.mimeType,
       });
-      setPaymentRef("");
       setAmount("");
       setNotice(t("donate.sent"));
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
       setError(
-        code === "invalid_form"
+        code === "invalid_form" || code === "receipt_missing"
           ? t("donate.invalid")
+          : code === "storage_unavailable"
+            ? t("receiptUpload.storageUnavailable")
           : code === "too_many_requests"
             ? t("errors.tooMany")
             : t("errors.generic"),
@@ -103,43 +106,39 @@ export function DonatePage() {
       <section className="section" style={{ borderBottom: 0 }}>
         <h2>{t("donate.refTitle")}</h2>
         <p className="lede">{t("donate.refHelp")}</p>
-        {error && !showRefSheet ? <p className="text-sm text-ticket mt-4">{error}</p> : null}
+        {error && !showSheet ? <p className="text-sm text-ticket mt-4">{error}</p> : null}
         <button
           type="button"
           className="btn-primary btn-block mt-6"
           onClick={() => {
             setError("");
-            setShowRefSheet(true);
+            setShowSheet(true);
           }}
         >
           {t("donate.send")}
         </button>
       </section>
 
-      {showRefSheet ? (
-        <DonateRefSheet
+      {showSheet ? (
+        <DonateReceiptSheet
           title={t("donate.refTitle")}
           help={t("donate.refHelp")}
           name={name}
           email={email}
           amount={amount}
-          paymentRef={paymentRef}
           nameLabel={t("buy.name")}
           emailLabel={t("buy.email")}
           amountLabel={t("donate.amount")}
-          refLabel={t("pay.waveId")}
-          refPlaceholder={t("pay.waveIdPlaceholder")}
           confirmLabel={busy ? t("donate.sending") : t("donate.send")}
-          cancelLabel={t("pay.waveRefClose")}
+          cancelLabel={t("receiptUpload.close")}
           busy={busy}
           error={error}
           onNameChange={setName}
           onEmailChange={setEmail}
           onAmountChange={setAmount}
-          onPaymentRefChange={setPaymentRef}
-          onConfirm={() => submitDonationRef()}
+          onConfirm={(file) => submitDonation(file)}
           onClose={() => {
-            setShowRefSheet(false);
+            setShowSheet(false);
             setError("");
           }}
         />

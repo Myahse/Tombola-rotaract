@@ -433,6 +433,8 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
       quantity: orders.quantity,
       paymentMethod: orders.paymentMethod,
       paymentRef: orders.paymentRef,
+      receiptKey: orders.receiptKey,
+      receiptMime: orders.receiptMime,
       createdAt: orders.createdAt,
       paidAt: orders.paidAt,
       eventId: events.id,
@@ -478,6 +480,8 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
           quantity: number;
           paymentMethod: string;
           paymentRef: string | null;
+          receiptKey: string | null;
+          receiptMime: string | null;
           createdAt: Date;
           paidAt: Date | null;
           tickets: {
@@ -518,6 +522,8 @@ authRouter.get("/me/tombolas", requireMember, async (req, res) => {
         quantity: row.quantity,
         paymentMethod: row.paymentMethod,
         paymentRef: row.paymentRef,
+        receiptKey: row.receiptKey,
+        receiptMime: row.receiptMime,
         createdAt: row.createdAt,
         paidAt: row.paidAt,
         tickets: [],

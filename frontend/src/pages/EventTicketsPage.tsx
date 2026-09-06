@@ -8,7 +8,8 @@ import { NumberedTicket, ScratchTicket } from "../components/ScratchTicket";
 import { TicketDeck } from "../components/TicketDeck";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { CancelReservedModal } from "../components/CancelReservedModal";
-import { WaveRefSheet } from "../components/WaveRefSheet";
+import { ReceiptUploadSheet } from "../components/ReceiptUploadSheet";
+import { uploadReceipt } from "../lib/receiptUpload";
 import { WaveLogo } from "../components/WaveLogo";
 import { PaymentReceiptSection } from "../components/PaymentReceiptSection";
 import { useRealtime } from "../useRealtime";
@@ -36,11 +37,10 @@ export function EventTicketsPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState("");
-  const [waveRef, setWaveRef] = useState("");
-  const [waveBusy, setWaveBusy] = useState(false);
-  const [waveError, setWaveError] = useState("");
-  const [waveDone, setWaveDone] = useState("");
-  const [showWaveRef, setShowWaveRef] = useState(false);
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+  const [receiptDone, setReceiptDone] = useState("");
+  const [showReceipt, setShowReceipt] = useState(false);
   const [view, setView] = useState<"deck" | "list">(() =>
     localStorage.getItem("tombola-tickets-view") === "list" ? "list" : "deck",
   );
@@ -53,8 +53,8 @@ export function EventTicketsPage() {
         const match = data.tombolas.find((row) => row.eventId === eventId) ?? null;
         setTombola(match);
         if (match) {
-          const latestWaveRef = match.orders.find((order) => order.status === "reserved" && order.paymentRef)?.paymentRef;
-          if (latestWaveRef) setWaveRef(latestWaveRef);
+          const latestReceipt = match.orders.find((order) => order.status === "reserved" && order.receiptKey)?.receiptKey;
+          if (latestReceipt) setReceiptDone(t("receiptUpload.sent"));
         }
       })
       .catch(() => setTombola(null));
@@ -91,8 +91,8 @@ export function EventTicketsPage() {
     () => reservedOrders.filter((order) => order.paymentMethod === "wave"),
     [reservedOrders],
   );
-  const savedWaveRef = useMemo(
-    () => waveReservedOrders.find((order) => order.paymentRef)?.paymentRef ?? "",
+  const savedReceipt = useMemo(
+    () => waveReservedOrders.some((order) => order.receiptKey),
     [waveReservedOrders],
   );
   const paidTickets = useMemo(() => flattenTickets(tombola?.orders.filter((o) => o.status === "paid") ?? []), [tombola]);
@@ -164,23 +164,26 @@ export function EventTicketsPage() {
     });
   }
 
-  async function submitWaveRef() {
-    const paymentRef = waveRef.trim();
-    if (!paymentRef || waveReservedOrders.length === 0) return;
-    setWaveBusy(true);
-    setWaveError("");
-    setWaveDone("");
+  async function submitReceipt(file: File) {
+    if (waveReservedOrders.length === 0) return;
+    setReceiptBusy(true);
+    setReceiptError("");
+    setReceiptDone("");
     try {
+      const uploaded = await uploadReceipt("orders", file);
       for (const order of waveReservedOrders) {
-        await api.sendPaymentRef(order.token, paymentRef);
+        await api.sendOrderReceipt(order.token, {
+          receiptKey: uploaded.key,
+          receiptMime: uploaded.mimeType,
+        });
       }
-      setWaveDone(t("pay.waveIdSaved"));
+      setReceiptDone(t("receiptUpload.sent"));
       reload();
     } catch {
-      setWaveError(t("errors.generic"));
-      throw new Error("wave_ref_failed");
+      setReceiptError(t("errors.generic"));
+      throw new Error("receipt_failed");
     } finally {
-      setWaveBusy(false);
+      setReceiptBusy(false);
     }
   }
 
@@ -360,26 +363,21 @@ export function EventTicketsPage() {
                   {t("pay.waveCta")}
                 </a>
               ) : null}
-              {savedWaveRef ? (
-                <p className="lede mt-4">
-                  {t("pay.waveId")}: <strong className="wave-ref">{savedWaveRef}</strong>
-                </p>
-              ) : null}
-              {waveDone && !showWaveRef ? <p className="field-ok mt-3">{waveDone}</p> : null}
+              {savedReceipt ? <p className="field-ok mt-4">{t("receiptUpload.sent")}</p> : null}
+              {receiptDone && !showReceipt ? <p className="field-ok mt-3">{receiptDone}</p> : null}
               <button
                 type="button"
                 className="btn-primary btn-block mt-3"
                 onClick={() => {
-                  setWaveRef(savedWaveRef || waveRef);
-                  setWaveError("");
-                  setShowWaveRef(true);
+                  setReceiptError("");
+                  setShowReceipt(true);
                 }}
               >
-                {savedWaveRef ? t("pay.waveRefEdit") : t("pay.waveRefOpen")}
+                {savedReceipt ? t("receiptUpload.edit") : t("receiptUpload.open")}
               </button>
             </>
           ) : null}
-          {waveError && !showWaveRef ? <p className="text-sm text-ticket mt-3">{waveError}</p> : null}
+          {receiptError && !showReceipt ? <p className="text-sm text-ticket mt-3">{receiptError}</p> : null}
           {payNote ? <p className="whitespace-pre-wrap pay-note mt-4">{payNote}</p> : null}
           {cancelError && !confirmCancel ? <p className="text-sm text-ticket mt-4">{cancelError}</p> : null}
           <div className="mt-6">
@@ -390,21 +388,19 @@ export function EventTicketsPage() {
         </section>
       ) : null}
 
-      {showWaveRef ? (
-        <WaveRefSheet
-          title={t("pay.waveId")}
-          help={t("pay.waveIdHelp")}
-          value={waveRef}
-          placeholder={t("pay.waveIdPlaceholder")}
-          confirmLabel={waveBusy ? t("pay.waveIdSaving") : t("pay.waveIdCta")}
-          cancelLabel={t("pay.waveRefClose")}
-          busy={waveBusy}
-          error={waveError}
-          onChange={setWaveRef}
-          onConfirm={() => submitWaveRef()}
+      {showReceipt ? (
+        <ReceiptUploadSheet
+          title={t("receiptUpload.title")}
+          help={t("receiptUpload.help")}
+          confirmLabel={receiptBusy ? t("receiptUpload.saving") : t("receiptUpload.send")}
+          cancelLabel={t("receiptUpload.close")}
+          busy={receiptBusy}
+          error={receiptError}
+          uploaded={savedReceipt}
+          onConfirm={(file) => submitReceipt(file)}
           onClose={() => {
-            setShowWaveRef(false);
-            setWaveError("");
+            setShowReceipt(false);
+            setReceiptError("");
           }}
         />
       ) : null}

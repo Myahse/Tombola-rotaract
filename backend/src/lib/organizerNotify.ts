@@ -18,11 +18,11 @@ export function notifyOrganizerNewOrder(buyerName: string, quantity: number, pay
   });
 }
 
-export function notifyOrganizerPaymentRef(buyerName: string, paymentRef: string) {
+export function notifyOrganizerReceipt(buyerName: string, kind: "order" | "donation") {
   void sendPushToOrganizers({
-    title: "Identifiant Wave reçu",
-    body: `${buyerName} · ${paymentRef}`,
-    url: "/fr/buyers",
+    title: kind === "order" ? "Reçu de paiement reçu" : "Reçu de don reçu",
+    body: buyerName,
+    url: kind === "order" ? "/fr/buyers" : "/fr/donations",
   });
 }
 

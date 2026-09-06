@@ -8,7 +8,8 @@ import { NumberedTicket, ScratchTicket, StatusPill } from "../components/Scratch
 import { TicketDeck } from "../components/TicketDeck";
 import { PageSkeleton } from "../components/PageSkeleton";
 import { ConfirmModal } from "../components/ConfirmModal";
-import { WaveRefSheet } from "../components/WaveRefSheet";
+import { ReceiptUploadSheet } from "../components/ReceiptUploadSheet";
+import { uploadReceipt } from "../lib/receiptUpload";
 import { useRealtime } from "../useRealtime";
 import { safeWavePayUrl } from "../safeWave";
 import { WaveLogo } from "../components/WaveLogo";
@@ -27,11 +28,10 @@ export function TicketsPage() {
   const [shareBusy, setShareBusy] = useState(false);
   const [shareError, setShareError] = useState("");
   const [shareDone, setShareDone] = useState("");
-  const [waveRef, setWaveRef] = useState("");
-  const [waveBusy, setWaveBusy] = useState(false);
-  const [waveError, setWaveError] = useState("");
-  const [waveDone, setWaveDone] = useState("");
-  const [showWaveRef, setShowWaveRef] = useState(false);
+  const [receiptBusy, setReceiptBusy] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+  const [receiptDone, setReceiptDone] = useState("");
+  const [showReceipt, setShowReceipt] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState("");
@@ -48,7 +48,6 @@ export function TicketsPage() {
       .then((data) => {
         setOrder(data);
         setShareNumbers((data.tickets ?? []).map((ticket) => ticket.number));
-        setWaveRef(data.paymentRef ?? "");
       })
       .catch((err) => {
         const code = err instanceof Error ? err.message : "";
@@ -61,7 +60,6 @@ export function TicketsPage() {
     if (message.type === "public.snapshot" || message.type === "draw.done") {
       api.order(token).then((data) => {
         setOrder(data);
-        if (data.paymentRef) setWaveRef(data.paymentRef);
       }).catch(() => undefined);
     }
   });
@@ -193,28 +191,39 @@ export function TicketsPage() {
     }
   }
 
-  async function submitWaveRef() {
+  async function submitReceipt(file: File) {
     if (!token) return;
-    setWaveBusy(true);
-    setWaveError("");
-    setWaveDone("");
+    setReceiptBusy(true);
+    setReceiptError("");
+    setReceiptDone("");
     try {
-      const result = await api.sendPaymentRef(token, waveRef);
-      setWaveRef(result.paymentRef);
-      setOrder((current) => (current ? { ...current, paymentRef: result.paymentRef } : current));
-      setWaveDone(t("pay.waveIdSaved"));
+      const uploaded = await uploadReceipt("orders", file);
+      const result = await api.sendOrderReceipt(token, {
+        receiptKey: uploaded.key,
+        receiptMime: uploaded.mimeType,
+      });
+      setOrder((current) =>
+        current
+          ? { ...current, receiptKey: result.receiptKey, receiptMime: result.receiptMime, paymentRef: null }
+          : current,
+      );
+      setReceiptDone(t("receiptUpload.sent"));
     } catch (err) {
       const code = err instanceof Error ? err.message : "";
-      setWaveError(
-        code === "invalid_form"
-          ? t("pay.waveIdInvalid")
+      setReceiptError(
+        code === "invalid_form" || code === "receipt_missing"
+          ? t("receiptUpload.invalid")
           : code === "already_paid" || code === "event_locked"
-            ? t("pay.waveIdLocked")
-            : t("errors.generic"),
+            ? t("receiptUpload.locked")
+            : code === "storage_unavailable"
+              ? t("receiptUpload.storageUnavailable")
+              : code === "upload_failed" || code === "too_large" || code === "invalid_type"
+                ? t("receiptUpload.invalid")
+                : t("errors.generic"),
       );
       throw err;
     } finally {
-      setWaveBusy(false);
+      setReceiptBusy(false);
     }
   }
 
@@ -376,29 +385,22 @@ export function TicketsPage() {
             ) : null}
             {!paid ? (
               <>
-                {order.paymentRef ? (
-                  <p className="lede mt-3">
-                    {t("pay.waveId")}: <strong className="wave-ref">{order.paymentRef}</strong>
-                  </p>
-                ) : null}
-                {waveDone && !showWaveRef ? <p className="field-ok mt-3">{waveDone}</p> : null}
+                {order.receiptKey ? <p className="field-ok mt-3">{t("receiptUpload.sent")}</p> : null}
+                {receiptDone && !showReceipt ? <p className="field-ok mt-3">{receiptDone}</p> : null}
                 <button
                   type="button"
                   className="btn-primary btn-block mt-3"
                   onClick={() => {
-                    setWaveRef(order.paymentRef ?? waveRef);
-                    setWaveError("");
-                    setShowWaveRef(true);
+                    setReceiptError("");
+                    setShowReceipt(true);
                   }}
                 >
-                  {order.paymentRef ? t("pay.waveRefEdit") : t("pay.waveRefOpen")}
+                  {order.receiptKey ? t("receiptUpload.edit") : t("receiptUpload.open")}
                 </button>
-                {waveError && !showWaveRef ? <p className="text-sm text-ticket mt-3">{waveError}</p> : null}
+                {receiptError && !showReceipt ? <p className="text-sm text-ticket mt-3">{receiptError}</p> : null}
               </>
-            ) : order.paymentRef ? (
-              <p className="lede mt-3">
-                {t("pay.waveId")}: <strong className="wave-ref">{order.paymentRef}</strong>
-              </p>
+            ) : order.receiptKey ? (
+              <p className="field-ok mt-3">{t("receiptUpload.sent")}</p>
             ) : null}
           </>
         ) : (
@@ -458,21 +460,19 @@ export function TicketsPage() {
           </form>
         </section>
       ) : null}
-      {showWaveRef ? (
-        <WaveRefSheet
-          title={t("pay.waveId")}
-          help={t("pay.waveIdHelp")}
-          value={waveRef}
-          placeholder={t("pay.waveIdPlaceholder")}
-          confirmLabel={waveBusy ? t("pay.waveIdSaving") : t("pay.waveIdCta")}
-          cancelLabel={t("pay.waveRefClose")}
-          busy={waveBusy}
-          error={waveError}
-          onChange={setWaveRef}
-          onConfirm={() => submitWaveRef()}
+      {showReceipt ? (
+        <ReceiptUploadSheet
+          title={t("receiptUpload.title")}
+          help={t("receiptUpload.help")}
+          confirmLabel={receiptBusy ? t("receiptUpload.saving") : t("receiptUpload.send")}
+          cancelLabel={t("receiptUpload.close")}
+          busy={receiptBusy}
+          error={receiptError}
+          uploaded={Boolean(order?.receiptKey)}
+          onConfirm={(file) => submitReceipt(file)}
           onClose={() => {
-            setShowWaveRef(false);
-            setWaveError("");
+            setShowReceipt(false);
+            setReceiptError("");
           }}
         />
       ) : null}

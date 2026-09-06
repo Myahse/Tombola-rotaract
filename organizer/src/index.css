@@ -401,6 +401,11 @@ a:hover { color: var(--primary); }
 .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-ghost { background: transparent; color: var(--muted); }
 .btn-ghost:hover { color: var(--ink); }
+.receipt-link {
+  padding: 0;
+  min-height: 0;
+  font-size: inherit;
+}
 .btn-outline {
   background: transparent;
   color: var(--ink);

@@ -22,6 +22,8 @@ export async function ensureSchema() {
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS avatar_url text`);
   await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_method text NOT NULL DEFAULT 'cash'`);
   await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_ref text`);
+  await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_key text`);
+  await client.unsafe(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS receipt_mime text`);
   await client.unsafe(`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS scratched_at timestamptz`);
   await client.unsafe(`ALTER TABLE events ADD COLUMN IF NOT EXISTS draw_mode text NOT NULL DEFAULT 'scratch'`);
   await client.unsafe(`ALTER TABLE prizes ADD COLUMN IF NOT EXISTS ticket_number integer`);
@@ -130,6 +132,9 @@ export async function ensureSchema() {
     )
   `);
   await client.unsafe(`CREATE INDEX IF NOT EXISTS donations_created_idx ON donations (created_at DESC)`);
+  await client.unsafe(`ALTER TABLE donations ADD COLUMN IF NOT EXISTS receipt_key text`);
+  await client.unsafe(`ALTER TABLE donations ADD COLUMN IF NOT EXISTS receipt_mime text`);
+  await client.unsafe(`ALTER TABLE donations ALTER COLUMN payment_ref DROP NOT NULL`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS email_verified_at timestamptz`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS session_version integer NOT NULL DEFAULT 0`);
   await client.unsafe(`ALTER TABLE members ADD COLUMN IF NOT EXISTS token_version integer NOT NULL DEFAULT 0`);

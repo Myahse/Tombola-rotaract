@@ -84,6 +84,8 @@ export const api = {
   donations: () => request<{ donations: AdminDonation[] }>("/api/admin/donations"),
   markDonationReceived: (id: string) =>
     request<{ donation: AdminDonation }>(`/api/admin/donations/${encodeURIComponent(id)}/received`, { method: "POST" }),
+  receiptUrl: (key: string) =>
+    request<{ url: string }>(`/api/admin/receipts/url?key=${encodeURIComponent(key)}`),
   pushKey: () => request<{ publicKey: string | null }>("/api/admin/push/key"),
   pushStatus: (endpoint?: string) =>
     request<{ configured: boolean; subscribed: boolean }>(

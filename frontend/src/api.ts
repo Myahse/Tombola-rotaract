@@ -78,15 +78,32 @@ export const api = {
   buy: (body: { quantity: number; phone?: string; paymentMethod: "cash" | "wave" }) =>
     withRetry(() => request<OrderView>("/api/orders", { method: "POST", body: JSON.stringify(body) })),
   order: (token: string) => request<OrderView>(`/api/orders/${encodeURIComponent(token)}`),
-  sendPaymentRef: (token: string, paymentRef: string) =>
-    request<{ paymentRef: string }>(`/api/orders/${encodeURIComponent(token)}/payment-ref`, {
+  presignReceipt: (body: {
+    purpose: "orders" | "donations";
+    mimeType: string;
+    size: number;
+    filename?: string;
+  }) =>
+    request<{ key: string; uploadUrl: string }>("/api/receipts/presign", {
       method: "POST",
-      body: JSON.stringify({ paymentRef }),
+      body: JSON.stringify(body),
+    }),
+  sendOrderReceipt: (token: string, body: { receiptKey: string; receiptMime: string }) =>
+    request<{ receiptKey: string; receiptMime: string }>(`/api/orders/${encodeURIComponent(token)}/receipt`, {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
   cancelMyOrder: (token: string) =>
     request<{ ok: boolean }>(`/api/orders/${encodeURIComponent(token)}/cancel`, { method: "POST" }),
-  donate: (body: { name: string; email?: string; phone?: string; amount: number; paymentRef: string }) =>
-    request<{ id: string; paymentRef: string; status: string }>("/api/donations", {
+  donate: (body: {
+    name: string;
+    email?: string;
+    phone?: string;
+    amount: number;
+    receiptKey: string;
+    receiptMime: string;
+  }) =>
+    request<{ id: string; receiptKey: string; receiptMime: string; status: string }>("/api/donations", {
       method: "POST",
       body: JSON.stringify(body),
     }),

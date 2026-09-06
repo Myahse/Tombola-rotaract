@@ -128,6 +128,8 @@ export type AdminOrder = {
   quantity: number;
   paymentMethod?: PaymentMethod;
   paymentRef?: string | null;
+  receiptKey?: string | null;
+  receiptMime?: string | null;
   status: OrderStatus;
   createdAt: string;
   paidAt: string | null;
@@ -141,7 +143,9 @@ export type AdminDonation = {
   donorPhone: string | null;
   amountCents: number;
   paymentMethod: string;
-  paymentRef: string;
+  paymentRef?: string | null;
+  receiptKey?: string | null;
+  receiptMime?: string | null;
   status: "pending" | "received";
   createdAt: string;
   receivedAt: string | null;

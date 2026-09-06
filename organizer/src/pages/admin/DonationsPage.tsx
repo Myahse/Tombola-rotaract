@@ -6,6 +6,7 @@ import type { AdminDonation } from "../../types";
 import { WaveLogo } from "../../components/WaveLogo";
 import { PageSkeleton } from "../../components/PageSkeleton";
 import { ConfirmModal } from "../../components/ConfirmModal";
+import { ReceiptLink } from "../../components/ReceiptLink";
 import { ExportActions } from "../../components/ExportActions";
 import { exportDonationsExcel, exportDonationsPdf } from "../../lib/exportDonations";
 
@@ -115,8 +116,16 @@ export function DonationsPage() {
                     </dd>
                   </div>
                   <div>
-                    <dt>{t("admin.waveId")}</dt>
-                    <dd className="wave-ref">{row.paymentRef}</dd>
+                    <dt>{t("admin.receipt")}</dt>
+                    <dd>
+                      {row.receiptKey ? (
+                        <ReceiptLink receiptKey={row.receiptKey} />
+                      ) : row.paymentRef ? (
+                        <span className="wave-ref">{row.paymentRef}</span>
+                      ) : (
+                        t("admin.receiptWaiting")
+                      )}
+                    </dd>
                   </div>
                 </dl>
                 {row.status === "pending" ? (
@@ -142,7 +151,7 @@ export function DonationsPage() {
                   <th>{t("buy.email")}</th>
                   <th>{t("buy.phone")}</th>
                   <th>{t("admin.amount")}</th>
-                  <th>{t("admin.waveId")}</th>
+                  <th>{t("admin.receipt")}</th>
                   <th>{t("admin.reserved")}</th>
                   <th />
                 </tr>
@@ -154,7 +163,15 @@ export function DonationsPage() {
                     <td className="cell-clip">{row.donorEmail || t("admin.noAccount")}</td>
                     <td>{row.donorPhone ? <a href={`tel:${row.donorPhone}`}>{row.donorPhone}</a> : "—"}</td>
                     <td>{formatMoney(row.amountCents, "XOF", i18n.language)}</td>
-                    <td className="wave-ref">{row.paymentRef}</td>
+                    <td className="wave-ref">
+                      {row.receiptKey ? (
+                        <ReceiptLink receiptKey={row.receiptKey} />
+                      ) : row.paymentRef ? (
+                        row.paymentRef
+                      ) : (
+                        t("admin.receiptWaiting")
+                      )}
+                    </td>
                     <td>
                       <span className={`badge ${row.status === "received" ? "ok" : "wait"}`}>
                         {row.status === "received" ? t("admin.donationReceived") : t("admin.donationPending")}
@@ -185,7 +202,6 @@ export function DonationsPage() {
           body={t("admin.markReceivedBody", {
             name: pending.donorName,
             amount: formatMoney(pending.amountCents, "XOF", i18n.language),
-            ref: pending.paymentRef,
           })}
           confirmLabel={t("admin.markReceived")}
           cancelLabel={t("admin.back")}

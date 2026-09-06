@@ -50,6 +50,8 @@ export type OrderView = {
   quantity: number;
   paymentMethod?: PaymentMethod;
   paymentRef?: string | null;
+  receiptKey?: string | null;
+  receiptMime?: string | null;
   wavePayUrl?: string;
   status: OrderStatus;
   createdAt?: string;
@@ -95,6 +97,8 @@ export type MemberOrder = {
   quantity: number;
   paymentMethod?: PaymentMethod;
   paymentRef?: string | null;
+  receiptKey?: string | null;
+  receiptMime?: string | null;
   createdAt: string;
   paidAt?: string | null;
   tickets: OrderTicket[];
