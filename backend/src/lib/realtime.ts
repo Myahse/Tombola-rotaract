@@ -63,7 +63,7 @@ export function attachRealtime(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws", perMessageDeflate: false });
 
   wss.on("connection", (socket: WebSocket, req: IncomingMessage) => {
-    if (!req.headers.origin || !isAllowedOrigin(req.headers.origin)) {
+    if (req.headers.origin && !isAllowedOrigin(req.headers.origin)) {
       socket.close(1008, "origin_not_allowed");
       return;
     }

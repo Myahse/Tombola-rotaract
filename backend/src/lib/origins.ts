@@ -1,6 +1,6 @@
 const isProd = process.env.NODE_ENV === "production";
 
-const origins = (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:5177")
+const origins = (process.env.CORS_ORIGIN ?? "*")
   .split(",")
   .map((value) => value.trim())
   .filter(Boolean);
@@ -19,6 +19,7 @@ const extraHosts = new Set([
 
 export function isAllowedOrigin(origin: string | undefined) {
   if (!origin) return true;
+  if (origins.includes("*")) return true;
   if (origins.includes(origin)) return true;
   try {
     const url = new URL(origin);
